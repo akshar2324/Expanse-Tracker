@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - AkSpend</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-300 min-h-screen flex flex-col">
+
+    <!-- Navigation Header -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+            <a href="index.html" class="flex items-center space-x-2">
+                <svg class="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span class="text-xl font-bold tracking-tight text-white">AkSpend</span>
+            </a>
+            <a href="index.html" class="text-sm text-slate-400 hover:text-emerald-400 transition-colors">Home Page &rarr;</a>
+        </div>
+    </header>
+
+    <!-- Main Content Panel -->
+    <main class="flex-grow max-w-4xl mx-auto px-6 py-12">
+        <article class="bg-slate-900/50 rounded-2xl border border-slate-800 p-8 sm:p-12 shadow-xl">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-2">Privacy Policy</h1>
+            <p class="text-sm text-slate-400 mb-8">Last Updated: June 3, 2026</p>
+
+            <div class="space-y-8 leading-relaxed text-slate-300">
+                
+                <section>
+                    <h2 class="text-xl font-bold text-white mb-3">1. Introduction</h2>
+                    <p>
+                        Welcome to <strong>AkSpend</strong> ("we," "our," or "us"). We are committed to protecting your personal information and your right to privacy. This Privacy Policy explains our practices regarding any information collected through our Android mobile application.
+                    </p>
+                    <p class="mt-3">
+                        Unlike traditional financial tools, <strong>AkSpend is an offline-first, client-side application</strong>. We put your financial privacy first by keeping your personal transactions and configurations strictly localized on your own physical mobile device.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 class="text-xl font-bold text-white mb-3">2. Core Privacy Principle: Zero External Servers</h2>
+                    <div class="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 my-4">
+                        <strong class="text-emerald-400">Guaranteed Offline Security:</strong> 
+                        We do not run, maintain, or connect to any cloud-based database, tracking dashboard, or storage servers. Your record sheets, savings targets, categorized budgets, and parsed metrics stay within an encrypted, sandboxed database (Room/SQLite) built right inside your Android operating system.
+                    </div>
+                </section>
+
+                <section>
+                    <h2 class="text-xl font-bold text-white mb-3">3. High-Risk Permissions & Local Sensitive Data</h2>
+                    <p>
+                        To deliver modern automatons for expense tracking, our application requests access to certain system permissions. Here is how we handle them:
+                    </p>
+                    <div class="mt-4 space-y-4">
+                        <div class="p-4 rounded-xl border border-slate-800 bg-slate-950/40">
+                            <h3 class="text-emerald-400 font-semibold mb-1">A. SMS Log Processing (SMS Permissions)</h3>
+                            <p class="text-sm">
+                                If you explicitly grant SMS permissions, AkSpend reads dynamic notifications and messages containing transaction updates from financial institutions (e.g., banks, credit cards, UPI alerts). 
+                            </p>
+                            <p class="text-sm mt-2 text-white">
+                                <strong>Important: All processing is 100% local.</strong> The SMS content is processed entirely inside your local device by our algorithm to parse dates, amounts, and descriptions. This raw SMS text is never uploaded to any analytics backend, network endpoint, or third-party service.
+                            </p>
+                        </div>
+                        
+                        <div class="p-4 rounded-xl border border-slate-800 bg-slate-950/40">
+                            <h3 class="text-emerald-400 font-semibold mb-1">B. Local Notification System</h3>
+                            <p class="text-sm">
+                                We utilize notifications to alert you of approaching budgets, transaction reminders, and recurring ledger items. These alarms are queued, scheduled, and triggered strictly on the Android OS level.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 class="text-xl font-bold text-white mb-3">4. Third-Party Services and Analytics</h2>
+                    <p>
+                        Because your application carries zero background telemetry frameworks and does not send requests over the network, no third-party tracking, profiling networks, analytics agencies, or target advertisers ever receive data about your active budgets, account values, or transaction habits.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 class="text-xl font-bold text-white mb-3">5. Data Retention, Backup, and Deletion</h2>
+                    <p>
+                        Since we do not host or back up your data on external clouds:
+                    </p>
+                    <ul class="list-disc list-inside mt-2 space-y-1 text-slate-400 text-sm">
+                        <li>You hold sole ownership and control over your data ledger.</li>
+                        <li>Clearing your application cache or deep-uninstalling AkSpend from your device will permanently erase all local transactions, budget metrics, and histories.</li>
+                        <li>Loss of your physical device means the loss of your ledger state, as we cannot restore records remotely.</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2 class="text-xl font-bold text-white mb-3">6. Children's Privacy</h2>
+                    <p>
+                        Our application is safe for all audiences and does not collect any data from children under the age of 13.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 class="text-xl font-bold text-white mb-3">7. Policy Changes</h2>
+                    <p>
+                        We may update this Privacy Policy over time to reflect any system improvements. Changes will be posted to this page with an updated modification date.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 class="text-xl font-bold text-white mb-3">8. Contact Information</h2>
+                    <p>
+                        If you have any questions, feedback, or concerns regarding your privacy or AkSpend's security model, please contact us at:
+                    </p>
+                    <p class="mt-2 text-emerald-400 font-medium">
+                        Email: <a href="mailto:axar2324@gmail.com" class="underline hover:text-emerald-300">axar2324@gmail.com</a>
+                    </p>
+                </section>
+
+            </div>
+        </article>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-slate-950 py-8">
+        <div class="max-w-4xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between text-sm text-slate-500">
+            <p>&copy; 2026 AkSpend. All rights reserved.</p>
+            <div class="flex space-x-6 mt-4 sm:mt-0">
+                <a href="privacy.html" class="hover:text-slate-300 transition-colors underline">Privacy Policy</a>
+                <a href="terms.html" class="hover:text-slate-300 transition-colors underline">Terms of Service</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
