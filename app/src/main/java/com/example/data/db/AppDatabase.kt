@@ -16,9 +16,10 @@ import com.example.data.model.Transaction
         SavingsGoal::class,
         RecurringTransaction::class,
         com.example.data.model.SmsTemplate::class,
-        com.example.data.model.PendingTransaction::class
+        com.example.data.model.PendingTransaction::class,
+        com.example.data.model.ParsedSmsLog::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

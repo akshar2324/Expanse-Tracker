@@ -1,5 +1,5 @@
 {
-  "name": "Akshar Expenses",
+  "name": "AkSpend",
   "description": "Clean, secure, offline financial ledger, monthly budgets, savings goals, and transaction reminders.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

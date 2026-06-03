@@ -8,6 +8,7 @@ import com.example.data.model.SavingsGoal
 import com.example.data.model.Transaction
 import com.example.data.model.SmsTemplate
 import com.example.data.model.PendingTransaction
+import com.example.data.model.ParsedSmsLog
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -146,5 +147,28 @@ class FinanceRepository(private val financeDao: FinanceDao) {
 
     suspend fun deletePendingTransactionById(id: Long) {
         financeDao.deletePendingTransactionById(id)
+    }
+
+    // --- Parsed SMS Logs ---
+    val allParsedSmsLogs: Flow<List<ParsedSmsLog>> = financeDao.getAllParsedSmsLogs()
+
+    suspend fun insertParsedSmsLog(log: ParsedSmsLog) {
+        financeDao.insertParsedSmsLog(log)
+    }
+
+    suspend fun getParsedSmsLogByBody(smsBody: String): ParsedSmsLog? {
+        return financeDao.getParsedSmsLogByBody(smsBody)
+    }
+
+    suspend fun updateParsedSmsLogStatus(id: Long, status: String, category: String) {
+        financeDao.updateParsedSmsLogStatus(id, status, category)
+    }
+
+    suspend fun updateParsedSmsLogStatusByBody(smsBody: String, status: String, category: String) {
+        financeDao.updateParsedSmsLogStatusByBody(smsBody, status, category)
+    }
+
+    suspend fun clearAllParsedSmsLogs() {
+        financeDao.clearAllParsedSmsLogs()
     }
 }

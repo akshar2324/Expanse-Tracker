@@ -20,7 +20,10 @@ data class Budget(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val category: String,
     val limitAmount: Double,
-    val month: String // format: "YYYY-MM"
+    val month: String, // format: "YYYY-MM", or "YYYY-Www"
+    val frequency: String = "MONTHLY", // "MONTHLY" or "WEEKLY"
+    val remindersEnabled: Boolean = false,
+    val reminderThreshold: Int = 90 // warning percentage, e.g. 90
 )
 
 @Entity(tableName = "savings_goals")
@@ -59,4 +62,16 @@ data class PendingTransaction(
     val smsSender: String,
     val smsBody: String,
     val date: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "parsed_sms_logs")
+data class ParsedSmsLog(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val smsSender: String,
+    val smsBody: String,
+    val amount: Double,
+    val type: String,           // "EXPENSE" or "INCOME"
+    val date: Long,
+    val status: String,         // "PENDING", "CONFIRMED", "IGNORED"
+    val category: String = ""   // Category if confirmed
 )

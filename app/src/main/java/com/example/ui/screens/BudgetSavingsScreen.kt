@@ -45,6 +45,7 @@ fun BudgetSavingsScreen(
 
     // Month strings
     val currentMonthStr = remember { SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date()) }
+    val currentWeekStr = remember { getCurrentWeekKey() }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -114,21 +115,26 @@ fun BudgetSavingsScreen(
 
             if (activeTab == "BUDGETS") {
                 // --- CATEGORY BUDGETS LIST ---
-                if (budgets.isEmpty()) {
+                val activeBudgets = budgets.filter {
+                    (it.frequency == "WEEKLY" && it.month == currentWeekStr) ||
+                    (it.frequency == "MONTHLY" && it.month == currentMonthStr) ||
+                    (it.frequency.isBlank() && it.month == currentMonthStr)
+                }
+
+                if (activeBudgets.isEmpty()) {
                     item {
                         EmptyVisualState(
-                            message = "No monthly budgets set.",
+                            message = "No active budgets found.",
                             subtext = "Tap + to allocate category limits and control expenses!"
                         )
                     }
                 } else {
-                    val filteredBudgets = budgets.filter { it.month == currentMonthStr }
-                    items(filteredBudgets) { budget ->
-                        // Calculate total spent for this category in the current month
+                    items(activeBudgets) { budget ->
+                        // Calculate total spent for this category in the current period
                         val spent = transactions.filter {
                             it.type == "EXPENSE" &&
                                     it.category.equals(budget.category, ignoreCase = true) &&
-                                    isSameMonth(it.date, currentMonthStr)
+                                    (if (budget.frequency == "WEEKLY") isSameWeek(it.date, budget.month) else isSameMonth(it.date, budget.month))
                         }.sumOf { it.amount }
 
                         BudgetRow(
@@ -162,11 +168,20 @@ fun BudgetSavingsScreen(
 
     // --- DIALOG: New Budget Entry ---
     if (showAddBudgetDialog) {
+        val currentWeekKey = remember { getCurrentWeekKey() }
         AddBudgetDialog(
             currentMonth = currentMonthStr,
             onDismiss = { showAddBudgetDialog = false },
-            onConfirm = { cat, lim ->
-                viewModel.addBudget(cat, lim, currentMonthStr)
+            onConfirm = { cat, lim, freq, reminderOn, threshold ->
+                val periodKey = if (freq == "WEEKLY") currentWeekKey else currentMonthStr
+                viewModel.addBudget(
+                    category = cat,
+                    limitAmount = lim,
+                    month = periodKey,
+                    frequency = freq,
+                    remindersEnabled = reminderOn,
+                    reminderThreshold = threshold
+                )
                 showAddBudgetDialog = false
             }
         )
@@ -210,13 +225,14 @@ fun BudgetRow(
     // Threshold coloring
     val barColor = when {
         pct >= 1.0 -> ExpenseRedDark
-        pct >= 0.8 -> AlertOrangeDark
+        pct >= (budget.reminderThreshold / 100.0) -> AlertOrangeDark
         else -> IncomeGreenDark
     }
 
     val warningLabel = when {
-        pct >= 1.0 -> "OVER BUDGET ALERT! ⚠️"
-        pct >= 0.8 -> "Warning! 80% threshold exceeded 🔔"
+        pct >= 1.0 -> "LIMIT EXCEEDED ALERT! ⚠️"
+        budget.remindersEnabled && (pct >= (budget.reminderThreshold / 100.0)) -> "Alert: ${budget.reminderThreshold}% boundary crossed! 🔔"
+        pct >= 0.8 -> "Warning! 80% threshold exceeded"
         else -> "Remaining Budget is stable"
     }
 
@@ -231,11 +247,29 @@ fun BudgetRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(
-                        text = budget.category.uppercase(),
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = budget.category.uppercase(),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        
+                        // Frequency Badge
+                        val freqText = budget.frequency.uppercase().ifEmpty { "MONTHLY" }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = freqText,
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = warningLabel,
                         style = MaterialTheme.typography.labelSmall,
@@ -269,10 +303,11 @@ fun BudgetRow(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Spent: ₹${spent.toInt()}",
+                    text = "Spent: ₹${String.format(Locale.getDefault(), "%.1f", spent)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -280,6 +315,27 @@ fun BudgetRow(
                     text = "Limit: ₹${budget.limitAmount.toInt()}",
                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
                 )
+            }
+
+            if (budget.remindersEnabled) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.NotificationsActive,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = "Watcher Active: Multi-channel warning logs armed below ${budget.reminderThreshold}% spent limit",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    )
+                }
             }
         }
     }
@@ -410,10 +466,13 @@ fun EmptyVisualState(message: String, subtext: String) {
 fun AddBudgetDialog(
     currentMonth: String,
     onDismiss: () -> Unit,
-    onConfirm: (category: String, limit: Double) -> Unit
+    onConfirm: (category: String, limit: Double, frequency: String, remindersEnabled: Boolean, reminderThreshold: Int) -> Unit
 ) {
     var category by remember { mutableStateOf("Food") }
     var limitStr by remember { mutableStateOf("") }
+    var frequency by remember { mutableStateOf("MONTHLY") } // "MONTHLY" or "WEEKLY"
+    var remindersEnabled by remember { mutableStateOf(false) }
+    var reminderThreshold by remember { mutableStateOf(90) }
 
     val categories = remember {
         listOf(
@@ -427,9 +486,45 @@ fun AddBudgetDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create Category Budget") },
+        title = { Text("Create Limit Budget") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                
+                // Frequency Toggle Selector
+                Text("Budget Cycle Period", style = MaterialTheme.typography.labelSmall)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(2.dp)
+                ) {
+                    listOf("MONTHLY", "WEEKLY").forEach { freq ->
+                        val active = frequency == freq
+                        val label = if (freq == "MONTHLY") "Monthly" else "Weekly"
+                        val bg = if (active) MaterialTheme.colorScheme.primary else Color.Transparent
+                        val contentCol = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(bg)
+                                .clickable { frequency = freq }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label, 
+                                style = MaterialTheme.typography.labelLarge,
+                                color = contentCol
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
                 Text("Select Category", style = MaterialTheme.typography.labelSmall)
                 // Dropdown category
                 Box(
@@ -457,7 +552,7 @@ fun AddBudgetDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 OutlinedTextField(
                     value = limitStr,
@@ -467,6 +562,47 @@ fun AddBudgetDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Reminders Toggle Switch
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Enable Threshold Alerts", style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            "Get local notification indicators on crossing limits", 
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                    }
+                    Switch(
+                        checked = remindersEnabled,
+                        onCheckedChange = { remindersEnabled = it }
+                    )
+                }
+
+                if (remindersEnabled) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Warning Threshold Limit", style = MaterialTheme.typography.labelSmall)
+                            Text("${reminderThreshold}% Spent", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                        }
+                        Slider(
+                            value = reminderThreshold.toFloat(),
+                            onValueChange = { reminderThreshold = it.toInt() },
+                            valueRange = 50f..100f,
+                            steps = 9
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
@@ -474,11 +610,11 @@ fun AddBudgetDialog(
                 onClick = {
                     val limit = limitStr.toDoubleOrNull() ?: 0.0
                     if (limit > 0) {
-                        onConfirm(category, limit)
+                        onConfirm(category, limit, frequency, remindersEnabled, reminderThreshold)
                     }
                 }
             ) {
-                Text("Set Budget")
+                Text("Set Budget Limit")
             }
         },
         dismissButton = {
@@ -605,4 +741,19 @@ fun AddSavingsFundsDialog(
 private fun isSameMonth(timestamp: Long, monthYYYYMM: String): Boolean {
     val df = SimpleDateFormat("yyyy-MM", Locale.getDefault())
     return df.format(Date(timestamp)) == monthYYYYMM
+}
+
+private fun getCurrentWeekKey(): String {
+    val cal = Calendar.getInstance()
+    val year = cal.get(Calendar.YEAR)
+    val week = cal.get(Calendar.WEEK_OF_YEAR)
+    return "$year-W$week"
+}
+
+private fun isSameWeek(timestamp: Long, weekKey: String): Boolean {
+    val cal = Calendar.getInstance()
+    cal.timeInMillis = timestamp
+    val year = cal.get(Calendar.YEAR)
+    val week = cal.get(Calendar.WEEK_OF_YEAR)
+    return "$year-W$week" == weekKey
 }

@@ -9,11 +9,11 @@ plugins {
 }
 
 android {
-  namespace = "com.example"
+  namespace = "com.akshar"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "come.akshar"
+    applicationId = "com.akshar.akspend"
     minSdk = 24
     targetSdk = 36
     versionCode = 1

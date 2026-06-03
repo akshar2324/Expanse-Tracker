@@ -1,0 +1,47 @@
+package com.akshar.data.db
+
+import android.content.Context
+import androidx.room.Database
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import com.akshar.data.model.Budget
+import com.akshar.data.model.RecurringTransaction
+import com.akshar.data.model.SavingsGoal
+import com.akshar.data.model.Transaction
+
+@Database(
+    entities = [
+        Transaction::class,
+        Budget::class,
+        SavingsGoal::class,
+        RecurringTransaction::class,
+        com.akshar.data.model.SmsTemplate::class,
+        com.akshar.data.model.PendingTransaction::class,
+        com.akshar.data.model.ParsedSmsLog::class
+    ],
+    version = 3,
+    exportSchema = false
+)
+abstract class AppDatabase : RoomDatabase() {
+
+    abstract fun financeDao(): FinanceDao
+
+    companion object {
+        @Volatile
+        private var INSTANCE: AppDatabase? = null
+
+        fun getInstance(context: Context): AppDatabase {
+            return INSTANCE ?: synchronized(this) {
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    AppDatabase::class.java,
+                    "expense_tracker_pro_db"
+                )
+                .fallbackToDestructiveMigration() // Simple approach for developments
+                .build()
+                INSTANCE = instance
+                instance
+            }
+        }
+    }
+}

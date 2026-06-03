@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "123456789012",
-    "project_id": "akshar-expenses-placeholder",
-    "storage_bucket": "akshar-expenses-placeholder.appspot.com"
+    "project_number": "756261294721",
+    "project_id": "expense-tracker-pro-d8060",
+    "storage_bucket": "expense-tracker-pro-d8060.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:123456789012:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:756261294721:android:eb9d67489ab1f92c95f380",
         "android_client_info": {
-          "package_name": "come.akshar"
+          "package_name": "com.akshar.akspend"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyPlaceholderKey-1234567890"
+          "current_key": "AIzaSyDjkQcEnSCI13Sk19V6avDt6D7Yy89on3M"
         }
       ],
       "services": {
@@ -25,5 +25,5 @@
       }
     }
   ],
-  "configuration_version": "3"
+  "configuration_version": "1"
 }

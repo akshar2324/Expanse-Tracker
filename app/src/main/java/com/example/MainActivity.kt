@@ -47,9 +47,17 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         
-        // Attempt trigger right on activity start
-        tryLaunchBiometric {
+        val sharedPrefs = getSharedPreferences("vault_settings", android.content.Context.MODE_PRIVATE)
+        val vaultEnabled = sharedPrefs.getBoolean("vault_enabled", true)
+        val vaultBiometrics = sharedPrefs.getBoolean("vault_biometrics", true)
+
+        if (!vaultEnabled) {
             isUnlockedState.value = true
+        } else if (vaultBiometrics) {
+            // Attempt trigger right on activity start if biometrics enabled
+            tryLaunchBiometric {
+                isUnlockedState.value = true
+            }
         }
 
         setContent {
@@ -57,11 +65,17 @@ class MainActivity : FragmentActivity() {
                 val viewModel: FinanceViewModel = viewModel()
                 val isUnlocked by remember { isUnlockedState }
 
+                val dynamicPrefs = remember { getSharedPreferences("vault_settings", android.content.Context.MODE_PRIVATE) }
+                val correctPin = remember(isUnlocked) { dynamicPrefs.getString("vault_pin", "1234") ?: "1234" }
+                val useBiometrics = remember(isUnlocked) { dynamicPrefs.getBoolean("vault_biometrics", true) }
+
                 Box(modifier = Modifier.fillMaxSize()) {
                     if (isUnlocked) {
                         AppScaffold(viewModel = viewModel)
                     } else {
                         LockScreen(
+                            correctPin = correctPin,
+                            useBiometrics = useBiometrics,
                             onUnlockSuccess = { isUnlockedState.value = true },
                             onTriggerBiometric = {
                                 tryLaunchBiometric {
@@ -219,12 +233,13 @@ data class NavigationTabItem(
 
 @Composable
 fun LockScreen(
+    correctPin: String,
+    useBiometrics: Boolean,
     onUnlockSuccess: () -> Unit,
     onTriggerBiometric: () -> Unit
 ) {
     var pinInput by remember { mutableStateOf("") }
     var showError by remember { mutableStateOf(false) }
-    val correctPin = "1234"
 
     fun handleNumberClick(num: String) {
         if (pinInput.length < 4) {
@@ -325,7 +340,7 @@ fun LockScreen(
                     )
                 } else {
                     Text(
-                        text = "Enter Code (Default: 1234)",
+                        text = if (correctPin == "1234") "Enter Code (Default: 1234)" else "Enter 4-Digit Security Code",
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -364,17 +379,21 @@ fun LockScreen(
                                     )
                                 }
                             } else if (char == "FINGERPRINT") {
-                                IconButton(
-                                    onClick = { onTriggerBiometric() },
-                                    modifier = Modifier
-                                        .size(72.dp)
-                                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Fingerprint,
-                                        contentDescription = "Biometric Lock",
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
+                                if (useBiometrics) {
+                                    IconButton(
+                                        onClick = { onTriggerBiometric() },
+                                        modifier = Modifier
+                                            .size(72.dp)
+                                            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Fingerprint,
+                                            contentDescription = "Biometric Lock",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                } else {
+                                    Spacer(modifier = Modifier.size(72.dp))
                                 }
                             } else {
                                 Box(

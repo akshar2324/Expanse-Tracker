@@ -7,6 +7,7 @@ import com.example.data.model.SavingsGoal
 import com.example.data.model.Transaction
 import com.example.data.model.SmsTemplate
 import com.example.data.model.PendingTransaction
+import com.example.data.model.ParsedSmsLog
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -92,4 +93,23 @@ interface FinanceDao {
 
     @Query("DELETE FROM pending_transactions WHERE id = :id")
     suspend fun deletePendingTransactionById(id: Long)
+
+    // --- Parsed SMS Logs ---
+    @Query("SELECT * FROM parsed_sms_logs ORDER BY date DESC")
+    fun getAllParsedSmsLogs(): Flow<List<ParsedSmsLog>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertParsedSmsLog(log: ParsedSmsLog)
+
+    @Query("SELECT * FROM parsed_sms_logs WHERE smsBody = :smsBody LIMIT 1")
+    suspend fun getParsedSmsLogByBody(smsBody: String): ParsedSmsLog?
+
+    @Query("UPDATE parsed_sms_logs SET status = :status, category = :category WHERE id = :id")
+    suspend fun updateParsedSmsLogStatus(id: Long, status: String, category: String)
+
+    @Query("UPDATE parsed_sms_logs SET status = :status, category = :category WHERE smsBody = :smsBody")
+    suspend fun updateParsedSmsLogStatusByBody(smsBody: String, status: String, category: String)
+
+    @Query("DELETE FROM parsed_sms_logs")
+    suspend fun clearAllParsedSmsLogs()
 }

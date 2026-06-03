@@ -11,6 +11,7 @@ import com.example.data.model.SavingsGoal
 import com.example.data.model.Transaction
 import com.example.data.model.SmsTemplate
 import com.example.data.model.PendingTransaction
+import com.example.data.model.ParsedSmsLog
 import com.example.data.repository.FinanceRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -42,6 +43,9 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allPendingTransactions: StateFlow<List<PendingTransaction>> = repository.allPendingTransactions
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allParsedSmsLogs: StateFlow<List<ParsedSmsLog>> = repository.allParsedSmsLogs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // --- Backup & Restore UI Feedback States ---
@@ -80,12 +84,20 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 )
             )
             repository.deletePendingTransaction(pending)
+            repository.updateParsedSmsLogStatusByBody(pending.smsBody, "CONFIRMED", category)
         }
     }
 
     fun deletePendingTransaction(pending: PendingTransaction) {
         viewModelScope.launch {
             repository.deletePendingTransaction(pending)
+            repository.updateParsedSmsLogStatusByBody(pending.smsBody, "IGNORED", "")
+        }
+    }
+
+    fun clearAllSmsLogs() {
+        viewModelScope.launch {
+            repository.clearAllParsedSmsLogs()
         }
     }
 
@@ -124,14 +136,34 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // --- CRUD: Budgets ---
-    fun addBudget(category: String, limitAmount: Double, month: String) {
+    fun addBudget(
+        category: String,
+        limitAmount: Double,
+        month: String,
+        frequency: String = "MONTHLY",
+        remindersEnabled: Boolean = false,
+        reminderThreshold: Int = 90
+    ) {
         viewModelScope.launch {
-            // Check if budget for this month & category already exists
-            val current = allBudgets.value.firstOrNull { it.category == category && it.month == month }
+            // Check if budget for this month & category & frequency already exists
+            val current = allBudgets.value.firstOrNull { 
+                it.category == category && it.month == month && it.frequency == frequency 
+            }
             val budget = if (current != null) {
-                current.copy(limitAmount = limitAmount)
+                current.copy(
+                    limitAmount = limitAmount,
+                    remindersEnabled = remindersEnabled,
+                    reminderThreshold = reminderThreshold
+                )
             } else {
-                Budget(category = category, limitAmount = limitAmount, month = month)
+                Budget(
+                    category = category, 
+                    limitAmount = limitAmount, 
+                    month = month,
+                    frequency = frequency,
+                    remindersEnabled = remindersEnabled,
+                    reminderThreshold = reminderThreshold
+                )
             }
             repository.insertBudget(budget)
         }

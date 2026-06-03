@@ -8,6 +8,7 @@ import android.util.Log
 import com.example.ExpenseTrackerApp
 import com.example.data.model.PendingTransaction
 import com.example.data.model.SmsTemplate
+import com.example.data.model.ParsedSmsLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -47,11 +48,21 @@ class SmsReceiver : BroadcastReceiver() {
                         val sender = sms.originatingAddress ?: "Unknown"
                         parseSms(body, sender, templates) { amount, type ->
                             appScope.launch {
+                                val timestamp = System.currentTimeMillis()
                                 repo.insertPendingTransaction(PendingTransaction(
                                     amount = amount,
                                     type = type,
                                     smsSender = sender,
-                                    smsBody = body
+                                    smsBody = body,
+                                    date = timestamp
+                                ))
+                                repo.insertParsedSmsLog(ParsedSmsLog(
+                                    smsSender = sender,
+                                    smsBody = body,
+                                    amount = amount,
+                                    type = type,
+                                    date = timestamp,
+                                    status = "PENDING"
                                 ))
                             }
                         }

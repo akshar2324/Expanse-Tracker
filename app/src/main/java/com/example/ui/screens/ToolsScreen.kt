@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.RecurringTransaction
 import com.example.data.model.Transaction
 import com.example.data.model.SmsTemplate
+import com.example.data.model.ParsedSmsLog
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.FinanceViewModel
 import java.text.SimpleDateFormat
@@ -87,6 +89,7 @@ fun ToolsScreen(
                     listOf(
                         "RECURRING" to "Reminders",
                         "UPISMS" to "UPI SMS",
+                        "VAULT" to "Vault",
                         "REPORTS" to "Reports",
                         "BACKUP" to "Backup"
                     ).forEach { (toolId, tabLabel) ->
@@ -228,6 +231,7 @@ fun ToolsScreen(
                 // --- SMS UPI Auto Parsing configs ---
                 "UPISMS" -> {
                     val smsTemplates by viewModel.allSmsTemplates.collectAsState()
+                    val parsedSmsLogs by viewModel.allParsedSmsLogs.collectAsState()
                     
                     var creditKeywordsInput by remember { mutableStateOf("") }
                     var creditExampleInput by remember { mutableStateOf("") }
@@ -371,6 +375,325 @@ fun ToolsScreen(
                             Icon(Icons.Default.Save, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Save Configurations", fontWeight = FontWeight.Bold)
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Divider(color = MaterialTheme.colorScheme.outlineVariant)
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.ReceiptLong,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "SMS Parse History Log",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
+                            if (parsedSmsLogs.isNotEmpty()) {
+                                TextButton(onClick = { viewModel.clearAllSmsLogs() }) {
+                                    Text("Clear All Logs", color = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        }
+
+                        if (parsedSmsLogs.isEmpty()) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(24.dp).fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.SmsFailed,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "No parsed notifications recorded yet.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                    )
+                                }
+                            }
+                        } else {
+                            parsedSmsLogs.forEach { log ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "Sender: ${log.smsSender}",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                                            )
+                                            
+                                            // Status Badge
+                                            val badgeColor = when (log.status) {
+                                                "CONFIRMED" -> IncomeGreen.copy(alpha = 0.15f)
+                                                "IGNORED" -> MaterialTheme.colorScheme.surfaceVariant
+                                                else -> AlertOrangeDark.copy(alpha = 0.15f)
+                                            }
+                                            val badgeTextCol = when (log.status) {
+                                                "CONFIRMED" -> IncomeGreenDark
+                                                "IGNORED" -> MaterialTheme.colorScheme.onSurfaceVariant
+                                                else -> AlertOrangeDark
+                                            }
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(badgeColor)
+                                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = log.status,
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                    color = badgeTextCol
+                                                )
+                                            }
+                                        }
+                                        
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                                                .padding(10.dp)
+                                        ) {
+                                            Text(
+                                                text = log.smsBody,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                        
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            val formattedDate = SimpleDateFormat("MMM dd, yyyy - hh:mm a", Locale.getDefault()).format(Date(log.date))
+                                            Text(
+                                                text = formattedDate,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                            )
+                                            
+                                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = if (log.type == "EXPENSE") "Debit" else "Credit",
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                    color = if (log.type == "EXPENSE") ExpenseRed else IncomeGreen
+                                                )
+                                                Text(
+                                                    text = "₹${String.format(Locale.getDefault(), "%.2f", log.amount)}",
+                                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                                    color = if (log.type == "EXPENSE") ExpenseRed else IncomeGreen
+                                                )
+                                            }
+                                        }
+                                        
+                                        if (log.status == "CONFIRMED" && log.category.isNotEmpty()) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "Assigned Category: ${log.category}",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // --- security settings (Finance Vault) ---
+                "VAULT" -> {
+                    val sharedPrefs = remember { context.getSharedPreferences("vault_settings", android.content.Context.MODE_PRIVATE) }
+                    var vaultEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("vault_enabled", true)) }
+                    var vaultBiometrics by remember { mutableStateOf(sharedPrefs.getBoolean("vault_biometrics", true)) }
+                    var actualPin by remember { mutableStateOf(sharedPrefs.getString("vault_pin", "1234") ?: "1234") }
+
+                    var pinChangeInput by remember { mutableStateOf("") }
+                    var confirmPinInput by remember { mutableStateOf("") }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Shield,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Advanced Security & Vault",
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Maintain privacy for your transactions and bank statement records. Toggle access checks and set custom authentication PIN codes below.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+
+                        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text(
+                                    text = "Authentication Methods",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1.0f)) {
+                                        Text("Enable App Secure Lock", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                        Text("Requires lock screens check on opening the app.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                                    }
+                                    Switch(
+                                        checked = vaultEnabled,
+                                        onCheckedChange = { checked ->
+                                            vaultEnabled = checked
+                                            sharedPrefs.edit().putBoolean("vault_enabled", checked).apply()
+                                            Toast.makeText(context, if (checked) "Secure lock enabled!" else "Secure lock disabled!", Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
+                                }
+
+                                Divider()
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1.0f)) {
+                                        Text("Enable Biometric Fingerprint", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                        Text("Accept fingerprint scanner verification as instant passcode shortcut.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                                    }
+                                    Switch(
+                                        checked = vaultBiometrics,
+                                        enabled = vaultEnabled,
+                                        onCheckedChange = { checked ->
+                                            vaultBiometrics = checked
+                                            sharedPrefs.edit().putBoolean("vault_biometrics", checked).apply()
+                                            Toast.makeText(context, if (checked) "Biometrics integrated!" else "Biometrics omitted.", Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        AnimatedVisibility(visible = vaultEnabled) {
+                            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Text(
+                                        text = "Reset Vault passcode",
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+
+                                    Text(
+                                        text = "Current PIN: ****",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+
+                                    OutlinedTextField(
+                                        value = pinChangeInput,
+                                        onValueChange = { input ->
+                                            if (input.length <= 4 && input.all { it.isDigit() }) {
+                                                pinChangeInput = input
+                                            }
+                                        },
+                                        label = { Text("New 4-Digit Passcode") },
+                                        placeholder = { Text("Enter 4 numbers") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true
+                                    )
+
+                                    OutlinedTextField(
+                                        value = confirmPinInput,
+                                        onValueChange = { input ->
+                                            if (input.length <= 4 && input.all { it.isDigit() }) {
+                                                confirmPinInput = input
+                                            }
+                                        },
+                                        label = { Text("Confirm New Passcode") },
+                                        placeholder = { Text("Re-enter 4 numbers") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true
+                                    )
+
+                                    Button(
+                                        onClick = {
+                                            if (pinChangeInput.length != 4) {
+                                                Toast.makeText(context, "PIN must be exactly 4 digits!", Toast.LENGTH_SHORT).show()
+                                            } else if (pinChangeInput != confirmPinInput) {
+                                                Toast.makeText(context, "PINs do not match!", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                actualPin = pinChangeInput
+                                                sharedPrefs.edit().putString("vault_pin", pinChangeInput).apply()
+                                                pinChangeInput = ""
+                                                confirmPinInput = ""
+                                                Toast.makeText(context, "Security passcode updated successfully!", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp)
+                                    ) {
+                                        Icon(Icons.Default.VpnKey, contentDescription = null)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Save New passcode")
+                                    }
+                                }
+                            }
                         }
                     }
                 }
