@@ -43,3 +43,20 @@ data class RecurringTransaction(
     val paymentMethod: String = "Cash",
     val lastTriggered: Long = 0 // timestamp of last auto-generation
 )
+
+@Entity(tableName = "sms_templates")
+data class SmsTemplate(
+    @PrimaryKey val id: String, // "CREDIT" or "DEBIT"
+    val exampleText: String,    // The message text fed by user
+    val keywords: String        // Derived keywords for parsing
+)
+
+@Entity(tableName = "pending_transactions")
+data class PendingTransaction(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val amount: Double,
+    val type: String,           // "EXPENSE" (debit) or "INCOME" (credit)
+    val smsSender: String,
+    val smsBody: String,
+    val date: Long = System.currentTimeMillis()
+)

@@ -5,11 +5,12 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ExpenseTrackerApp
-import com.example.ai.GeminiClient
 import com.example.data.model.Budget
 import com.example.data.model.RecurringTransaction
 import com.example.data.model.SavingsGoal
 import com.example.data.model.Transaction
+import com.example.data.model.SmsTemplate
+import com.example.data.model.PendingTransaction
 import com.example.data.repository.FinanceRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -37,12 +38,11 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     val allRecurringTransactions: StateFlow<List<RecurringTransaction>> = repository.allRecurringTransactions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // --- AI Spending Analysis States ---
-    private val _aiAnalysis = MutableStateFlow<String>("")
-    val aiAnalysis: StateFlow<String> = _aiAnalysis.asStateFlow()
+    val allSmsTemplates: StateFlow<List<SmsTemplate>> = repository.allSmsTemplates
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _aiLoading = MutableStateFlow(false)
-    val aiLoading: StateFlow<Boolean> = _aiLoading.asStateFlow()
+    val allPendingTransactions: StateFlow<List<PendingTransaction>> = repository.allPendingTransactions
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // --- Backup & Restore UI Feedback States ---
     private val _backupStatus = MutableStateFlow("")
@@ -52,6 +52,40 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         // Trigger auto-processing of recurring entries when model is loaded
         viewModelScope.launch {
             repository.autoProcessRecurringTransactions()
+        }
+    }
+
+    // --- SMS Parser Configurations and Actions ---
+    fun updateSmsTemplate(id: String, exampleText: String, keywords: String) {
+        viewModelScope.launch {
+            repository.insertSmsTemplate(SmsTemplate(id = id, exampleText = exampleText, keywords = keywords))
+        }
+    }
+
+    fun confirmPendingTransaction(
+        pending: PendingTransaction,
+        category: String,
+        description: String,
+        paymentMethod: String = "UPI/SMS"
+    ) {
+        viewModelScope.launch {
+            repository.insertTransaction(
+                Transaction(
+                    amount = pending.amount,
+                    type = pending.type,
+                    category = category,
+                    description = description,
+                    date = pending.date,
+                    paymentMethod = paymentMethod
+                )
+            )
+            repository.deletePendingTransaction(pending)
+        }
+    }
+
+    fun deletePendingTransaction(pending: PendingTransaction) {
+        viewModelScope.launch {
+            repository.deletePendingTransaction(pending)
         }
     }
 
@@ -164,50 +198,33 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // --- Advanced Features: AI Spending Analysis with fallback engine ---
-    fun runAiSpendingAnalysis() {
+    // --- Bill Reminders & Payments ---
+    fun triggerRecurringPayment(recurring: RecurringTransaction) {
         viewModelScope.launch {
-            _aiLoading.value = true
-            try {
-                // Compile transaction insights
-                val txs = allTransactions.value
-                val expenses = txs.filter { it.type == "EXPENSE" }
-                val incomes = txs.filter { it.type == "INCOME" }
-
-                val currentMonth = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date())
-                val monthlySpent = expenses.sumOf { it.amount }
-                val monthlyIncome = incomes.sumOf { it.amount }
-
-                val highestExpense = expenses.maxByOrNull { it.amount }
-                val topCategory = expenses.groupBy { it.category }
-                    .mapValues { entry -> entry.value.sumOf { it.amount } }
-                    .maxByOrNull { it.value }
-
-                val prompt = """
-                    You are an expert AI Personal Finance Advisor analyzing transactions for the application 'Expense Tracker Pro'.
-                    Below is the user's financial log data:
-                    - Total transactions: ${txs.size}
-                    - Total Income: ₹$monthlyIncome
-                    - Total Expense: ₹$monthlySpent
-                    - Net Savings Rate: ${if (monthlyIncome > 0) ((monthlyIncome - monthlySpent) / monthlyIncome * 100).toInt() else 0}%
-                    - Highest individual expense item: ${highestExpense?.category ?: "None"} with value ₹${highestExpense?.amount ?: 0}
-                    - Highest expense category: ${topCategory?.key ?: "None"} with value ₹${topCategory?.value ?: 0}
-                    
-                    Please generate 3 sections of constructive, professional advice:
-                    1. AI Spending Analysis (Analyze current leaks, balance patterns, overspending signs based on limits).
-                    2. Smart Recommendations (Practical adjustments like 'Reduce ${topCategory?.key ?: "dining"} expenses to save ₹1500').
-                    3. Future Expense Predictions (Based on these transactions, predict estimated monthly expenses under similar trends).
-                    
-                    Return in clear, beautifully-formatted plain English text without system codes. Use bullet points.
-                """.trimIndent()
-
-                val result = GeminiClient.generateAnalysis(prompt)
-                _aiAnalysis.value = result
-            } catch (e: Exception) {
-                _aiAnalysis.value = "Unable to fetch AI suggestions due to: ${e.message}"
-            } finally {
-                _aiLoading.value = false
+            val now = System.currentTimeMillis()
+            val tx = Transaction(
+                amount = recurring.amount,
+                type = recurring.type,
+                category = recurring.category,
+                description = "${recurring.description} (Paid Bill)",
+                date = now,
+                paymentMethod = recurring.paymentMethod
+            )
+            repository.insertTransaction(tx)
+            
+            // Calculate next trigger time accurately
+            val cal = Calendar.getInstance().apply { timeInMillis = recurring.lastTriggered }
+            when (recurring.frequency.uppercase()) {
+                "DAILY" -> cal.add(Calendar.DAY_OF_YEAR, 1)
+                "WEEKLY" -> cal.add(Calendar.WEEK_OF_YEAR, 1)
+                "MONTHLY" -> cal.add(Calendar.MONTH, 1)
+                "YEARLY" -> cal.add(Calendar.YEAR, 1)
+                else -> cal.add(Calendar.MONTH, 1)
             }
+            val nextDueDate = cal.timeInMillis
+
+            val updated = recurring.copy(lastTriggered = nextDueDate)
+            repository.insertRecurringTransaction(updated)
         }
     }
 

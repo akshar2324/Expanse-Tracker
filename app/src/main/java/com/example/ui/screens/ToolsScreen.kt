@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -29,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.RecurringTransaction
 import com.example.data.model.Transaction
+import com.example.data.model.SmsTemplate
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.FinanceViewModel
 import java.text.SimpleDateFormat
@@ -43,14 +45,12 @@ fun ToolsScreen(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
 
-    val aiAnalysis by viewModel.aiAnalysis.collectAsState()
-    val aiLoading by viewModel.aiLoading.collectAsState()
     val backupStatus by viewModel.backupStatus.collectAsState()
 
     val recurringList by viewModel.allRecurringTransactions.collectAsState()
     val transactions by viewModel.allTransactions.collectAsState()
 
-    var activeSubTool by remember { mutableStateOf("AI_RECOMMEND") } // "AI_RECOMMEND", "RECURRING", "REPORTS", "BACKUP"
+    var activeSubTool by remember { mutableStateOf("RECURRING") } // "RECURRING", "REPORTS", "BACKUP"
 
     // Dialog & Form states
     var showAddRecurringDialog by remember { mutableStateOf(false) }
@@ -66,11 +66,13 @@ fun ToolsScreen(
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
                 CenterAlignedTopAppBar(
-                    title = { Text("Financial Toolkit & AI", fontWeight = FontWeight.Bold) },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
+                    title = { Text("Tools & Reminders", fontWeight = FontWeight.Bold) },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent),
+                    windowInsets = WindowInsets(0.dp)
                 )
 
                 // Tool selection row
@@ -83,8 +85,8 @@ fun ToolsScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     listOf(
-                        "AI_RECOMMEND" to "AI",
-                        "RECURRING" to "Recurring",
+                        "RECURRING" to "Reminders",
+                        "UPISMS" to "UPI SMS",
                         "REPORTS" to "Reports",
                         "BACKUP" to "Backup"
                     ).forEach { (toolId, tabLabel) ->
@@ -123,103 +125,7 @@ fun ToolsScreen(
         ) {
 
             when (activeSubTool) {
-                // --- 1. AI Insights Hub ---
-                "AI_RECOMMEND" -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.AutoAwesome,
-                                        contentDescription = "AI",
-                                        tint = AnalyticsBlueDark,
-                                        modifier = Modifier.size(28.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = "AI Spending Advisor",
-                                        fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.titleMedium
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Analyze your expense leaks, get savings predictions, and active financial counseling directly via Gemini AI model.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                                )
-                            }
-                        }
-
-                        Button(
-                            onClick = { viewModel.runAiSpendingAnalysis() },
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            enabled = !aiLoading
-                        ) {
-                            if (aiLoading) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-                            } else {
-                                Icon(Icons.Default.Psychology, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Generate Smart Insights")
-                            }
-                        }
-
-                        Card(
-                            modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    text = "Analysis Statement Output",
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                if (aiAnalysis.isEmpty()) {
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.ChatBubbleOutline,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
-                                            modifier = Modifier.size(44.dp)
-                                        )
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(
-                                            text = "Press generate to run analysis.",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                                        )
-                                    }
-                                } else {
-                                    SelectionContainer {
-                                        Text(
-                                            text = aiAnalysis,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            lineHeight = 22.sp
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // --- 2. Recurring Transactions ---
+                // --- 1. Recurring Transactions ---
                 "RECURRING" -> {
                     Column(
                         modifier = Modifier
@@ -315,6 +221,156 @@ fun ToolsScreen(
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+
+                // --- SMS UPI Auto Parsing configs ---
+                "UPISMS" -> {
+                    val smsTemplates by viewModel.allSmsTemplates.collectAsState()
+                    
+                    var creditKeywordsInput by remember { mutableStateOf("") }
+                    var creditExampleInput by remember { mutableStateOf("") }
+                    var debitKeywordsInput by remember { mutableStateOf("") }
+                    var debitExampleInput by remember { mutableStateOf("") }
+
+                    // Pre-fill fields when loaded
+                    LaunchedEffect(smsTemplates) {
+                        smsTemplates.find { it.id == "CREDIT" }?.let {
+                            creditKeywordsInput = it.keywords
+                            creditExampleInput = it.exampleText
+                        }
+                        smsTemplates.find { it.id == "DEBIT" }?.let {
+                            debitKeywordsInput = it.keywords
+                            debitExampleInput = it.exampleText
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Sms,
+                                        contentDescription = null,
+                                        tint = AlertOrangeDark,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "UPI SMS Auto-Reader",
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Define words and bank formatted SMS lines to automatically parse transaction details in the background. Tap 'Save Configurations' to update.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+
+                        // Credit Card Form
+                        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .background(IncomeGreen.copy(alpha = 0.2f), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.TrendingUp, contentDescription = null, tint = IncomeGreen, modifier = Modifier.size(18.dp))
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text("Credit / Income SMS Patterns", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                                }
+
+                                Text("Keywords (comma-separated)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                OutlinedTextField(
+                                    value = creditKeywordsInput,
+                                    onValueChange = { creditKeywordsInput = it },
+                                    placeholder = { Text("credited, deposited, added, received") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+
+                                Text("Example SMS Text (to reference format)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                OutlinedTextField(
+                                    value = creditExampleInput,
+                                    onValueChange = { creditExampleInput = it },
+                                    placeholder = { Text("Your account XX2432 is credited with INR 500.00") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    minLines = 2
+                                )
+                            }
+                        }
+
+                        // Debit Card Form
+                        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .background(ExpenseRed.copy(alpha = 0.2f), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.TrendingDown, contentDescription = null, tint = ExpenseRed, modifier = Modifier.size(18.dp))
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text("Debit / Expense SMS Patterns", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                                }
+
+                                Text("Keywords (comma-separated)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                OutlinedTextField(
+                                    value = debitKeywordsInput,
+                                    onValueChange = { debitKeywordsInput = it },
+                                    placeholder = { Text("debited, spent, paid, charged") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+
+                                Text("Example SMS Text (to reference format)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                OutlinedTextField(
+                                    value = debitExampleInput,
+                                    onValueChange = { debitExampleInput = it },
+                                    placeholder = { Text("Your account XX2432 is debited by Rs.1500.00") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    minLines = 2
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                val creditKw = creditKeywordsInput.ifBlank { "credited, deposited, added, received" }
+                                val creditEx = creditExampleInput.ifBlank { "Your a/c XX2432 is credited with INR 500.00 on 03-Jun" }
+                                val debitKw = debitKeywordsInput.ifBlank { "debited, paid, spent, sent, charged, deduction" }
+                                val debitEx = debitExampleInput.ifBlank { "Your a/c XX2432 is debited by Rs.1500.00 on 03-Jun" }
+                                
+                                viewModel.updateSmsTemplate("CREDIT", creditEx, creditKw)
+                                viewModel.updateSmsTemplate("DEBIT", debitEx, debitKw)
+                                Toast.makeText(context, "Configurations saved! Background parser updated.", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                        ) {
+                            Icon(Icons.Default.Save, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Save Configurations", fontWeight = FontWeight.Bold)
                         }
                     }
                 }

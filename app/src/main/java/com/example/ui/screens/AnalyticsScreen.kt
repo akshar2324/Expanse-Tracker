@@ -47,11 +47,13 @@ fun AnalyticsScreen(
     val incomes = transactions.filter { it.type == "INCOME" }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
                 CenterAlignedTopAppBar(
                     title = { Text("Financial Analytics", fontWeight = FontWeight.Bold) },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent),
+                    windowInsets = WindowInsets(0.dp)
                 )
 
                 // Tab selectors

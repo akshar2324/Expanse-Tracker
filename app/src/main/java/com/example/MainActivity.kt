@@ -1,24 +1,34 @@
 package com.example
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.FormatListBulleted
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -29,15 +39,73 @@ import com.example.ui.screens.*
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.FinanceViewModel
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
+    
+    private var isUnlockedState = mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        // Attempt trigger right on activity start
+        tryLaunchBiometric {
+            isUnlockedState.value = true
+        }
+
         setContent {
             MyApplicationTheme {
                 val viewModel: FinanceViewModel = viewModel()
-                AppScaffold(viewModel = viewModel)
+                val isUnlocked by remember { isUnlockedState }
+
+                Box(modifier = Modifier.fillMaxSize()) {
+                    if (isUnlocked) {
+                        AppScaffold(viewModel = viewModel)
+                    } else {
+                        LockScreen(
+                            onUnlockSuccess = { isUnlockedState.value = true },
+                            onTriggerBiometric = {
+                                tryLaunchBiometric {
+                                    isUnlockedState.value = true
+                                }
+                            }
+                        )
+                    }
+                }
             }
+        }
+    }
+
+    private fun tryLaunchBiometric(onSuccess: () -> Unit) {
+        val executor = ContextCompat.getMainExecutor(this)
+        val biometricPrompt = BiometricPrompt(this, executor,
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    super.onAuthenticationError(errorCode, errString)
+                    Log.d("MainActivity", "Biometric auth error: $errString ($errorCode)")
+                }
+
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    super.onAuthenticationSucceeded(result)
+                    onSuccess()
+                }
+
+                override fun onAuthenticationFailed() {
+                    super.onAuthenticationFailed()
+                    Log.d("MainActivity", "Biometric auth failed")
+                }
+            })
+
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Unlock Finance Ledger")
+            .setSubtitle("Verify identity to view your secure transactions")
+            .setNegativeButtonText("Use Passcode")
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            .build()
+
+        try {
+            biometricPrompt.authenticate(promptInfo)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error launching Biometric prompting: ${e.message}")
         }
     }
 }
@@ -64,6 +132,7 @@ fun AppScaffold(viewModel: FinanceViewModel) {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0.dp),
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar(
@@ -148,3 +217,188 @@ data class NavigationTabItem(
     val label: String,
     val icon: androidx.compose.ui.graphics.vector.ImageVector
 )
+
+@Composable
+fun LockScreen(
+    onUnlockSuccess: () -> Unit,
+    onTriggerBiometric: () -> Unit
+) {
+    var pinInput by remember { mutableStateOf("") }
+    var showError by remember { mutableStateOf(false) }
+    val correctPin = "1234"
+
+    fun handleNumberClick(num: String) {
+        if (pinInput.length < 4) {
+            pinInput += num
+            showError = false
+        }
+        if (pinInput.length == 4) {
+            if (pinInput == correctPin) {
+                onUnlockSuccess()
+            } else {
+                showError = true
+                pinInput = ""
+            }
+        }
+    }
+
+    fun handleClear() {
+        if (pinInput.isNotEmpty()) {
+            pinInput = pinInput.dropLast(1)
+        }
+        showError = false
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+                .safeDrawingPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Header Space
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(top = 40.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "App Locked",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Akshar Finance Vault",
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Security required to view financial metrics",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            // PIN Indicator Dots
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.weight(1f)
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    for (i in 0 until 4) {
+                        val active = i < pinInput.length
+                        Box(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .background(
+                                    color = if (showError) MaterialTheme.colorScheme.error 
+                                            else if (active) MaterialTheme.colorScheme.primary 
+                                            else MaterialTheme.colorScheme.outlineVariant,
+                                    shape = CircleShape
+                                )
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                if (showError) {
+                    Text(
+                        text = "Incorrect Passcode. Try again.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
+                    )
+                } else {
+                    Text(
+                        text = "Enter Code (Default: 1234)",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
+            // Numeric Pad Grid
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(bottom = 24.dp)
+            ) {
+                val buttonRows = listOf(
+                    listOf("1", "2", "3"),
+                    listOf("4", "5", "6"),
+                    listOf("7", "8", "9"),
+                    listOf("CLEAR", "0", "FINGERPRINT")
+                )
+
+                buttonRows.forEach { row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        row.forEach { char ->
+                            if (char == "CLEAR") {
+                                IconButton(
+                                    onClick = { handleClear() },
+                                    modifier = Modifier
+                                        .size(72.dp)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Backspace",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            } else if (char == "FINGERPRINT") {
+                                IconButton(
+                                    onClick = { onTriggerBiometric() },
+                                    modifier = Modifier
+                                        .size(72.dp)
+                                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Fingerprint,
+                                        contentDescription = "Biometric Lock",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(72.dp)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                                        .clickable { handleNumberClick(char) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = char,
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 24.sp
+                                        ),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

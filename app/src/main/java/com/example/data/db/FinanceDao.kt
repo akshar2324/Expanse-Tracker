@@ -5,6 +5,8 @@ import com.example.data.model.Budget
 import com.example.data.model.RecurringTransaction
 import com.example.data.model.SavingsGoal
 import com.example.data.model.Transaction
+import com.example.data.model.SmsTemplate
+import com.example.data.model.PendingTransaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -64,4 +66,30 @@ interface FinanceDao {
 
     @Query("DELETE FROM recurring_transactions WHERE id = :id")
     suspend fun deleteRecurringTransactionById(id: Long)
+
+    // --- SMS Parsing Templates ---
+    @Query("SELECT * FROM sms_templates")
+    fun getAllSmsTemplates(): Flow<List<SmsTemplate>>
+
+    @Query("SELECT * FROM sms_templates")
+    suspend fun getSmsTemplatesList(): List<SmsTemplate>
+
+    @Query("SELECT * FROM sms_templates WHERE id = :id")
+    suspend fun getSmsTemplateById(id: String): SmsTemplate?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSmsTemplate(smsTemplate: SmsTemplate)
+
+    // --- Pending SMS Transactions ---
+    @Query("SELECT * FROM pending_transactions ORDER BY date DESC")
+    fun getAllPendingTransactions(): Flow<List<PendingTransaction>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPendingTransaction(pending: PendingTransaction)
+
+    @Delete
+    suspend fun deletePendingTransaction(pending: PendingTransaction)
+
+    @Query("DELETE FROM pending_transactions WHERE id = :id")
+    suspend fun deletePendingTransactionById(id: Long)
 }

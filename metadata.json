@@ -1,6 +1,6 @@
 {
-  "name": "Expense Tracker Pro",
-  "description": "Track expenses, incomes, budget, savings goals, recurring transactions, and get intelligent AI financial advice using Gemini.",
+  "name": "Akshar Expenses",
+  "description": "Clean, secure, offline financial ledger, monthly budgets, savings goals, and transaction reminders.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

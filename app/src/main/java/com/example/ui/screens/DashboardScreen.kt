@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -36,6 +38,168 @@ fun DashboardScreen(
 ) {
     val transactions by viewModel.allTransactions.collectAsState()
     val budgets by viewModel.allBudgets.collectAsState()
+    val recurringList by viewModel.allRecurringTransactions.collectAsState()
+    val pendingTransactions by viewModel.allPendingTransactions.collectAsState()
+
+    if (pendingTransactions.isNotEmpty()) {
+        val activePending = pendingTransactions.first()
+        var confirmationDescription by remember(activePending.id) { mutableStateOf("") }
+        val categories = remember(activePending.type) {
+            if (activePending.type == "EXPENSE") {
+                listOf("Food", "Grocery", "Transportation", "Fuel", "Shopping", "Entertainment", "Bills", "EMI", "Rent", "Health", "Other")
+            } else {
+                listOf("Salary", "Freelance", "Business", "Bonus", "Interest", "Investment", "Gift", "Refund", "Other")
+            }
+        }
+        var selectedCategory by remember(activePending.id) { mutableStateOf(categories.first()) }
+
+        AlertDialog(
+            onDismissRequest = { /* Don't dismiss of outside clicks to preserve state */ },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = if (activePending.type == "EXPENSE") Icons.Default.TrendingDown else Icons.Default.TrendingUp,
+                        contentDescription = "SMS Detected",
+                        tint = if (activePending.type == "EXPENSE") ExpenseRed else IncomeGreen
+                    )
+                    Text(
+                        text = if (activePending.type == "EXPENSE") "New Expense Detected!" else "New Income Detected!",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "We parsed an incoming bank SMS in the background:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    // Message bubble
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "From: ${activePending.smsSender}",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(activePending.date)),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = activePending.smsBody,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // Proposed Amount Summary
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = if (activePending.type == "EXPENSE") ExpenseRed.copy(alpha = 0.1f) 
+                                        else IncomeGreen.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Extracted Amount:",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = "₹${String.format(Locale.getDefault(), "%.2f", activePending.amount)}",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = if (activePending.type == "EXPENSE") ExpenseRed else IncomeGreen
+                        )
+                    }
+
+                    // Description Input
+                    OutlinedTextField(
+                        value = confirmationDescription,
+                        onValueChange = { confirmationDescription = it },
+                        label = { Text("Assign Description") },
+                        placeholder = { Text("e.g. UPI Spent, Dinner, Uber...") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    // Category Selector Label
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Select Category:",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium)
+                        )
+                        // A beautiful scrollable row of Category chips
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            categories.forEach { category ->
+                                val isSelected = selectedCategory == category
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = { selectedCategory = category },
+                                    label = { Text(category) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = if (activePending.type == "EXPENSE") ExpenseRed.copy(alpha = 0.2f) else IncomeGreen.copy(alpha = 0.2f),
+                                        selectedLabelColor = if (activePending.type == "EXPENSE") ExpenseRed else IncomeGreen
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val finalDesc = confirmationDescription.ifBlank { "UPI Auto-parsed" }
+                        viewModel.confirmPendingTransaction(activePending, selectedCategory, finalDesc)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (activePending.type == "EXPENSE") ExpenseRed else IncomeGreen
+                    )
+                ) {
+                    Text("Add to Ledger", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { viewModel.deletePendingTransaction(activePending) }
+                ) {
+                    Text("Ignore SMS", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        )
+    }
 
     // --- State Calculations ---
     val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
@@ -94,6 +258,7 @@ fun DashboardScreen(
     val remainingBudget = (totalBudgetLimit - monthExpense).coerceAtLeast(0.0)
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onNavigateToAddTransaction,
@@ -290,6 +455,164 @@ fun DashboardScreen(
                             iconColor = AlertOrangeDark,
                             modifier = Modifier.weight(1f)
                         )
+                    }
+                }
+            }
+
+            // --- Upcoming Bill Reminders Segment ---
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "Upcoming Bills & Reminders",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    if (recurringList.isEmpty()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircleOutline,
+                                    contentDescription = null,
+                                    tint = IncomeGreenDark,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "All clear! No active bill reminders. Configure recurring items under Tools tab.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        // Calculate next due dates nicely
+                        val sortedReminders = recurringList.map { rec ->
+                            val cal = Calendar.getInstance().apply { timeInMillis = rec.lastTriggered }
+                            when (rec.frequency.uppercase()) {
+                                "DAILY" -> cal.add(Calendar.DAY_OF_YEAR, 1)
+                                "WEEKLY" -> cal.add(Calendar.WEEK_OF_YEAR, 1)
+                                "MONTHLY" -> cal.add(Calendar.MONTH, 1)
+                                "YEARLY" -> cal.add(Calendar.YEAR, 1)
+                                else -> cal.add(Calendar.MONTH, 1)
+                            }
+                            val nextDue = cal.timeInMillis
+                            val diffDays = ((nextDue - System.currentTimeMillis()) / (24 * 60 * 60 * 1000L)).toInt()
+                            rec to (nextDue to diffDays)
+                        }.sortedBy { it.second.first } // oldest (nearest) first
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                sortedReminders.forEach { (rec, dueTimeAndDays) ->
+                                    val (nextDue, diffDays) = dueTimeAndDays
+                                    val formattedDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(nextDue))
+                                    
+                                    val (statusText, badgeBg, badgeText) = when {
+                                        diffDays < 0 -> Triple("Overdue by ${-diffDays}d", Color(0xFFF2D3D3), Color(0xFFC62828))
+                                        diffDays == 0 -> Triple("Due Today", Color(0xFFFFF3CD), Color(0xFF856404))
+                                        diffDays <= 3 -> Triple("Due in $diffDays d", Color(0xFFFFF3CD), Color(0xFF856404))
+                                        else -> Triple("In $diffDays days", Color(0xFFD4EDDA), Color(0xFF155724))
+                                    }
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = when (rec.category.uppercase()) {
+                                                        "RECHARGE", "MOBILE" -> Icons.Default.PhoneAndroid
+                                                        "RENT" -> Icons.Default.Home
+                                                        "ELECTRICITY", "BILLS" -> Icons.Default.ReceiptLong
+                                                        "SUBSCRIPTION" -> Icons.Default.PlayCircle
+                                                        else -> Icons.Default.DateRange
+                                                    },
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp),
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = rec.description,
+                                                    fontWeight = FontWeight.Bold,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = badgeBg,
+                                                    modifier = Modifier.padding(end = 8.dp)
+                                                ) {
+                                                    Text(
+                                                        text = statusText,
+                                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = badgeText,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                                Text(
+                                                    text = "Next: $formattedDate",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                                )
+                                            }
+                                        }
+
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                text = "₹${rec.amount.toInt()}",
+                                                fontWeight = FontWeight.Black,
+                                                style = MaterialTheme.typography.bodyLarge
+                                            )
+                                            IconButton(
+                                                onClick = {
+                                                    viewModel.triggerRecurringPayment(rec)
+                                                },
+                                                modifier = Modifier
+                                                    .size(36.dp)
+                                                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Done,
+                                                    contentDescription = "Pay",
+                                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
