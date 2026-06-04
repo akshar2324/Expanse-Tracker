@@ -154,85 +154,185 @@ fun AppScaffold(viewModel: FinanceViewModel) {
         )
     }
 
-    // Hide bottom bar when entering input form to allow full keyboard space
-    val showBottomBar = currentRoute != "add_transaction"
+    // Hide bars when entering input form to allow full keyboard space
+    val showNavigation = currentRoute != "add_transaction"
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        bottomBar = {
-            if (showBottomBar) {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 8.dp
-                ) {
-                    tabs.forEach { tab ->
-                        val selected = currentRoute == tab.route
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                if (currentRoute != tab.route) {
-                                    navController.navigate(tab.route) {
-                                        // Pop up to the start destination of the graph to
-                                        // avoid building up a large stack of destinations
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        // Avoid multiple copies of the same destination when
-                                        // reselecting the same item
-                                        launchSingleTop = true
-                                        // Restore state when reselecting a previously selected item
-                                        restoreState = true
-                                    }
-                                }
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = tab.icon,
-                                    contentDescription = tab.label,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            },
-                            label = { Text(tab.label, fontSize = 11.sp) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val isWide = maxWidth >= 600.dp
+
+        if (isWide) {
+            // Adaptive Wide Screen Layout using Navigation Rail
+            Row(modifier = Modifier.fillMaxSize()) {
+                if (showNavigation) {
+                    NavigationRail(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        header = {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Icon(
+                                imageVector = Icons.Default.AccountBalance,
+                                contentDescription = "Logo",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
                             )
-                        )
+                            Spacer(modifier = Modifier.height(32.dp))
+                        },
+                        modifier = Modifier.fillMaxHeight()
+                    ) {
+                        tabs.forEach { tab ->
+                            val selected = currentRoute == tab.route
+                            NavigationRailItem(
+                                selected = selected,
+                                onClick = {
+                                    if (currentRoute != tab.route) {
+                                        navController.navigate(tab.route) {
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    }
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = tab.icon,
+                                        contentDescription = tab.label,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                },
+                                label = { Text(tab.label, fontSize = 11.sp, fontWeight = FontWeight.Medium) },
+                                colors = NavigationRailItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    indicatorColor = MaterialTheme.colorScheme.primary
+                                )
+                            )
+                        }
+                    }
+                }
+
+                // Wide screen centered container to keep layout balanced
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .background(MaterialTheme.colorScheme.background)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .widthIn(max = 800.dp)
+                            .align(Alignment.Center)
+                    ) {
+                        NavHost(
+                            navController = navController,
+                            startDestination = "dashboard",
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            composable("dashboard") {
+                                DashboardScreen(
+                                    viewModel = viewModel,
+                                    onNavigateToAddTransaction = { navController.navigate("add_transaction") },
+                                    onNavigateToHistory = { navController.navigate("history") }
+                                )
+                            }
+                            composable("add_transaction") {
+                                AddTransactionScreen(
+                                    viewModel = viewModel,
+                                    onNavigateBack = { navController.popBackStack() }
+                                )
+                            }
+                            composable("history") {
+                                HistoryScreen(viewModel = viewModel)
+                            }
+                            composable("analytics") {
+                                AnalyticsScreen(viewModel = viewModel)
+                            }
+                            composable("budgets") {
+                                BudgetSavingsScreen(viewModel = viewModel)
+                            }
+                            composable("tools") {
+                                ToolsScreen(viewModel = viewModel)
+                            }
+                        }
                     }
                 }
             }
-        }
-    ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = "dashboard",
-            modifier = Modifier.padding(innerPadding)
-        ) {
-            composable("dashboard") {
-                DashboardScreen(
-                    viewModel = viewModel,
-                    onNavigateToAddTransaction = { navController.navigate("add_transaction") },
-                    onNavigateToHistory = { navController.navigate("history") }
-                )
-            }
-            composable("add_transaction") {
-                AddTransactionScreen(
-                    viewModel = viewModel,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-            composable("history") {
-                HistoryScreen(viewModel = viewModel)
-            }
-            composable("analytics") {
-                AnalyticsScreen(viewModel = viewModel)
-            }
-            composable("budgets") {
-                BudgetSavingsScreen(viewModel = viewModel)
-            }
-            composable("tools") {
-                ToolsScreen(viewModel = viewModel)
+        } else {
+            // Standard compact mobile layout
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                bottomBar = {
+                    if (showNavigation) {
+                        NavigationBar(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 8.dp
+                        ) {
+                            tabs.forEach { tab ->
+                                val selected = currentRoute == tab.route
+                                NavigationBarItem(
+                                    selected = selected,
+                                    onClick = {
+                                        if (currentRoute != tab.route) {
+                                            navController.navigate(tab.route) {
+                                                popUpTo(navController.graph.findStartDestination().id) {
+                                                    saveState = true
+                                                }
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
+                                        }
+                                    },
+                                    icon = {
+                                        Icon(
+                                            imageVector = tab.icon,
+                                            contentDescription = tab.label,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    },
+                                    label = { Text(tab.label, fontSize = 11.sp) },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            ) { innerPadding ->
+                NavHost(
+                    navController = navController,
+                    startDestination = "dashboard",
+                    modifier = Modifier.padding(innerPadding)
+                ) {
+                    composable("dashboard") {
+                        DashboardScreen(
+                            viewModel = viewModel,
+                            onNavigateToAddTransaction = { navController.navigate("add_transaction") },
+                            onNavigateToHistory = { navController.navigate("history") }
+                        )
+                    }
+                    composable("add_transaction") {
+                        AddTransactionScreen(
+                            viewModel = viewModel,
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable("history") {
+                        HistoryScreen(viewModel = viewModel)
+                    }
+                    composable("analytics") {
+                        AnalyticsScreen(viewModel = viewModel)
+                    }
+                    composable("budgets") {
+                        BudgetSavingsScreen(viewModel = viewModel)
+                    }
+                    composable("tools") {
+                        ToolsScreen(viewModel = viewModel)
+                    }
+                }
             }
         }
     }
@@ -280,14 +380,19 @@ fun LockScreen(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp)
-                .safeDrawingPadding(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 500.dp)
+                    .fillMaxHeight()
+                    .padding(24.dp)
+                    .safeDrawingPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
             // Header Space
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -432,4 +537,5 @@ fun LockScreen(
             }
         }
     }
+}
 }
