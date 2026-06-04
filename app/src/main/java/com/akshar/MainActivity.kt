@@ -48,13 +48,16 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         
         val sharedPrefs = getSharedPreferences("vault_settings", android.content.Context.MODE_PRIVATE)
+        val onboardingCompleted = sharedPrefs.getBoolean("onboarding_completed", false)
         val vaultEnabled = sharedPrefs.getBoolean("vault_enabled", true)
         val vaultBiometrics = sharedPrefs.getBoolean("vault_biometrics", true)
 
-        if (!vaultEnabled) {
+        if (!onboardingCompleted) {
+            isUnlockedState.value = false
+        } else if (!vaultEnabled) {
             isUnlockedState.value = true
         } else if (vaultBiometrics) {
-            // Attempt trigger right on activity start if biometrics enabled
+            // Attempt trigger right on activity start if biometrics enabled and onboarding is complete
             tryLaunchBiometric {
                 isUnlockedState.value = true
             }
@@ -68,9 +71,19 @@ class MainActivity : FragmentActivity() {
                 val dynamicPrefs = remember { getSharedPreferences("vault_settings", android.content.Context.MODE_PRIVATE) }
                 val correctPin = remember(isUnlocked) { dynamicPrefs.getString("vault_pin", "1234") ?: "1234" }
                 val useBiometrics = remember(isUnlocked) { dynamicPrefs.getBoolean("vault_biometrics", true) }
+                var isOnboardingCompleted by remember { mutableStateOf(dynamicPrefs.getBoolean("onboarding_completed", false)) }
 
                 Box(modifier = Modifier.fillMaxSize()) {
-                    if (isUnlocked) {
+                    if (!isOnboardingCompleted) {
+                        OnboardingScreen(
+                            viewModel = viewModel,
+                            onFinish = {
+                                dynamicPrefs.edit().putBoolean("onboarding_completed", true).apply()
+                                isOnboardingCompleted = true
+                                isUnlockedState.value = true
+                            }
+                        )
+                    } else if (isUnlocked) {
                         AppScaffold(viewModel = viewModel)
                     } else {
                         LockScreen(

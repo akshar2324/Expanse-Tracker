@@ -1,5 +1,8 @@
 package com.akshar.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -47,6 +50,17 @@ fun ToolsScreen(
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+
+    val dbFilePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri: Uri? ->
+            if (uri != null) {
+                viewModel.restoreDatabaseFromDbFile(context, uri)
+            } else {
+                Toast.makeText(context, "No backup file selected", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
 
     val backupStatus by viewModel.backupStatus.collectAsState()
 
@@ -468,80 +482,117 @@ fun ToolsScreen(
                     }
                 }
 
-                // --- 4. Offline Backups (JSON Data block) ---
+                // --- 4. Offline Backups (Physical .db database file) ---
                 "BACKUP" -> {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp)
+                            .padding(24.dp)
                             .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
                         Card(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp)
                         ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
+                            Column(modifier = Modifier.padding(20.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Backup, contentDescription = null, tint = IncomeGreenDark)
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text("Full Offline Backup Controls", fontWeight = FontWeight.Bold)
+                                    Icon(
+                                        imageVector = Icons.Default.Backup,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = "NATIVE SQLITE BACKUPS",
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        letterSpacing = 1.sp
+                                    )
                                 }
-                                Spacer(modifier = Modifier.height(6.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    "Your data is 100% yours and saved securely on your device. Export to a JSON text block or paste back a JSON to restore.",
-                                    style = MaterialTheme.typography.bodySmall
+                                    text = "Your financial records are 100% yours, stored locally on your device's protected memory. You can now perform full binary exports of the underlying Room SQLite database directly.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                    lineHeight = 18.sp
                                 )
                             }
                         }
 
-                        Button(
-                            onClick = {
-                                val json = viewModel.exportDataToJson()
-                                if (json != null) {
-                                    clipboardManager.setText(AnnotatedString(json))
-                                    Toast.makeText(context, "Full Backup copied to Clipboard!", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Export process failed.", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
+                        // Export Box
+                        ElevatedCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            shape = RoundedCornerShape(16.dp)
                         ) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Export Database to Clipboard")
+                            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text(
+                                    text = "Export Database File",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Text(
+                                    text = "Exporting creates a production-grade, uncompressed binary SQLite snapshot of your database (.db). You can save this file securely in Google Drive, local Folders, or send it to another device.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Button(
+                                    onClick = {
+                                        viewModel.exportDatabaseToDbFile(context)
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Default.Share, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text("Export .db Backup File", fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
 
-                        HorizontalDivider()
-
-                        Text("Restore Database", fontWeight = FontWeight.Bold)
-                        OutlinedTextField(
-                            value = restoreJsonInput,
-                            onValueChange = { restoreJsonInput = it },
-                            label = { Text("Paste JSON Backup string here") },
-                            placeholder = { Text("{ \"transactions\": [...] }") },
-                            modifier = Modifier.fillMaxWidth().height(160.dp),
-                            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
-                        )
-
-                        Button(
-                            onClick = {
-                                if (restoreJsonInput.isNotEmpty()) {
-                                    val success = viewModel.restoreDataFromJson(restoreJsonInput)
-                                    if (success) {
-                                        restoreJsonInput = ""
-                                        Toast.makeText(context, "Restore Process Complete!", Toast.LENGTH_SHORT).show()
-                                    }
-                                } else {
-                                    Toast.makeText(context, "Please paste an exported backup block first.", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                            modifier = Modifier.fillMaxWidth()
+                        // Import/Restore Box
+                        ElevatedCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            shape = RoundedCornerShape(16.dp)
                         ) {
-                            Icon(Icons.Default.UploadFile, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Validate & Restore Database")
+                            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text(
+                                    text = "Restore Database File",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Select a previously exported database .db backup. Note: Restoring overrides your existing local database file and reboots the application to securely swap the data engine.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Button(
+                                    onClick = {
+                                        dbFilePickerLauncher.launch("application/octet-stream")
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.outlineVariant,
+                                        contentColor = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Default.UploadFile, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text("Upload & Restore .db File", fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
                 }

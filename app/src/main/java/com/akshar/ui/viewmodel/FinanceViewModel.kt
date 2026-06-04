@@ -22,6 +22,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.*
+import android.content.Context
+import android.net.Uri
+import android.content.Intent
+import android.os.Handler
+import android.os.Looper
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 
 class FinanceViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -493,5 +501,118 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearBackupStatus() {
         _backupStatus.value = ""
+    }
+
+    fun exportDatabaseToDbFile(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // 1. Force checkpoint to compile WAL logs into the DB file
+                val db = com.akshar.data.db.AppDatabase.getInstance(context)
+                try {
+                    db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").close()
+                } catch (e: Exception) {
+                    Log.e("FinanceViewModel", "Pre-export checkpoint failed: ${e.message}")
+                }
+
+                // 2. Locate DB file
+                val dbFile = context.getDatabasePath("expense_tracker_pro_db")
+                if (!dbFile.exists()) {
+                    _backupStatus.value = "Database file does not exist yet."
+                    return@launch
+                }
+
+                // 3. Copy to a temp file in cache
+                val backupFile = File(context.cacheDir, "akshar_ledger_backup.db")
+                if (backupFile.exists()) {
+                    backupFile.delete()
+                }
+
+                FileInputStream(dbFile).use { input ->
+                    FileOutputStream(backupFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                // 4. Create sharing Uri and launch share intent
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    backupFile
+                )
+
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/octet-stream"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+
+                val chooser = Intent.createChooser(intent, "Export Backup SQLite file (.db)")
+                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(chooser)
+
+                _backupStatus.value = "Backup File Exported!"
+            } catch (e: Exception) {
+                Log.e("FinanceViewModel", "Failed to export physical database", e)
+                _backupStatus.value = "Failed to export backup file: ${e.message}"
+            }
+        }
+    }
+
+    fun restoreDatabaseFromDbFile(context: Context, sourceUri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // 1. Close current db connection
+                com.akshar.data.db.AppDatabase.closeAndResetInstance()
+
+                // 2. Copy the source Uri stream into our DB path
+                val dbFile = context.getDatabasePath("expense_tracker_pro_db")
+                
+                // Backup existing DB file in case of failure
+                val backupOriginal = File(dbFile.parent, "expense_tracker_pro_db_original")
+                if (dbFile.exists()) {
+                    dbFile.renameTo(backupOriginal)
+                }
+
+                try {
+                    context.contentResolver.openInputStream(sourceUri)?.use { input ->
+                        FileOutputStream(dbFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    } ?: throw Exception("Could not open input stream")
+
+                    // 3. Clear companion temporary journals to avoid conflicts
+                    val walFile = context.getDatabasePath("expense_tracker_pro_db-wal")
+                    val shmFile = context.getDatabasePath("expense_tracker_pro_db-shm")
+                    if (walFile.exists()) walFile.delete()
+                    if (shmFile.exists()) shmFile.delete()
+
+                    if (backupOriginal.exists()) {
+                        backupOriginal.delete()
+                    }
+
+                    _backupStatus.value = "Database Restored Successfully! Restarting app..."
+
+                    // 4. Force activity recreation / restart
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        }
+                        context.startActivity(intent)
+                    }, 1000)
+
+                } catch (e: Exception) {
+                    // Restore back on failure
+                    if (backupOriginal.exists()) {
+                        if (dbFile.exists()) dbFile.delete()
+                        backupOriginal.renameTo(dbFile)
+                    }
+                    throw e
+                }
+
+            } catch (e: Exception) {
+                Log.e("FinanceViewModel", "Failed to restore database from file", e)
+                _backupStatus.value = "Failed to restore backup file: ${e.message}"
+            }
+        }
     }
 }
