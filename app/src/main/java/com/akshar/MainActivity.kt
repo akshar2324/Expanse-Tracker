@@ -35,6 +35,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navDeepLink
 import com.akshar.ui.screens.*
 import com.akshar.ui.theme.MyApplicationTheme
 import com.akshar.ui.viewmodel.FinanceViewModel
@@ -236,7 +237,10 @@ fun AppScaffold(viewModel: FinanceViewModel) {
                                     onNavigateToHistory = { navController.navigate("history") }
                                 )
                             }
-                            composable("add_transaction") {
+                            composable(
+                                "add_transaction",
+                                deepLinks = listOf(navDeepLink { uriPattern = "akspend://add_transaction" })
+                            ) {
                                 AddTransactionScreen(
                                     viewModel = viewModel,
                                     onNavigateBack = { navController.popBackStack() }
@@ -314,7 +318,10 @@ fun AppScaffold(viewModel: FinanceViewModel) {
                             onNavigateToHistory = { navController.navigate("history") }
                         )
                     }
-                    composable("add_transaction") {
+                    composable(
+                        "add_transaction",
+                        deepLinks = listOf(navDeepLink { uriPattern = "akspend://add_transaction" })
+                    ) {
                         AddTransactionScreen(
                             viewModel = viewModel,
                             onNavigateBack = { navController.popBackStack() }

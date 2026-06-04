@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -23,12 +26,17 @@ android {
   }
 
   signingConfigs {
+    val keystorePropertiesFile = rootProject.file("keystore.properties")
+    val keystoreProperties = Properties()
+    if (keystorePropertiesFile.exists()) {
+      keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    }
+
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+      storeFile = keystoreProperties["RELEASE_STORE_FILE"]?.let { file("$rootDir/$it") }
+      storePassword = keystoreProperties["RELEASE_STORE_PASSWORD"] as String?
+      keyAlias = keystoreProperties["RELEASE_KEY_ALIAS"] as String?
+      keyPassword = keystoreProperties["RELEASE_KEY_PASSWORD"] as String?
     }
     create("debugConfig") {
       storeFile = file("${rootDir}/debug.keystore")
@@ -40,8 +48,9 @@ android {
 
   buildTypes {
     release {
-      isCrunchPngs = false
-      isMinifyEnabled = false
+      isCrunchPngs = true
+      isMinifyEnabled = true
+      isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
     }
@@ -89,6 +98,8 @@ dependencies {
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.datastore.preferences)
+  implementation(libs.androidx.glance.appwidget)
+  implementation(libs.androidx.glance.material3)
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.lifecycle.viewmodel.compose)
