@@ -3,6 +3,7 @@ package com.akshar.ui.screens
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,8 +32,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.akshar.data.model.RecurringTransaction
 import com.akshar.data.model.Transaction
-import com.akshar.data.model.SmsTemplate
-import com.akshar.data.model.ParsedSmsLog
+import com.akshar.data.model.Debt
+import androidx.compose.foundation.horizontalScroll
 import com.akshar.ui.theme.*
 import com.akshar.ui.viewmodel.FinanceViewModel
 import java.text.SimpleDateFormat
@@ -77,34 +78,41 @@ fun ToolsScreen(
                     windowInsets = WindowInsets(0.dp)
                 )
 
+                val selectedCountry by viewModel.selectedCountry.collectAsState()
+
                 // Tool selection row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .horizontalScroll(rememberScrollState()),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    listOf(
-                        "RECURRING" to "Reminders",
-                        "UPISMS" to "UPI SMS",
-                        "VAULT" to "Vault",
-                        "REPORTS" to "Reports",
-                        "BACKUP" to "Backup"
-                    ).forEach { (toolId, tabLabel) ->
+                    val baseTools = remember(selectedCountry) {
+                        val list = mutableListOf<Pair<String, String>>()
+                        list.add("RECURRING" to "Reminders")
+                        list.add("DEBTS" to "Borrow/Lent")
+                        list.add("VAULT" to "Vault")
+                        list.add("REPORTS" to "Reports")
+                        list.add("BACKUP" to "Backup")
+                        list.add("SETTINGS" to "Settings")
+                        list
+                    }
+
+                    baseTools.forEach { (toolId, tabLabel) ->
                         val active = activeSubTool == toolId
                         val textCol = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                         val bg = if (active) MaterialTheme.colorScheme.primary else Color.Transparent
 
                         Box(
                             modifier = Modifier
-                                .weight(1.0f)
                                 .clickable { activeSubTool = toolId }
                                 .padding(2.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(bg)
-                                .padding(vertical = 10.dp),
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -228,306 +236,7 @@ fun ToolsScreen(
                     }
                 }
 
-                // --- SMS UPI Auto Parsing configs ---
-                "UPISMS" -> {
-                    val smsTemplates by viewModel.allSmsTemplates.collectAsState()
-                    val parsedSmsLogs by viewModel.allParsedSmsLogs.collectAsState()
-                    
-                    var creditKeywordsInput by remember { mutableStateOf("") }
-                    var creditExampleInput by remember { mutableStateOf("") }
-                    var debitKeywordsInput by remember { mutableStateOf("") }
-                    var debitExampleInput by remember { mutableStateOf("") }
 
-                    // Pre-fill fields when loaded
-                    LaunchedEffect(smsTemplates) {
-                        smsTemplates.find { it.id == "CREDIT" }?.let {
-                            creditKeywordsInput = it.keywords
-                            creditExampleInput = it.exampleText
-                        }
-                        smsTemplates.find { it.id == "DEBIT" }?.let {
-                            debitKeywordsInput = it.keywords
-                            debitExampleInput = it.exampleText
-                        }
-                    }
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.Sms,
-                                        contentDescription = null,
-                                        tint = AlertOrangeDark,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "UPI SMS Auto-Reader",
-                                        fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.titleMedium
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Define words and bank formatted SMS lines to automatically parse transaction details in the background. Tap 'Save Configurations' to update.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                                )
-                            }
-                        }
-
-                        // Credit Card Form
-                        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .background(IncomeGreen.copy(alpha = 0.2f), CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(Icons.Default.TrendingUp, contentDescription = null, tint = IncomeGreen, modifier = Modifier.size(18.dp))
-                                    }
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text("Credit / Income SMS Patterns", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                                }
-
-                                Text("Keywords (comma-separated)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                OutlinedTextField(
-                                    value = creditKeywordsInput,
-                                    onValueChange = { creditKeywordsInput = it },
-                                    placeholder = { Text("credited, deposited, added, received") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
-                                )
-
-                                Text("Example SMS Text (to reference format)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                OutlinedTextField(
-                                    value = creditExampleInput,
-                                    onValueChange = { creditExampleInput = it },
-                                    placeholder = { Text("Your account XX2432 is credited with INR 500.00") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    minLines = 2
-                                )
-                            }
-                        }
-
-                        // Debit Card Form
-                        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .background(ExpenseRed.copy(alpha = 0.2f), CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(Icons.Default.TrendingDown, contentDescription = null, tint = ExpenseRed, modifier = Modifier.size(18.dp))
-                                    }
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text("Debit / Expense SMS Patterns", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                                }
-
-                                Text("Keywords (comma-separated)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                OutlinedTextField(
-                                    value = debitKeywordsInput,
-                                    onValueChange = { debitKeywordsInput = it },
-                                    placeholder = { Text("debited, spent, paid, charged") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
-                                )
-
-                                Text("Example SMS Text (to reference format)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                OutlinedTextField(
-                                    value = debitExampleInput,
-                                    onValueChange = { debitExampleInput = it },
-                                    placeholder = { Text("Your account XX2432 is debited by Rs.1500.00") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    minLines = 2
-                                )
-                            }
-                        }
-
-                        Button(
-                            onClick = {
-                                val creditKw = creditKeywordsInput.ifBlank { "credited, deposited, added, received" }
-                                val creditEx = creditExampleInput.ifBlank { "Your a/c XX2432 is credited with INR 500.00 on 03-Jun" }
-                                val debitKw = debitKeywordsInput.ifBlank { "debited, paid, spent, sent, charged, deduction" }
-                                val debitEx = debitExampleInput.ifBlank { "Your a/c XX2432 is debited by Rs.1500.00 on 03-Jun" }
-                                
-                                viewModel.updateSmsTemplate("CREDIT", creditEx, creditKw)
-                                viewModel.updateSmsTemplate("DEBIT", debitEx, debitKw)
-                                Toast.makeText(context, "Configurations saved! Background parser updated.", Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp)
-                        ) {
-                            Icon(Icons.Default.Save, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Save Configurations", fontWeight = FontWeight.Bold)
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Divider(color = MaterialTheme.colorScheme.outlineVariant)
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.ReceiptLong,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "SMS Parse History Log",
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                            }
-                            if (parsedSmsLogs.isNotEmpty()) {
-                                TextButton(onClick = { viewModel.clearAllSmsLogs() }) {
-                                    Text("Clear All Logs", color = MaterialTheme.colorScheme.error)
-                                }
-                            }
-                        }
-
-                        if (parsedSmsLogs.isEmpty()) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(24.dp).fillMaxWidth(),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.SmsFailed,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
-                                        modifier = Modifier.size(48.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "No parsed notifications recorded yet.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                                    )
-                                }
-                            }
-                        } else {
-                            parsedSmsLogs.forEach { log ->
-                                Card(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                                ) {
-                                    Column(modifier = Modifier.padding(12.dp)) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "Sender: ${log.smsSender}",
-                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-                                            )
-                                            
-                                            // Status Badge
-                                            val badgeColor = when (log.status) {
-                                                "CONFIRMED" -> IncomeGreen.copy(alpha = 0.15f)
-                                                "IGNORED" -> MaterialTheme.colorScheme.surfaceVariant
-                                                else -> AlertOrangeDark.copy(alpha = 0.15f)
-                                            }
-                                            val badgeTextCol = when (log.status) {
-                                                "CONFIRMED" -> IncomeGreenDark
-                                                "IGNORED" -> MaterialTheme.colorScheme.onSurfaceVariant
-                                                else -> AlertOrangeDark
-                                            }
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(6.dp))
-                                                    .background(badgeColor)
-                                                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                                            ) {
-                                                Text(
-                                                    text = log.status,
-                                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                    color = badgeTextCol
-                                                )
-                                            }
-                                        }
-                                        
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                                                .padding(10.dp)
-                                        ) {
-                                            Text(
-                                                text = log.smsBody,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                        
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            val formattedDate = SimpleDateFormat("MMM dd, yyyy - hh:mm a", Locale.getDefault()).format(Date(log.date))
-                                            Text(
-                                                text = formattedDate,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                                            )
-                                            
-                                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                                Text(
-                                                    text = if (log.type == "EXPENSE") "Debit" else "Credit",
-                                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                    color = if (log.type == "EXPENSE") ExpenseRed else IncomeGreen
-                                                )
-                                                Text(
-                                                    text = "₹${String.format(Locale.getDefault(), "%.2f", log.amount)}",
-                                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                                    color = if (log.type == "EXPENSE") ExpenseRed else IncomeGreen
-                                                )
-                                            }
-                                        }
-                                        
-                                        if (log.status == "CONFIRMED" && log.category.isNotEmpty()) {
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
-                                                text = "Assigned Category: ${log.category}",
-                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
 
                 // --- security settings (Finance Vault) ---
                 "VAULT" -> {
@@ -836,6 +545,400 @@ fun ToolsScreen(
                         }
                     }
                 }
+
+                "SETTINGS" -> {
+                    val selectedCountryCode by viewModel.selectedCountry.collectAsState()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            text = "Global Preferences",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "Select Country & Currency Region",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "This automatically adjusts payment methods, hides region-specific features (like UPI parsing in non-Indian regions), and updates formatting symbols.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        val countriesList = listOf(
+                            Triple("IN", "India", "Rupee (₹) - Full UPI & SMS Reading"),
+                            Triple("US", "United States", "US Dollar ($) - Cards, PayPal/Venmo/Zelle"),
+                            Triple("JP", "Japan", "Japanese Yen (¥) - Cash, Suica/IC, PayPay, Cards"),
+                            Triple("EU", "European Union", "Euro (€) - SEPA Bank Transfer, Cash, Card")
+                        )
+
+                        countriesList.forEach { (code, cName, details) ->
+                            val active = selectedCountryCode == code
+                            Card(
+                                onClick = { viewModel.updateCountry(code) },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .border(if (active) 1.5.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "$cName ($code)",
+                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.bodyLarge
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = details,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    RadioButton(
+                                        selected = active,
+                                        onClick = { viewModel.updateCountry(code) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                "DEBTS" -> {
+                    val debtsList by viewModel.allDebts.collectAsState()
+                    val selectedCountryCode by viewModel.selectedCountry.collectAsState()
+                    val currencySymbol = viewModel.getCurrencySymbol()
+
+                    var showAddDebtDialog by remember { mutableStateOf(false) }
+                    var debtsFilter by remember { mutableStateOf("ALL") } // "ALL", "LENT", "BORROWED", "RESOLVED"
+
+                    val filteredDebts = remember(debtsList, debtsFilter) {
+                        when (debtsFilter) {
+                            "LENT" -> debtsList.filter { it.type == "LENT" && !it.isResolved }
+                            "BORROWED" -> debtsList.filter { it.type == "BORROWED" && !it.isResolved }
+                            "RESOLVED" -> debtsList.filter { it.isResolved }
+                            else -> debtsList
+                        }
+                    }
+
+                    val totalLent = remember(debtsList) {
+                        debtsList.filter { it.type == "LENT" && !it.isResolved }.sumOf { it.amount }
+                    }
+                    val totalBorrowed = remember(debtsList) {
+                        debtsList.filter { it.type == "BORROWED" && !it.isResolved }.sumOf { it.amount }
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "Debts Balance",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                        Text(
+                                            text = "Overview of pending settlements",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                    
+                                    val netScore = totalLent - totalBorrowed
+                                    val netFormatted = viewModel.formatCurrencyValue(kotlin.math.abs(netScore))
+                                    Text(
+                                        text = if (netScore >= 0) "+$netFormatted" else "-$netFormatted",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (netScore >= 0) IncomeGreen else ExpenseRed
+                                    )
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Others Owe You (Lent)",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                        )
+                                        Text(
+                                            text = viewModel.formatCurrencyValue(totalLent),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = IncomeGreen
+                                        )
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "You Owe Others (Borrowed)",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                        )
+                                        Text(
+                                            text = viewModel.formatCurrencyValue(totalBorrowed),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = ExpenseRed
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Button(
+                            onClick = { showAddDebtDialog = true },
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("New Borrow / Lent Record")
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            listOf(
+                                "ALL" to "All",
+                                "LENT" to "Lent",
+                                "BORROWED" to "Borrowed",
+                                "RESOLVED" to "Settled"
+                            ).forEach { (fCode, fName) ->
+                                val active = debtsFilter == fCode
+                                val textCol = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                val bg = if (active) MaterialTheme.colorScheme.primary else Color.Transparent
+
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1.0f)
+                                        .fillMaxHeight()
+                                        .clickable { debtsFilter = fCode }
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(bg),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = fName,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = textCol
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
+                        if (filteredDebts.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().weight(1.0f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.outlineVariant,
+                                        modifier = Modifier.size(64.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "No pending records found under this filter.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                    )
+                                }
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.weight(1.0f),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(filteredDebts, key = { it.id }) { debt ->
+                                    Card(
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (debt.isResolved) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                                              else MaterialTheme.colorScheme.surface
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    val typeBadgeBg = if (debt.type == "LENT") IncomeGreen.copy(alpha = 0.15f)
+                                                                     else ExpenseRed.copy(alpha = 0.15f)
+                                                    val typeBadgeTc = if (debt.type == "LENT") IncomeGreen else ExpenseRed
+                                                    val typeText = if (debt.type == "LENT") "Lent" else "Borrowed"
+                                                    
+                                                    Text(
+                                                        text = debt.personName,
+                                                        fontWeight = FontWeight.Bold,
+                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        color = if (debt.isResolved) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface
+                                                    )
+
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(6.dp))
+                                                            .background(typeBadgeBg)
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = typeText,
+                                                            fontSize = 10.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = typeBadgeTc
+                                                        )
+                                                    }
+                                                }
+                                                
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = debt.description.ifBlank { "Personal record" },
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                val dateStr = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(debt.date))
+                                                
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "Opened: $dateStr",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.outline
+                                                    )
+                                                }
+                                            }
+
+                                            Column(
+                                                horizontalAlignment = Alignment.End,
+                                                verticalArrangement = Arrangement.Center,
+                                                modifier = Modifier.padding(start = 12.dp)
+                                            ) {
+                                                Text(
+                                                    text = viewModel.formatCurrencyValue(debt.amount),
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (debt.isResolved) MaterialTheme.colorScheme.outline
+                                                            else if (debt.type == "LENT") IncomeGreen
+                                                            else ExpenseRed
+                                                )
+                                                
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                    FilledTonalIconButton(
+                                                        onClick = {
+                                                            if (debt.isResolved) {
+                                                                viewModel.unresolveDebt(debt)
+                                                            } else {
+                                                                viewModel.resolveDebt(debt)
+                                                            }
+                                                        },
+                                                        modifier = Modifier.size(36.dp),
+                                                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                                            containerColor = if (debt.isResolved) MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)
+                                                                            else MaterialTheme.colorScheme.primaryContainer
+                                                        )
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = if (debt.isResolved) Icons.Default.Refresh else Icons.Default.Check,
+                                                            contentDescription = "Resolve",
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                    }
+
+                                                    IconButton(
+                                                        onClick = { viewModel.deleteDebt(debt) },
+                                                        modifier = Modifier.size(36.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Delete,
+                                                            contentDescription = "Delete",
+                                                            tint = MaterialTheme.colorScheme.error,
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (showAddDebtDialog) {
+                        AddDebtDialog(
+                            onDismiss = { showAddDebtDialog = false },
+                            onConfirm = { person, amt, tp, desc, date, due ->
+                                viewModel.addDebt(person, amt, tp, desc, date, due)
+                                showAddDebtDialog = false
+                            },
+                            currencySymbol = currencySymbol
+                        )
+                    }
+                }
             }
         }
     }
@@ -1090,6 +1193,122 @@ fun AddRecurringDialog(
                 }
             ) {
                 Text("Enable Schedule")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddDebtDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (personName: String, amount: Double, type: String, description: String, date: Long, dueDate: Long?) -> Unit,
+    currencySymbol: String
+) {
+    var personName by remember { mutableStateOf("") }
+    var amountText by remember { mutableStateOf("") }
+    var type by remember { mutableStateOf("LENT") } // "LENT" or "BORROWED"
+    var description by remember { mutableStateOf("") }
+    
+    val context = LocalContext.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("New Borrow / Lent Record", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Type Choice
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    listOf("LENT" to "Lent", "BORROWED" to "Borrowed").forEach { (tCode, tLabel) ->
+                        val active = type == tCode
+                        val activeColor = if (tCode == "LENT") IncomeGreen else ExpenseRed
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1.0f)
+                                .fillMaxHeight()
+                                .clickable { type = tCode }
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (active) activeColor else Color.Transparent),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = tLabel,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (active) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            )
+                        }
+                    }
+                }
+
+                // Name
+                OutlinedTextField(
+                    value = personName,
+                    onValueChange = { personName = it },
+                    label = { Text("Person's Name") },
+                    placeholder = { Text("e.g. John Doe") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Amount
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    label = { Text("Amount ($currencySymbol)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Description
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description / Notes") },
+                    placeholder = { Text("e.g. For dinner bills, project, etc.") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val amtVal = amountText.toDoubleOrNull()
+                    if (personName.isBlank()) {
+                        Toast.makeText(context, "Please enter a name", Toast.LENGTH_SHORT).show()
+                    } else if (amtVal == null || amtVal <= 0.0) {
+                        Toast.makeText(context, "Please enter a valid positive amount", Toast.LENGTH_SHORT).show()
+                    } else {
+                        onConfirm(
+                            personName.trim(),
+                            amtVal,
+                            type,
+                            description.trim(),
+                            System.currentTimeMillis(),
+                            null
+                        )
+                    }
+                }
+            ) {
+                Text("Save Record")
             }
         },
         dismissButton = {

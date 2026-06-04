@@ -9,6 +9,7 @@ import com.akshar.data.model.Transaction
 import com.akshar.data.model.SmsTemplate
 import com.akshar.data.model.PendingTransaction
 import com.akshar.data.model.ParsedSmsLog
+import com.akshar.data.model.Debt
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -170,5 +171,20 @@ class FinanceRepository(private val financeDao: FinanceDao) {
 
     suspend fun clearAllParsedSmsLogs() {
         financeDao.clearAllParsedSmsLogs()
+    }
+
+    // --- Debts (Borrowed & Lent) ---
+    val allDebts: Flow<List<Debt>> = financeDao.getAllDebts()
+
+    suspend fun insertDebt(debt: Debt) {
+        financeDao.insertDebt(debt)
+    }
+
+    suspend fun deleteDebt(debt: Debt) {
+        financeDao.deleteDebt(debt)
+    }
+
+    suspend fun deleteDebtById(id: Long) {
+        financeDao.deleteDebtById(id)
     }
 }

@@ -12,6 +12,7 @@ import com.akshar.data.model.Transaction
 import com.akshar.data.model.SmsTemplate
 import com.akshar.data.model.PendingTransaction
 import com.akshar.data.model.ParsedSmsLog
+import com.akshar.data.model.Debt
 import com.akshar.data.repository.FinanceRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -47,6 +48,90 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
     val allParsedSmsLogs: StateFlow<List<ParsedSmsLog>> = repository.allParsedSmsLogs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allDebts: StateFlow<List<Debt>> = repository.allDebts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // --- Country & Currency Settings ---
+    private val countryPrefs = application.getSharedPreferences("country_settings", android.content.Context.MODE_PRIVATE)
+
+    private val _selectedCountry = MutableStateFlow(countryPrefs.getString("selected_country", "IN") ?: "IN")
+    val selectedCountry: StateFlow<String> = _selectedCountry.asStateFlow()
+
+    fun updateCountry(countryCode: String) {
+        countryPrefs.edit().putString("selected_country", countryCode).apply()
+        _selectedCountry.value = countryCode
+    }
+
+    fun getCurrencySymbol(): String {
+        return when (selectedCountry.value) {
+            "IN" -> "₹"
+            "US" -> "$"
+            "JP" -> "¥"
+            "EU" -> "€"
+            else -> "$"
+        }
+    }
+
+    fun formatCurrencyValue(amount: Double): String {
+        val symbol = getCurrencySymbol()
+        return "$symbol${String.format(Locale.getDefault(), "%,.2f", amount)}"
+    }
+
+    val activePaymentMethods: StateFlow<List<String>> = selectedCountry.map { country ->
+        getPaymentMethodsForCountry(country)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, listOf("Cash", "UPI", "Credit Card", "Debit Card", "Bank Transfer"))
+
+    fun getPaymentMethodsForCountry(country: String): List<String> {
+        return when (country) {
+            "IN" -> listOf("UPI", "Cash", "Credit Card", "Debit Card", "Bank Transfer", "Wallet")
+            "US" -> listOf("Venmo/Zelle", "PayPal", "Cash", "Credit Card", "Debit Card", "Bank Transfer")
+            "JP" -> listOf("Suica/IC", "Line Pay/PayPay", "Cash", "Credit Card", "Bank Transfer")
+            "EU" -> listOf("SEPA Transfer", "Cash", "Credit Card", "Debit Card", "Mobile Pay")
+            else -> listOf("Cash", "Credit Card", "Debit Card", "Bank Transfer")
+        }
+    }
+
+    // --- CRUD: Debts (Borrowed & Lent) ---
+    fun addDebt(
+        personName: String,
+        amount: Double,
+        type: String, // "BORROWED" or "LENT"
+        description: String,
+        date: Long,
+        dueDate: Long? = null
+    ) {
+        viewModelScope.launch {
+            val debt = Debt(
+                personName = personName,
+                amount = amount,
+                type = type,
+                description = description,
+                date = date,
+                dueDate = dueDate,
+                isResolved = false
+            )
+            repository.insertDebt(debt)
+        }
+    }
+
+    fun resolveDebt(debt: Debt) {
+        viewModelScope.launch {
+            repository.insertDebt(debt.copy(isResolved = true))
+        }
+    }
+
+    fun unresolveDebt(debt: Debt) {
+        viewModelScope.launch {
+            repository.insertDebt(debt.copy(isResolved = false))
+        }
+    }
+
+    fun deleteDebt(debt: Debt) {
+        viewModelScope.launch {
+            repository.deleteDebt(debt)
+        }
+    }
 
     // --- Backup & Restore UI Feedback States ---
     private val _backupStatus = MutableStateFlow("")

@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -40,6 +41,9 @@ fun DashboardScreen(
     val budgets by viewModel.allBudgets.collectAsState()
     val recurringList by viewModel.allRecurringTransactions.collectAsState()
     val pendingTransactions by viewModel.allPendingTransactions.collectAsState()
+
+    val selectedCountry by viewModel.selectedCountry.collectAsState()
+    val currencySymbol = viewModel.getCurrencySymbol()
 
     if (pendingTransactions.isNotEmpty()) {
         val activePending = pendingTransactions.first()
@@ -133,7 +137,7 @@ fun DashboardScreen(
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                         Text(
-                            text = "₹${String.format(Locale.getDefault(), "%.2f", activePending.amount)}",
+                            text = "$currencySymbol${String.format(Locale.getDefault(), "%.2f", activePending.amount)}",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = if (activePending.type == "EXPENSE") ExpenseRed else IncomeGreen
                         )
@@ -276,338 +280,347 @@ fun DashboardScreen(
                 .background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(bottom = 80.dp)
         ) {
-            // --- Welcome Segment ---
+            // --- Minimal Hello Header ---
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                        .padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
                         Text(
+                            text = "GREETINGS",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                letterSpacing = 1.2.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
+                            )
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
                             text = "Hello, Investor!",
                             style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.ExtraBold,
+                                fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onBackground
                             )
                         )
-                        Text(
-                            text = "Let's track and grow your wealth.",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                            )
-                        )
                     }
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                        modifier = Modifier.size(48.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.AccountBalanceWallet,
-                                contentDescription = "Wallet Icon",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.AccountBalanceWallet,
+                            contentDescription = "Wallet Icon",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }
 
-            // --- Total Balance Card ---
+            // --- Clean Balanced Net Worth Display ---
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = "TOTAL NET BALANCE",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            letterSpacing = 1.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "$currencySymbol${String.format("%,.2f", currentBalance)}",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.Black,
+                            fontSize = 38.sp,
+                            color = if (currentBalance >= 0) IncomeGreenDark else ExpenseRedDark
+                        )
+                    )
+                }
+            }
+
+            // --- Unified Compact Cashflow Banner ---
             item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
                     ),
-                    shape = RoundedCornerShape(24.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
-                            text = "CURRENT NET BALANCE",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                letterSpacing = 1.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "₹${String.format("%,.2f", currentBalance)}",
-                            style = MaterialTheme.typography.headlineLarge.copy(
-                                fontWeight = FontWeight.Black,
-                                color = if (currentBalance >= 0) IncomeGreenDark else ExpenseRedDark
-                            )
-                        )
-                    }
-                }
-            }
-
-            // --- Summary Cards Grid ---
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    // Today Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        SummaryCard(
-                            title = "Today's Income",
-                            amount = todayIncome,
-                            color = IncomeGreen,
-                            icon = Icons.Default.TrendingUp,
-                            modifier = Modifier.weight(1f)
-                        )
-                        SummaryCard(
-                            title = "Today's Expense",
-                            amount = todayExpense,
-                            color = ExpenseRed,
-                            icon = Icons.Default.TrendingDown,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    // This Month Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        SummaryCard(
-                            title = "Month Income",
-                            amount = monthIncome,
-                            color = IncomeGreen,
-                            icon = Icons.Default.ArrowCircleUp,
-                            modifier = Modifier.weight(1f)
-                        )
-                        SummaryCard(
-                            title = "Month Expense",
-                            amount = monthExpense,
-                            color = ExpenseRed,
-                            icon = Icons.Default.ArrowCircleDown,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-
-            // --- Quick Statistics Segment ---
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 16.dp)
-                ) {
-                    Text(
-                        text = "Quick Statistics",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        StatCard(
-                            label = "Daily Avg spend",
-                            value = "₹${avgDailySpending.toInt()}",
-                            icon = Icons.Default.AvTimer,
-                            iconColor = AnalyticsBlueDark,
-                            modifier = Modifier.weight(1f)
-                        )
-                        StatCard(
-                            label = "Max spend day",
-                            value = "₹${highestExpenseDayVal.toInt()}",
-                            icon = Icons.Default.ArrowUpward,
-                            iconColor = ExpenseRedDark,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        StatCard(
-                            label = "Peak income day",
-                            value = "₹${highestIncomeDayVal.toInt()}",
-                            icon = Icons.Default.Star,
-                            iconColor = IncomeGreenDark,
-                            modifier = Modifier.weight(1f)
-                        )
-                        StatCard(
-                            label = "Remaining Budget",
-                            value = "₹${remainingBudget.toInt()}",
-                            icon = Icons.Default.PieChart,
-                            iconColor = AlertOrangeDark,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-
-            // --- Upcoming Bill Reminders Segment ---
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = "Upcoming Bills & Reminders",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-
-                    if (recurringList.isEmpty()) {
-                        Card(
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
-                            shape = RoundedCornerShape(16.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircleOutline,
-                                    contentDescription = null,
-                                    tint = IncomeGreenDark,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Today's Flows",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text(
-                                    text = "All clear! No active bill reminders. Configure recurring items under Tools tab.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = "+$currencySymbol${String.format("%,.0f", todayIncome)}",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = IncomeGreenDark
+                                )
+                                Text(
+                                    text = "-$currencySymbol${String.format("%,.0f", todayExpense)}",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = ExpenseRedDark
                                 )
                             }
                         }
-                    } else {
-                        // Calculate next due dates nicely
-                        val sortedReminders = recurringList.map { rec ->
-                            val cal = Calendar.getInstance().apply { timeInMillis = rec.lastTriggered }
-                            when (rec.frequency.uppercase()) {
-                                "DAILY" -> cal.add(Calendar.DAY_OF_YEAR, 1)
-                                "WEEKLY" -> cal.add(Calendar.WEEK_OF_YEAR, 1)
-                                "MONTHLY" -> cal.add(Calendar.MONTH, 1)
-                                "YEARLY" -> cal.add(Calendar.YEAR, 1)
-                                else -> cal.add(Calendar.MONTH, 1)
-                            }
-                            val nextDue = cal.timeInMillis
-                            val diffDays = ((nextDue - System.currentTimeMillis()) / (24 * 60 * 60 * 1000L)).toInt()
-                            rec to (nextDue to diffDays)
-                        }.sortedBy { it.second.first } // oldest (nearest) first
-
-                        Card(
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                            thickness = 1.dp
+                        )
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                            shape = RoundedCornerShape(16.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                sortedReminders.forEach { (rec, dueTimeAndDays) ->
-                                    val (nextDue, diffDays) = dueTimeAndDays
-                                    val formattedDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(nextDue))
-                                    
-                                    val (statusText, badgeBg, badgeText) = when {
-                                        diffDays < 0 -> Triple("Overdue by ${-diffDays}d", Color(0xFFF2D3D3), Color(0xFFC62828))
-                                        diffDays == 0 -> Triple("Due Today", Color(0xFFFFF3CD), Color(0xFF856404))
-                                        diffDays <= 3 -> Triple("Due in $diffDays d", Color(0xFFFFF3CD), Color(0xFF856404))
-                                        else -> Triple("In $diffDays days", Color(0xFFD4EDDA), Color(0xFF155724))
-                                    }
+                            Text(
+                                text = "This Month's Volume",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text(
+                                    text = "+$currencySymbol${String.format("%,.0f", monthIncome)}",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = IncomeGreenDark
+                                )
+                                Text(
+                                    text = "-$currencySymbol${String.format("%,.0f", monthExpense)}",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = ExpenseRedDark
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
+            // --- Horizontal Capsule KPI Statistics ---
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp)
+                ) {
+                    Text(
+                        text = "QUICK STATISTICS",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            letterSpacing = 1.2.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
+                        ),
+                        modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 10.dp)
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CompactStatPill(
+                            label = "Daily Avg",
+                            value = "$currencySymbol${avgDailySpending.toInt()}",
+                            icon = Icons.Default.AvTimer,
+                            color = AnalyticsBlueDark
+                        )
+                        CompactStatPill(
+                            label = "Max spend",
+                            value = "$currencySymbol${highestExpenseDayVal.toInt()}",
+                            icon = Icons.Default.ArrowUpward,
+                            color = ExpenseRedDark
+                        )
+                        CompactStatPill(
+                            label = "Peak Income",
+                            value = "$currencySymbol${highestIncomeDayVal.toInt()}",
+                            icon = Icons.Default.Star,
+                            color = IncomeGreenDark
+                        )
+                        CompactStatPill(
+                            label = "Remaining Budget",
+                            value = "$currencySymbol${remainingBudget.toInt()}",
+                            icon = Icons.Default.PieChart,
+                            color = AlertOrangeDark
+                        )
+                    }
+                }
+            }
+
+            // --- Upcoming Bill Reminders (Smart / Space Saving) ---
+            if (recurringList.isNotEmpty()) {
+                val sortedReminders = recurringList.map { rec ->
+                    val cal = Calendar.getInstance().apply { timeInMillis = rec.lastTriggered }
+                    when (rec.frequency.uppercase()) {
+                        "DAILY" -> cal.add(Calendar.DAY_OF_YEAR, 1)
+                        "WEEKLY" -> cal.add(Calendar.WEEK_OF_YEAR, 1)
+                        "MONTHLY" -> cal.add(Calendar.MONTH, 1)
+                        "YEARLY" -> cal.add(Calendar.YEAR, 1)
+                        else -> cal.add(Calendar.MONTH, 1)
+                    }
+                    val nextDue = cal.timeInMillis
+                    val diffDays = ((nextDue - System.currentTimeMillis()) / (24 * 60 * 60 * 1000L)).toInt()
+                    rec to (nextDue to diffDays)
+                }.sortedBy { it.second.first }
+
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "UPCOMING REMINDERS",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    letterSpacing = 1.2.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
+                                )
+                            )
+                            Text(
+                                text = "${sortedReminders.size} Active",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                             )
+                        }
+
+                        sortedReminders.take(2).forEach { (rec, dueTimeAndDays) ->
+                            val (nextDue, diffDays) = dueTimeAndDays
+                            val formattedDate = SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(nextDue))
+                            
+                            val (statusText, badgeBg, badgeText) = when {
+                                diffDays < 0 -> Triple("Overdue", Color(0xFFFDE8E8), Color(0xFFE02424))
+                                diffDays == 0 -> Triple("Today", Color(0xFFFEF3C7), Color(0xFFD97706))
+                                diffDays <= 3 -> Triple("${diffDays}d left", Color(0xFFFEF3C7), Color(0xFFD97706))
+                                else -> Triple("${diffDays}d", Color(0xFFDEF7EC), Color(0xFF03543F))
+                            }
+
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f)
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
                                     Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
-                                            .padding(12.dp),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                        modifier = Modifier.weight(1f)
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(
-                                                    imageVector = when (rec.category.uppercase()) {
-                                                        "RECHARGE", "MOBILE" -> Icons.Default.PhoneAndroid
-                                                        "RENT" -> Icons.Default.Home
-                                                        "ELECTRICITY", "BILLS" -> Icons.Default.ReceiptLong
-                                                        "SUBSCRIPTION" -> Icons.Default.PlayCircle
-                                                        else -> Icons.Default.DateRange
-                                                    },
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(16.dp),
-                                                    tint = MaterialTheme.colorScheme.primary
-                                                )
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text(
-                                                    text = rec.description,
-                                                    fontWeight = FontWeight.Bold,
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.height(4.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = when (rec.category.uppercase()) {
+                                                    "RECHARGE", "MOBILE" -> Icons.Default.PhoneAndroid
+                                                    "RENT" -> Icons.Default.Home
+                                                    "ELECTRICITY", "BILLS" -> Icons.Default.ReceiptLong
+                                                    "SUBSCRIPTION" -> Icons.Default.PlayCircle
+                                                    else -> Icons.Default.DateRange
+                                                },
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.secondary,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text(
+                                                text = rec.description,
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Surface(
-                                                    shape = RoundedCornerShape(6.dp),
+                                                    shape = RoundedCornerShape(4.dp),
                                                     color = badgeBg,
-                                                    modifier = Modifier.padding(end = 8.dp)
+                                                    modifier = Modifier.padding(end = 6.dp)
                                                 ) {
                                                     Text(
                                                         text = statusText,
-                                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                                        fontWeight = FontWeight.Bold,
+                                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
                                                         color = badgeText,
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                                                     )
                                                 }
                                                 Text(
-                                                    text = "Next: $formattedDate",
-                                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                                    text = "Due $formattedDate",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                                                 )
                                             }
                                         }
-
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    }
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(
+                                            text = "$currencySymbol${rec.amount.toInt()}",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                                        )
+                                        IconButton(
+                                            onClick = { viewModel.triggerRecurringPayment(rec) },
+                                            modifier = Modifier
+                                                .size(28.dp)
+                                                .background(MaterialTheme.colorScheme.primary, CircleShape)
                                         ) {
-                                            Text(
-                                                text = "₹${rec.amount.toInt()}",
-                                                fontWeight = FontWeight.Black,
-                                                style = MaterialTheme.typography.bodyLarge
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = "Pay",
+                                                tint = MaterialTheme.colorScheme.onPrimary,
+                                                modifier = Modifier.size(14.dp)
                                             )
-                                            IconButton(
-                                                onClick = {
-                                                    viewModel.triggerRecurringPayment(rec)
-                                                },
-                                                modifier = Modifier
-                                                    .size(36.dp)
-                                                    .background(MaterialTheme.colorScheme.primary, CircleShape)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Done,
-                                                    contentDescription = "Pay",
-                                                    tint = MaterialTheme.colorScheme.onPrimary,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
                                         }
                                     }
                                 }
@@ -617,58 +630,60 @@ fun DashboardScreen(
                 }
             }
 
-            // --- Recent Transactions Header ---
+            // --- Recent Transactions ---
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                        .padding(start = 24.dp, top = 16.dp, end = 24.dp, bottom = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Recent Transactions",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                    )
-                    TextButton(onClick = onNavigateToHistory) {
-                        Text(text = "View All")
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Arrow Icon",
-                            modifier = Modifier.size(16.dp)
+                        text = "RECENT TRANSACTIONS",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            letterSpacing = 1.2.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
                         )
+                    )
+                    TextButton(
+                        onClick = onNavigateToHistory,
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("View All", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = "Arrow Icon",
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
                     }
                 }
             }
 
-            // --- Empty State Recent Transactions ---
+            // --- Recent Transactions List / Empty State ---
             if (recentTxs.isEmpty()) {
                 item {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 40.dp),
+                            .padding(vertical = 32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Icon(
                             imageVector = Icons.Default.Inbox,
                             contentDescription = "No Transactions Found",
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                            modifier = Modifier.size(64.dp)
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                            modifier = Modifier.size(48.dp)
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "No transactions logged yet.",
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Tap + to add some expenses or income!",
                             style = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                             )
                         )
                     }
@@ -677,7 +692,8 @@ fun DashboardScreen(
                 items(recentTxs) { transaction ->
                     TransactionItemRow(
                         transaction = transaction,
-                        onDelete = { viewModel.deleteTransaction(transaction) }
+                        onDelete = { viewModel.deleteTransaction(transaction) },
+                        currencySymbol = currencySymbol
                     )
                 }
             }
@@ -685,104 +701,54 @@ fun DashboardScreen(
     }
 }
 
-// --- Inner Components ---
+// --- Minimalist Inner Components ---
 
 @Composable
-fun SummaryCard(
-    title: String,
-    amount: Double,
-    color: Color,
-    icon: ImageVector,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = color.copy(alpha = 0.1f),
-                modifier = Modifier.size(40.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = "Icon",
-                        tint = color,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                )
-                Text(
-                    text = "₹${String.format("%,.0f", amount)}",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun StatCard(
+fun CompactStatPill(
     label: String,
     value: String,
     icon: ImageVector,
-    iconColor: Color,
-    modifier: Modifier = Modifier
+    color: Color
 ) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        shape = RoundedCornerShape(16.dp)
+    Surface(
+        modifier = Modifier
+            .height(52.dp)
+            .widthIn(min = 120.dp),
+        shape = RoundedCornerShape(26.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconColor,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Column {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(12.dp)
+                )
+            }
+            Column(verticalArrangement = Arrangement.Center) {
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                    )
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 9.sp),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    maxLines = 1
                 )
                 Text(
                     text = value,
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
                 )
             }
         }
@@ -792,7 +758,8 @@ fun StatCard(
 @Composable
 fun TransactionItemRow(
     transaction: Transaction,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    currencySymbol: String = "₹"
 ) {
     val isExpense = transaction.type == "EXPENSE"
     val badgeColor = if (isExpense) ExpenseRed else IncomeGreen
@@ -808,18 +775,15 @@ fun TransactionItemRow(
         SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(transaction.date))
     }
 
-    Card(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        shape = RoundedCornerShape(12.dp)
+            .padding(horizontal = 24.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -827,27 +791,26 @@ fun TransactionItemRow(
                 modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Stylish category badge
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
-                        .background(badgeColor.copy(alpha = 0.15f)),
+                        .background(badgeColor.copy(alpha = 0.1f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = characterBadge,
-                        style = MaterialTheme.typography.bodyMedium.copy(
+                        style = MaterialTheme.typography.bodySmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = badgeColor
                         )
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.padding(end = 8.dp)) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = transaction.description.ifEmpty { transaction.category },
-                        style = MaterialTheme.typography.bodyLarge.copy(
+                        style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
                         ),
@@ -859,6 +822,7 @@ fun TransactionItemRow(
                         Text(
                             text = transaction.category,
                             style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )
                         )
@@ -866,6 +830,7 @@ fun TransactionItemRow(
                         Text(
                             text = "•",
                             style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                             )
                         )
@@ -873,6 +838,7 @@ fun TransactionItemRow(
                         Text(
                             text = formattedDate,
                             style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                             )
                         )
@@ -880,11 +846,14 @@ fun TransactionItemRow(
                 }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "${if (isExpense) "-" else "+"}₹${String.format("%,.2f", transaction.amount)}",
-                        style = MaterialTheme.typography.bodyLarge.copy(
+                        text = "${if (isExpense) "-" else "+"}$currencySymbol${String.format("%,.2f", transaction.amount)}",
+                        style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = if (isExpense) ExpenseRedDark else IncomeGreenDark
                         )
@@ -892,21 +861,22 @@ fun TransactionItemRow(
                     Text(
                         text = transaction.paymentMethod,
                         style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                         )
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                     Icon(
                         imageVector = Icons.Default.DeleteOutline,
                         contentDescription = "Delete transaction",
-                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
-                        modifier = Modifier.size(20.dp)
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.4f),
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
         }
+        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
     }
 }
 

@@ -39,6 +39,8 @@ fun AnalyticsScreen(
     modifier: Modifier = Modifier
 ) {
     val transactions by viewModel.allTransactions.collectAsState()
+    val selectedCountry by viewModel.selectedCountry.collectAsState()
+    val currencySymbol = viewModel.getCurrencySymbol()
 
     // --- State Toggles ---
     var selectedTab by remember { mutableStateOf("EXPENSES") } // "EXPENSES", "INCOME", "CASHFLOW"
@@ -128,7 +130,7 @@ fun AnalyticsScreen(
                 }
             } else {
                 item {
-                    AdaptiveAnalyticsCard(transactions = transactions)
+                    AdaptiveAnalyticsCard(transactions = transactions, currencySymbol = currencySymbol)
                 }
 
                 when (selectedTab) {
@@ -530,7 +532,7 @@ fun CashFlowBarChart(transactions: List<Transaction>) {
 }
 
 @Composable
-fun AdaptiveAnalyticsCard(transactions: List<Transaction>) {
+fun AdaptiveAnalyticsCard(transactions: List<Transaction>, currencySymbol: String = "₹") {
     val expenses = remember(transactions) { transactions.filter { it.type == "EXPENSE" } }
     if (expenses.isEmpty()) return
 
@@ -562,7 +564,7 @@ fun AdaptiveAnalyticsCard(transactions: List<Transaction>) {
                 val averageHistoric = previousOnes.map { it.amount }.average()
                 if (latest.amount > 2.0 * averageHistoric && averageHistoric > 0) {
                     val percentIncrease = ((latest.amount - averageHistoric) / averageHistoric * 100).toInt()
-                    list.add("Sudden ${percentIncrease}% spike in $cat on ${SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(latest.date))} (₹${latest.amount.toInt()} vs avg ₹${averageHistoric.toInt()})")
+                    list.add("Sudden ${percentIncrease}% spike in $cat on ${SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(latest.date))} ($currencySymbol${latest.amount.toInt()} vs avg $currencySymbol${averageHistoric.toInt()})")
                 }
             }
         }
@@ -604,11 +606,11 @@ fun AdaptiveAnalyticsCard(transactions: List<Transaction>) {
             ) {
                 Column {
                     Text("Daily Burn Rate", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("₹${avgDailyBurn.toInt()}/day", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                    Text("$currencySymbol${avgDailyBurn.toInt()}/day", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text("Month Forecast", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("₹${projectedSpent.toInt()}", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary))
+                    Text("$currencySymbol${projectedSpent.toInt()}", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary))
                 }
             }
 

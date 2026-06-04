@@ -75,3 +75,15 @@ data class ParsedSmsLog(
     val status: String,         // "PENDING", "CONFIRMED", "IGNORED"
     val category: String = ""   // Category if confirmed
 )
+
+@Entity(tableName = "debts")
+data class Debt(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val personName: String,
+    val amount: Double,
+    val type: String, // "BORROWED" or "LENT"
+    val date: Long,
+    val description: String,
+    val isResolved: Boolean = false,
+    val dueDate: Long? = null
+)

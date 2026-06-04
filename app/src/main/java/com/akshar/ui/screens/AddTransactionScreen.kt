@@ -68,8 +68,13 @@ fun AddTransactionScreen(
         categorySelected = currentCategories.first()
     }
 
-    val paymentMethods = remember {
-        listOf("Cash", "UPI", "Credit Card", "Debit Card", "Bank Transfer", "Wallet")
+    val paymentMethods by viewModel.activePaymentMethods.collectAsState()
+    val currencySymbol = viewModel.getCurrencySymbol()
+
+    LaunchedEffect(paymentMethods) {
+        if (!paymentMethods.contains(paymentMethod)) {
+            paymentMethod = paymentMethods.firstOrNull() ?: "Cash"
+        }
     }
 
     // Date formatting helper
@@ -163,7 +168,7 @@ fun AddTransactionScreen(
                     amountStr = it
                     amountError = null
                 },
-                label = { Text("Amount (₹)") },
+                label = { Text("Amount ($currencySymbol)") },
                 placeholder = { Text("0.00") },
                 isError = amountError != null,
                 supportingText = {

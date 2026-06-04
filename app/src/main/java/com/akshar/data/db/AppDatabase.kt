@@ -8,6 +8,7 @@ import com.akshar.data.model.Budget
 import com.akshar.data.model.RecurringTransaction
 import com.akshar.data.model.SavingsGoal
 import com.akshar.data.model.Transaction
+import com.akshar.data.model.Debt
 
 @Database(
     entities = [
@@ -17,9 +18,10 @@ import com.akshar.data.model.Transaction
         RecurringTransaction::class,
         com.akshar.data.model.SmsTemplate::class,
         com.akshar.data.model.PendingTransaction::class,
-        com.akshar.data.model.ParsedSmsLog::class
+        com.akshar.data.model.ParsedSmsLog::class,
+        Debt::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

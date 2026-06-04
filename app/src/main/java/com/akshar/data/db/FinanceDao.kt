@@ -8,6 +8,7 @@ import com.akshar.data.model.Transaction
 import com.akshar.data.model.SmsTemplate
 import com.akshar.data.model.PendingTransaction
 import com.akshar.data.model.ParsedSmsLog
+import com.akshar.data.model.Debt
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -112,4 +113,17 @@ interface FinanceDao {
 
     @Query("DELETE FROM parsed_sms_logs")
     suspend fun clearAllParsedSmsLogs()
+
+    // --- Debts (Borrowed & Lent) ---
+    @Query("SELECT * FROM debts ORDER BY date DESC")
+    fun getAllDebts(): Flow<List<Debt>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDebt(debt: Debt)
+
+    @Delete
+    suspend fun deleteDebt(debt: Debt)
+
+    @Query("DELETE FROM debts WHERE id = :id")
+    suspend fun deleteDebtById(id: Long)
 }

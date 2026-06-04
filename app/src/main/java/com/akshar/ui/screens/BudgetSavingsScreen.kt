@@ -36,6 +36,9 @@ fun BudgetSavingsScreen(
     val transactions by viewModel.allTransactions.collectAsState()
     val savingsGoals by viewModel.allSavingsGoals.collectAsState()
 
+    val selectedCountry by viewModel.selectedCountry.collectAsState()
+    val currencySymbol = viewModel.getCurrencySymbol()
+
     var activeTab by remember { mutableStateOf("BUDGETS") } // "BUDGETS", "SAVINGS"
 
     // Dialog state controllers
@@ -140,7 +143,8 @@ fun BudgetSavingsScreen(
                         BudgetRow(
                             budget = budget,
                             spent = spent,
-                            onDelete = { viewModel.deleteBudgetById(budget.id) }
+                            onDelete = { viewModel.deleteBudgetById(budget.id) },
+                            currencySymbol = currencySymbol
                         )
                     }
                 }
@@ -158,7 +162,8 @@ fun BudgetSavingsScreen(
                         SavingsGoalRow(
                             goal = goal,
                             onAddSavings = { showAddSavingsFundsDialog = goal },
-                            onDelete = { viewModel.deleteSavingsGoalById(goal.id) }
+                            onDelete = { viewModel.deleteSavingsGoalById(goal.id) },
+                            currencySymbol = currencySymbol
                         )
                     }
                 }
@@ -183,7 +188,8 @@ fun BudgetSavingsScreen(
                     reminderThreshold = threshold
                 )
                 showAddBudgetDialog = false
-            }
+            },
+            currencySymbol = currencySymbol
         )
     }
 
@@ -194,7 +200,8 @@ fun BudgetSavingsScreen(
             onConfirm = { name, tgt, cur, dt ->
                 viewModel.addSavingsGoal(name, tgt, cur, dt)
                 showAddGoalDialog = false
-            }
+            },
+            currencySymbol = currencySymbol
         )
     }
 
@@ -206,7 +213,8 @@ fun BudgetSavingsScreen(
             onConfirm = { funds ->
                 viewModel.addSavingsProgress(showAddSavingsFundsDialog!!, funds)
                 showAddSavingsFundsDialog = null
-            }
+            },
+            currencySymbol = currencySymbol
         )
     }
 }
@@ -217,7 +225,8 @@ fun BudgetSavingsScreen(
 fun BudgetRow(
     budget: Budget,
     spent: Double,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    currencySymbol: String = "₹"
 ) {
     val pct = if (budget.limitAmount > 0) spent / budget.limitAmount else 0.0
     val progressFraction = pct.coerceIn(0.0, 1.0).toFloat()
@@ -307,12 +316,12 @@ fun BudgetRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Spent: ₹${String.format(Locale.getDefault(), "%.1f", spent)}",
+                    text = "Spent: $currencySymbol${String.format(Locale.getDefault(), "%.1f", spent)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
                 Text(
-                    text = "Limit: ₹${budget.limitAmount.toInt()}",
+                    text = "Limit: $currencySymbol${budget.limitAmount.toInt()}",
                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
                 )
             }
@@ -345,7 +354,8 @@ fun BudgetRow(
 fun SavingsGoalRow(
     goal: SavingsGoal,
     onAddSavings: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    currencySymbol: String = "₹"
 ) {
     val pct = if (goal.targetAmount > 0) goal.currentAmount / goal.targetAmount else 0.0
     val progressFraction = pct.coerceIn(0.0, 1.0).toFloat()
@@ -416,12 +426,12 @@ fun SavingsGoalRow(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Saved: ₹${goal.currentAmount.toInt()} ($percentString)",
+                    text = "Saved: $currencySymbol${goal.currentAmount.toInt()} ($percentString)",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
                 Text(
-                    text = "Goal Target: ₹${goal.targetAmount.toInt()}",
+                    text = "Goal Target: $currencySymbol${goal.targetAmount.toInt()}",
                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
                 )
             }
@@ -466,7 +476,8 @@ fun EmptyVisualState(message: String, subtext: String) {
 fun AddBudgetDialog(
     currentMonth: String,
     onDismiss: () -> Unit,
-    onConfirm: (category: String, limit: Double, frequency: String, remindersEnabled: Boolean, reminderThreshold: Int) -> Unit
+    onConfirm: (category: String, limit: Double, frequency: String, remindersEnabled: Boolean, reminderThreshold: Int) -> Unit,
+    currencySymbol: String = "₹"
 ) {
     var category by remember { mutableStateOf("Food") }
     var limitStr by remember { mutableStateOf("") }
@@ -557,7 +568,7 @@ fun AddBudgetDialog(
                 OutlinedTextField(
                     value = limitStr,
                     onValueChange = { limitStr = it },
-                    label = { Text("Limit Amount (₹)") },
+                    label = { Text("Limit Amount ($currencySymbol)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -628,7 +639,8 @@ fun AddBudgetDialog(
 @Composable
 fun AddGoalDialog(
     onDismiss: () -> Unit,
-    onConfirm: (name: String, target: Double, current: Double, date: String) -> Unit
+    onConfirm: (name: String, target: Double, current: Double, date: String) -> Unit,
+    currencySymbol: String = "₹"
 ) {
     var name by remember { mutableStateOf("") }
     var targetStr by remember { mutableStateOf("") }
@@ -651,7 +663,7 @@ fun AddGoalDialog(
                 OutlinedTextField(
                     value = targetStr,
                     onValueChange = { targetStr = it },
-                    label = { Text("Target Goal Amount (₹)") },
+                    label = { Text("Target Goal Amount ($currencySymbol)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -660,7 +672,7 @@ fun AddGoalDialog(
                 OutlinedTextField(
                     value = currentStr,
                     onValueChange = { currentStr = it },
-                    label = { Text("Initial Saved Amount (₹)") },
+                    label = { Text("Initial Saved Amount ($currencySymbol)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -700,7 +712,8 @@ fun AddGoalDialog(
 fun AddSavingsFundsDialog(
     goalName: String,
     onDismiss: () -> Unit,
-    onConfirm: (funds: Double) -> Unit
+    onConfirm: (funds: Double) -> Unit,
+    currencySymbol: String = "₹"
 ) {
     var fundStr by remember { mutableStateOf("") }
 
@@ -711,7 +724,7 @@ fun AddSavingsFundsDialog(
             OutlinedTextField(
                 value = fundStr,
                 onValueChange = { fundStr = it },
-                label = { Text("Contribution Amount (₹)") },
+                label = { Text("Contribution Amount ($currencySymbol)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
