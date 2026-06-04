@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,7 +69,7 @@ fun AddTransactionScreen(
         categorySelected = currentCategories.first()
     }
 
-    val paymentMethods by viewModel.activePaymentMethods.collectAsState()
+    val paymentMethods by viewModel.activePaymentMethods.collectAsStateWithLifecycle()
     val currencySymbol = viewModel.getCurrencySymbol()
 
     LaunchedEffect(paymentMethods) {

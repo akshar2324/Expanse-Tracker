@@ -298,7 +298,7 @@ fun AppScaffold(viewModel: FinanceViewModel) {
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = MaterialTheme.colorScheme.onPrimary,
                                         selectedTextColor = MaterialTheme.colorScheme.primary,
-                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                                        indicatorColor = MaterialTheme.colorScheme.primary
                                     )
                                 )
                             }

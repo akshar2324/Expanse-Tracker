@@ -1,6 +1,6 @@
 {
   "name": "AkSpend",
-  "description": "Clean, secure, offline financial ledger, monthly budgets, savings goals, and transaction reminders. Website: https://axar2324.github.io/Expanse-Tracker/ | Privacy Policy: https://axar2324.github.io/Expanse-Tracker/privacy.html | Terms of Service: https://axar2324.github.io/Expanse-Tracker/terms.html",
+  "description": "Clean, secure, offline financial ledger, monthly budgets, savings goals, and transaction reminders. Website: https://akshar2324.github.io/AkSpend-Web/ | Privacy Policy: https://akshar2324.github.io/AkSpend-Web/privacy.html | Terms of Service: https://akshar2324.github.io/AkSpend-Web/terms.html",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

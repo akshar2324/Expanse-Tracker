@@ -6,9 +6,6 @@ import com.akshar.data.model.Budget
 import com.akshar.data.model.RecurringTransaction
 import com.akshar.data.model.SavingsGoal
 import com.akshar.data.model.Transaction
-import com.akshar.data.model.SmsTemplate
-import com.akshar.data.model.PendingTransaction
-import com.akshar.data.model.ParsedSmsLog
 import com.akshar.data.model.Debt
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -118,59 +115,6 @@ class FinanceRepository(private val financeDao: FinanceDao) {
         } catch (e: Exception) {
             Log.e("FinanceRepository", "Error processing recurring transactions: ${e.message}", e)
         }
-    }
-
-    // --- SMS Parser Configurations ---
-    val allSmsTemplates: Flow<List<SmsTemplate>> = financeDao.getAllSmsTemplates()
-
-    suspend fun getSmsTemplatesList(): List<SmsTemplate> {
-        return financeDao.getSmsTemplatesList()
-    }
-
-    suspend fun getSmsTemplateById(id: String): SmsTemplate? {
-        return financeDao.getSmsTemplateById(id)
-    }
-
-    suspend fun insertSmsTemplate(smsTemplate: SmsTemplate) {
-        financeDao.insertSmsTemplate(smsTemplate)
-    }
-
-    // --- Pending SMS Transactions ---
-    val allPendingTransactions: Flow<List<PendingTransaction>> = financeDao.getAllPendingTransactions()
-
-    suspend fun insertPendingTransaction(pending: PendingTransaction) {
-        financeDao.insertPendingTransaction(pending)
-    }
-
-    suspend fun deletePendingTransaction(pending: PendingTransaction) {
-        financeDao.deletePendingTransaction(pending)
-    }
-
-    suspend fun deletePendingTransactionById(id: Long) {
-        financeDao.deletePendingTransactionById(id)
-    }
-
-    // --- Parsed SMS Logs ---
-    val allParsedSmsLogs: Flow<List<ParsedSmsLog>> = financeDao.getAllParsedSmsLogs()
-
-    suspend fun insertParsedSmsLog(log: ParsedSmsLog) {
-        financeDao.insertParsedSmsLog(log)
-    }
-
-    suspend fun getParsedSmsLogByBody(smsBody: String): ParsedSmsLog? {
-        return financeDao.getParsedSmsLogByBody(smsBody)
-    }
-
-    suspend fun updateParsedSmsLogStatus(id: Long, status: String, category: String) {
-        financeDao.updateParsedSmsLogStatus(id, status, category)
-    }
-
-    suspend fun updateParsedSmsLogStatusByBody(smsBody: String, status: String, category: String) {
-        financeDao.updateParsedSmsLogStatusByBody(smsBody, status, category)
-    }
-
-    suspend fun clearAllParsedSmsLogs() {
-        financeDao.clearAllParsedSmsLogs()
     }
 
     // --- Debts (Borrowed & Lent) ---

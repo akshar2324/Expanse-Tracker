@@ -22,6 +22,12 @@
 }
 -dontwarn okio.**
 -dontwarn javax.annotation.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.conscrypt.**
+-dontwarn org.openjsse.**
+-dontwarn okhttp3.internal.platform.ConscryptPlatform
+-dontwarn okhttp3.internal.platform.BouncyCastlePlatform
+-dontwarn okhttp3.internal.platform.OpenJSSEPlatform
 
 # --- Moshi (JSON Serialization) ---
 # Keep the actual data classes to avoid shrinking fields used by JSON

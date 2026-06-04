@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,10 +63,10 @@ fun ToolsScreen(
         }
     )
 
-    val backupStatus by viewModel.backupStatus.collectAsState()
+    val backupStatus by viewModel.backupStatus.collectAsStateWithLifecycle()
 
-    val recurringList by viewModel.allRecurringTransactions.collectAsState()
-    val transactions by viewModel.allTransactions.collectAsState()
+    val recurringList by viewModel.allRecurringTransactions.collectAsStateWithLifecycle()
+    val transactions by viewModel.allTransactions.collectAsStateWithLifecycle()
 
     var activeSubTool by remember { mutableStateOf("RECURRING") } // "RECURRING", "REPORTS", "BACKUP"
 
@@ -92,7 +93,7 @@ fun ToolsScreen(
                     windowInsets = WindowInsets(0.dp)
                 )
 
-                val selectedCountry by viewModel.selectedCountry.collectAsState()
+                val selectedCountry by viewModel.selectedCountry.collectAsStateWithLifecycle()
 
                 // Tool selection row
                 Row(
@@ -598,7 +599,7 @@ fun ToolsScreen(
                 }
 
                 "SETTINGS" -> {
-                    val selectedCountryCode by viewModel.selectedCountry.collectAsState()
+                    val selectedCountryCode by viewModel.selectedCountry.collectAsStateWithLifecycle()
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -635,10 +636,10 @@ fun ToolsScreen(
                         }
 
                         val countriesList = listOf(
-                            Triple("IN", "India", "Rupee (₹) - Full UPI & SMS Reading"),
-                            Triple("US", "United States", "US Dollar ($) - Cards, PayPal/Venmo/Zelle"),
-                            Triple("JP", "Japan", "Japanese Yen (¥) - Cash, Suica/IC, PayPay, Cards"),
-                            Triple("EU", "European Union", "Euro (€) - SEPA Bank Transfer, Cash, Card")
+                            Triple("IN", "India", "Rupee (₹)"),
+                            Triple("US", "United States", "US Dollar ($)"),
+                            Triple("JP", "Japan", "Japanese Yen (¥)"),
+                            Triple("EU", "European Union", "Euro (€)")
                         )
 
                         countriesList.forEach { (code, cName, details) ->
@@ -684,8 +685,8 @@ fun ToolsScreen(
                 }
 
                 "DEBTS" -> {
-                    val debtsList by viewModel.allDebts.collectAsState()
-                    val selectedCountryCode by viewModel.selectedCountry.collectAsState()
+                    val debtsList by viewModel.allDebts.collectAsStateWithLifecycle()
+                    val selectedCountryCode by viewModel.selectedCountry.collectAsStateWithLifecycle()
                     val currencySymbol = viewModel.getCurrencySymbol()
 
                     var showAddDebtDialog by remember { mutableStateOf(false) }

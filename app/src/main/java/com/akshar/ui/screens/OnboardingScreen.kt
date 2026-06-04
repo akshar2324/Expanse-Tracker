@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,7 +39,7 @@ fun OnboardingScreen(
 ) {
     val context = LocalContext.current
     var currentSlide by remember { mutableStateOf(0) }
-    val selectedCountry by viewModel.selectedCountry.collectAsState()
+    val selectedCountry by viewModel.selectedCountry.collectAsStateWithLifecycle()
 
     val slides = remember {
         listOf(

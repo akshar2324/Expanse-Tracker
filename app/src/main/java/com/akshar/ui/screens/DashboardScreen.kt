@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,173 +38,12 @@ fun DashboardScreen(
     onNavigateToHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val transactions by viewModel.allTransactions.collectAsState()
-    val budgets by viewModel.allBudgets.collectAsState()
-    val recurringList by viewModel.allRecurringTransactions.collectAsState()
-    val pendingTransactions by viewModel.allPendingTransactions.collectAsState()
+    val transactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val budgets by viewModel.allBudgets.collectAsStateWithLifecycle()
+    val recurringList by viewModel.allRecurringTransactions.collectAsStateWithLifecycle()
 
-    val selectedCountry by viewModel.selectedCountry.collectAsState()
+    val selectedCountry by viewModel.selectedCountry.collectAsStateWithLifecycle()
     val currencySymbol = viewModel.getCurrencySymbol()
-
-    if (pendingTransactions.isNotEmpty()) {
-        val activePending = pendingTransactions.first()
-        var confirmationDescription by remember(activePending.id) { mutableStateOf("") }
-        val categories = remember(activePending.type) {
-            if (activePending.type == "EXPENSE") {
-                listOf("Food", "Grocery", "Transportation", "Fuel", "Shopping", "Entertainment", "Bills", "EMI", "Rent", "Health", "Other")
-            } else {
-                listOf("Salary", "Freelance", "Business", "Bonus", "Interest", "Investment", "Gift", "Refund", "Other")
-            }
-        }
-        var selectedCategory by remember(activePending.id) { mutableStateOf(categories.first()) }
-
-        AlertDialog(
-            onDismissRequest = { /* Don't dismiss of outside clicks to preserve state */ },
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = if (activePending.type == "EXPENSE") Icons.Default.TrendingDown else Icons.Default.TrendingUp,
-                        contentDescription = "SMS Detected",
-                        tint = if (activePending.type == "EXPENSE") ExpenseRed else IncomeGreen
-                    )
-                    Text(
-                        text = if (activePending.type == "EXPENSE") "New Expense Detected!" else "New Income Detected!",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                    )
-                }
-            },
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "We parsed an incoming bank SMS in the background:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    
-                    // Message bubble
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "From: ${activePending.smsSender}",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(activePending.date)),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = activePending.smsBody,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-
-                    // Proposed Amount Summary
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                color = if (activePending.type == "EXPENSE") ExpenseRed.copy(alpha = 0.1f) 
-                                        else IncomeGreen.copy(alpha = 0.1f),
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Extracted Amount:",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                        )
-                        Text(
-                            text = "$currencySymbol${String.format(Locale.getDefault(), "%.2f", activePending.amount)}",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = if (activePending.type == "EXPENSE") ExpenseRed else IncomeGreen
-                        )
-                    }
-
-                    // Description Input
-                    OutlinedTextField(
-                        value = confirmationDescription,
-                        onValueChange = { confirmationDescription = it },
-                        label = { Text("Assign Description") },
-                        placeholder = { Text("e.g. UPI Spent, Dinner, Uber...") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    // Category Selector Label
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "Select Category:",
-                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium)
-                        )
-                        // A beautiful scrollable row of Category chips
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            categories.forEach { category ->
-                                val isSelected = selectedCategory == category
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = { selectedCategory = category },
-                                    label = { Text(category) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = if (activePending.type == "EXPENSE") ExpenseRed.copy(alpha = 0.2f) else IncomeGreen.copy(alpha = 0.2f),
-                                        selectedLabelColor = if (activePending.type == "EXPENSE") ExpenseRed else IncomeGreen
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val finalDesc = confirmationDescription.ifBlank { "UPI Auto-parsed" }
-                        viewModel.confirmPendingTransaction(activePending, selectedCategory, finalDesc)
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (activePending.type == "EXPENSE") ExpenseRed else IncomeGreen
-                    )
-                ) {
-                    Text("Add to Ledger", color = Color.White)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { viewModel.deletePendingTransaction(activePending) }
-                ) {
-                    Text("Ignore SMS", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        )
-    }
 
     // --- State Calculations ---
     val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }

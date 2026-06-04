@@ -5,9 +5,6 @@ import com.akshar.data.model.Budget
 import com.akshar.data.model.RecurringTransaction
 import com.akshar.data.model.SavingsGoal
 import com.akshar.data.model.Transaction
-import com.akshar.data.model.SmsTemplate
-import com.akshar.data.model.PendingTransaction
-import com.akshar.data.model.ParsedSmsLog
 import com.akshar.data.model.Debt
 import kotlinx.coroutines.flow.Flow
 
@@ -68,51 +65,6 @@ interface FinanceDao {
 
     @Query("DELETE FROM recurring_transactions WHERE id = :id")
     suspend fun deleteRecurringTransactionById(id: Long)
-
-    // --- SMS Parsing Templates ---
-    @Query("SELECT * FROM sms_templates")
-    fun getAllSmsTemplates(): Flow<List<SmsTemplate>>
-
-    @Query("SELECT * FROM sms_templates")
-    suspend fun getSmsTemplatesList(): List<SmsTemplate>
-
-    @Query("SELECT * FROM sms_templates WHERE id = :id")
-    suspend fun getSmsTemplateById(id: String): SmsTemplate?
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSmsTemplate(smsTemplate: SmsTemplate)
-
-    // --- Pending SMS Transactions ---
-    @Query("SELECT * FROM pending_transactions ORDER BY date DESC")
-    fun getAllPendingTransactions(): Flow<List<PendingTransaction>>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertPendingTransaction(pending: PendingTransaction)
-
-    @Delete
-    suspend fun deletePendingTransaction(pending: PendingTransaction)
-
-    @Query("DELETE FROM pending_transactions WHERE id = :id")
-    suspend fun deletePendingTransactionById(id: Long)
-
-    // --- Parsed SMS Logs ---
-    @Query("SELECT * FROM parsed_sms_logs ORDER BY date DESC")
-    fun getAllParsedSmsLogs(): Flow<List<ParsedSmsLog>>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertParsedSmsLog(log: ParsedSmsLog)
-
-    @Query("SELECT * FROM parsed_sms_logs WHERE smsBody = :smsBody LIMIT 1")
-    suspend fun getParsedSmsLogByBody(smsBody: String): ParsedSmsLog?
-
-    @Query("UPDATE parsed_sms_logs SET status = :status, category = :category WHERE id = :id")
-    suspend fun updateParsedSmsLogStatus(id: Long, status: String, category: String)
-
-    @Query("UPDATE parsed_sms_logs SET status = :status, category = :category WHERE smsBody = :smsBody")
-    suspend fun updateParsedSmsLogStatusByBody(smsBody: String, status: String, category: String)
-
-    @Query("DELETE FROM parsed_sms_logs")
-    suspend fun clearAllParsedSmsLogs()
 
     // --- Debts (Borrowed & Lent) ---
     @Query("SELECT * FROM debts ORDER BY date DESC")

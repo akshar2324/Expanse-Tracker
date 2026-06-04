@@ -9,9 +9,6 @@ import com.akshar.data.model.Budget
 import com.akshar.data.model.RecurringTransaction
 import com.akshar.data.model.SavingsGoal
 import com.akshar.data.model.Transaction
-import com.akshar.data.model.SmsTemplate
-import com.akshar.data.model.PendingTransaction
-import com.akshar.data.model.ParsedSmsLog
 import com.akshar.data.model.Debt
 import com.akshar.data.repository.FinanceRepository
 import kotlinx.coroutines.Dispatchers
@@ -46,15 +43,6 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allRecurringTransactions: StateFlow<List<RecurringTransaction>> = repository.allRecurringTransactions
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val allSmsTemplates: StateFlow<List<SmsTemplate>> = repository.allSmsTemplates
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val allPendingTransactions: StateFlow<List<PendingTransaction>> = repository.allPendingTransactions
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val allParsedSmsLogs: StateFlow<List<ParsedSmsLog>> = repository.allParsedSmsLogs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allDebts: StateFlow<List<Debt>> = repository.allDebts
@@ -149,48 +137,6 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         // Trigger auto-processing of recurring entries when model is loaded
         viewModelScope.launch {
             repository.autoProcessRecurringTransactions()
-        }
-    }
-
-    // --- SMS Parser Configurations and Actions ---
-    fun updateSmsTemplate(id: String, exampleText: String, keywords: String) {
-        viewModelScope.launch {
-            repository.insertSmsTemplate(SmsTemplate(id = id, exampleText = exampleText, keywords = keywords))
-        }
-    }
-
-    fun confirmPendingTransaction(
-        pending: PendingTransaction,
-        category: String,
-        description: String,
-        paymentMethod: String = "UPI/SMS"
-    ) {
-        viewModelScope.launch {
-            repository.insertTransaction(
-                Transaction(
-                    amount = pending.amount,
-                    type = pending.type,
-                    category = category,
-                    description = description,
-                    date = pending.date,
-                    paymentMethod = paymentMethod
-                )
-            )
-            repository.deletePendingTransaction(pending)
-            repository.updateParsedSmsLogStatusByBody(pending.smsBody, "CONFIRMED", category)
-        }
-    }
-
-    fun deletePendingTransaction(pending: PendingTransaction) {
-        viewModelScope.launch {
-            repository.deletePendingTransaction(pending)
-            repository.updateParsedSmsLogStatusByBody(pending.smsBody, "IGNORED", "")
-        }
-    }
-
-    fun clearAllSmsLogs() {
-        viewModelScope.launch {
-            repository.clearAllParsedSmsLogs()
         }
     }
 

@@ -16,9 +16,6 @@ import com.akshar.data.model.Debt
         Budget::class,
         SavingsGoal::class,
         RecurringTransaction::class,
-        com.akshar.data.model.SmsTemplate::class,
-        com.akshar.data.model.PendingTransaction::class,
-        com.akshar.data.model.ParsedSmsLog::class,
         Debt::class
     ],
     version = 4,
