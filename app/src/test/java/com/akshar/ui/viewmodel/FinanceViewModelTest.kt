@@ -3,15 +3,16 @@ package com.akshar.ui.viewmodel
 import androidx.test.core.app.ApplicationProvider
 import com.akshar.ExpenseTrackerApp
 import com.akshar.data.model.Debt
+import com.akshar.data.model.Transaction
 import com.akshar.data.repository.FinanceRepository
-import io.mockk.anyConstructed
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkConstructor
 import io.mockk.unmockkAll
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import org.json.JSONObject
+import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -93,11 +94,24 @@ class FinanceViewModelTest {
 
     @Test
     fun `exportDataToJson returns null when JSON creation fails`() {
-        mockkConstructor(JSONObject::class)
-        every { anyConstructed<JSONObject>().put(any<String>(), any<Any>()) } throws
-            IllegalStateException("Forced JSON failure")
+        val repository = mockk<FinanceRepository>(relaxed = true)
+        val mockApp = mockk<ExpenseTrackerApp>(relaxed = true)
+        val invalidTransaction = mockk<Transaction>()
+        every { invalidTransaction.amount } throws IllegalStateException("Forced export failure")
+        every { mockApp.repository } returns repository
+        every { repository.allTransactions } returns MutableStateFlow(listOf(invalidTransaction))
+        every { repository.allBudgets } returns MutableStateFlow(emptyList())
+        every { repository.allSavingsGoals } returns MutableStateFlow(emptyList())
+        every { repository.allRecurringTransactions } returns MutableStateFlow(emptyList())
+        every { repository.allDebts } returns MutableStateFlow(emptyList())
+        val subject = FinanceViewModel(mockApp)
+        val collector = CoroutineScope(Dispatchers.Main.immediate).launch {
+            subject.allTransactions.collect { }
+        }
+        shadowOf(android.os.Looper.getMainLooper()).idle()
 
-        assertNull(viewModel.exportDataToJson())
+        assertNull(subject.exportDataToJson())
+        collector.cancel()
     }
 
     @Test

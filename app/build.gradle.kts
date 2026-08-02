@@ -60,7 +60,12 @@ android {
     compose = true
     buildConfig = true
   }
-  testOptions { unitTests { isIncludeAndroidResources = true } }
+  testOptions {
+    unitTests {
+      isIncludeAndroidResources = true
+      all { it.jvmArgs("-Djdk.attach.allowAttachSelf=true") }
+    }
+  }
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
