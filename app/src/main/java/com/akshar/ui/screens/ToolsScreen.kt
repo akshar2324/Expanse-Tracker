@@ -111,6 +111,7 @@ fun ToolsScreen(
                         list.add("DEBTS" to "Borrow/Lent")
                         list.add("VAULT" to "Vault")
                         list.add("REPORTS" to "Reports")
+                        list.add("CALCULATORS" to "Calculators")
                         list.add("BACKUP" to "Backup")
                         list.add("SETTINGS" to "Settings")
                         list
@@ -151,6 +152,9 @@ fun ToolsScreen(
         ) {
 
             when (activeSubTool) {
+                "CALCULATORS" -> {
+                    CalculatorsTab()
+                }
                 // --- 1. Recurring Transactions ---
                 "RECURRING" -> {
                     Column(
@@ -1369,4 +1373,94 @@ fun AddDebtDialog(
             }
         }
     )
+}
+
+@Composable
+fun CalculatorsTab() {
+    var principal by remember { mutableStateOf("") }
+    var rate by remember { mutableStateOf("") }
+    var time by remember { mutableStateOf("") }
+    var emiResult by remember { mutableStateOf<Double?>(null) }
+    var ciResult by remember { mutableStateOf<Double?>(null) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text("Financial Calculators", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = principal,
+                    onValueChange = { principal = it },
+                    label = { Text("Principal Amount") },
+                    keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = rate,
+                    onValueChange = { rate = it },
+                    label = { Text("Interest Rate (%)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = time,
+                    onValueChange = { time = it },
+                    label = { Text("Time (Years)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            val p = principal.toDoubleOrNull() ?: 0.0
+                            val r = rate.toDoubleOrNull() ?: 0.0
+                            val t = time.toDoubleOrNull() ?: 0.0
+                            if (p > 0 && r > 0 && t > 0) {
+                                val rMonthly = r / (12 * 100)
+                                val nMonths = t * 12
+                                val emi = (p * rMonthly * Math.pow(1 + rMonthly, nMonths)) / (Math.pow(1 + rMonthly, nMonths) - 1)
+                                emiResult = emi
+                                ciResult = null
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Calculate EMI")
+                    }
+                    Button(
+                        onClick = {
+                            val p = principal.toDoubleOrNull() ?: 0.0
+                            val r = rate.toDoubleOrNull() ?: 0.0
+                            val t = time.toDoubleOrNull() ?: 0.0
+                            if (p > 0 && r > 0 && t > 0) {
+                                val amount = p * Math.pow(1 + (r / 100), t)
+                                ciResult = amount
+                                emiResult = null
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Calculate CI")
+                    }
+                }
+
+                if (emiResult != null) {
+                    Text("Monthly EMI: ${String.format("%.2f", emiResult)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                }
+                if (ciResult != null) {
+                    Text("Total Amount (CI): ${String.format("%.2f", ciResult)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+    }
 }
