@@ -35,6 +35,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavHostController
 import androidx.navigation.navDeepLink
 import com.akshar.ui.screens.*
 import com.akshar.ui.theme.MyApplicationTheme
@@ -139,6 +140,48 @@ class MainActivity : FragmentActivity() {
 }
 
 @Composable
+fun AppNavGraph(
+    navController: NavHostController,
+    viewModel: FinanceViewModel,
+    modifier: Modifier = Modifier
+) {
+    NavHost(
+        navController = navController,
+        startDestination = "dashboard",
+        modifier = modifier
+    ) {
+        composable("dashboard") {
+            DashboardScreen(
+                viewModel = viewModel,
+                onNavigateToAddTransaction = { navController.navigate("add_transaction") },
+                onNavigateToHistory = { navController.navigate("history") }
+            )
+        }
+        composable(
+            "add_transaction",
+            deepLinks = listOf(navDeepLink { uriPattern = "akspend://add_transaction" })
+        ) {
+            AddTransactionScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable("history") {
+            HistoryScreen(viewModel = viewModel)
+        }
+        composable("analytics") {
+            AnalyticsScreen(viewModel = viewModel)
+        }
+        composable("budgets") {
+            BudgetSavingsScreen(viewModel = viewModel)
+        }
+        composable("tools") {
+            ToolsScreen(viewModel = viewModel)
+        }
+    }
+}
+
+@Composable
 fun AppScaffold(viewModel: FinanceViewModel) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -225,40 +268,7 @@ fun AppScaffold(viewModel: FinanceViewModel) {
                             .widthIn(max = 800.dp)
                             .align(Alignment.Center)
                     ) {
-                        NavHost(
-                            navController = navController,
-                            startDestination = "dashboard",
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            composable("dashboard") {
-                                DashboardScreen(
-                                    viewModel = viewModel,
-                                    onNavigateToAddTransaction = { navController.navigate("add_transaction") },
-                                    onNavigateToHistory = { navController.navigate("history") }
-                                )
-                            }
-                            composable(
-                                "add_transaction",
-                                deepLinks = listOf(navDeepLink { uriPattern = "akspend://add_transaction" })
-                            ) {
-                                AddTransactionScreen(
-                                    viewModel = viewModel,
-                                    onNavigateBack = { navController.popBackStack() }
-                                )
-                            }
-                            composable("history") {
-                                HistoryScreen(viewModel = viewModel)
-                            }
-                            composable("analytics") {
-                                AnalyticsScreen(viewModel = viewModel)
-                            }
-                            composable("budgets") {
-                                BudgetSavingsScreen(viewModel = viewModel)
-                            }
-                            composable("tools") {
-                                ToolsScreen(viewModel = viewModel)
-                            }
-                        }
+                        AppNavGraph(navController = navController, viewModel = viewModel, modifier = Modifier.fillMaxSize())
                     }
                 }
             }
@@ -306,40 +316,7 @@ fun AppScaffold(viewModel: FinanceViewModel) {
                     }
                 }
             ) { innerPadding ->
-                NavHost(
-                    navController = navController,
-                    startDestination = "dashboard",
-                    modifier = Modifier.padding(innerPadding)
-                ) {
-                    composable("dashboard") {
-                        DashboardScreen(
-                            viewModel = viewModel,
-                            onNavigateToAddTransaction = { navController.navigate("add_transaction") },
-                            onNavigateToHistory = { navController.navigate("history") }
-                        )
-                    }
-                    composable(
-                        "add_transaction",
-                        deepLinks = listOf(navDeepLink { uriPattern = "akspend://add_transaction" })
-                    ) {
-                        AddTransactionScreen(
-                            viewModel = viewModel,
-                            onNavigateBack = { navController.popBackStack() }
-                        )
-                    }
-                    composable("history") {
-                        HistoryScreen(viewModel = viewModel)
-                    }
-                    composable("analytics") {
-                        AnalyticsScreen(viewModel = viewModel)
-                    }
-                    composable("budgets") {
-                        BudgetSavingsScreen(viewModel = viewModel)
-                    }
-                    composable("tools") {
-                        ToolsScreen(viewModel = viewModel)
-                    }
-                }
+                AppNavGraph(navController = navController, viewModel = viewModel, modifier = Modifier.padding(innerPadding))
             }
         }
     }
@@ -490,54 +467,13 @@ fun LockScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         row.forEach { char ->
-                            if (char == "CLEAR") {
-                                IconButton(
-                                    onClick = { handleClear() },
-                                    modifier = Modifier
-                                        .size(72.dp)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "Backspace",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            } else if (char == "FINGERPRINT") {
-                                if (useBiometrics) {
-                                    IconButton(
-                                        onClick = { onTriggerBiometric() },
-                                        modifier = Modifier
-                                            .size(72.dp)
-                                            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Fingerprint,
-                                            contentDescription = "Biometric Lock",
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                } else {
-                                    Spacer(modifier = Modifier.size(72.dp))
-                                }
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .size(72.dp)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
-                                        .clickable { handleNumberClick(char) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = char,
-                                        style = MaterialTheme.typography.titleLarge.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 24.sp
-                                        ),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
+                            PinPadButton(
+                                char = char,
+                                useBiometrics = useBiometrics,
+                                onClear = { handleClear() },
+                                onBiometric = { onTriggerBiometric() },
+                                onNumber = { handleNumberClick(char) }
+                            )
                         }
                     }
                 }
@@ -545,4 +481,66 @@ fun LockScreen(
         }
     }
 }
+}
+
+@Composable
+fun PinPadButton(
+    char: String,
+    useBiometrics: Boolean,
+    onClear: () -> Unit,
+    onBiometric: () -> Unit,
+    onNumber: (String) -> Unit
+) {
+    when (char) {
+        "CLEAR" -> {
+            IconButton(
+                onClick = onClear,
+                modifier = Modifier
+                    .size(72.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Backspace",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        "FINGERPRINT" -> {
+            if (useBiometrics) {
+                IconButton(
+                    onClick = onBiometric,
+                    modifier = Modifier
+                        .size(72.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Fingerprint,
+                        contentDescription = "Biometric Lock",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            } else {
+                Spacer(modifier = Modifier.size(72.dp))
+            }
+        }
+        else -> {
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                    .clickable { onNumber(char) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = char,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 24.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
 }
