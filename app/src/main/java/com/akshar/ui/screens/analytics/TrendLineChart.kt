@@ -18,29 +18,34 @@ import com.akshar.data.model.Transaction
 import java.text.SimpleDateFormat
 import java.util.*
 
+internal fun calculateTrendPoints(
+    transactions: List<Transaction>,
+    calendar: Calendar = Calendar.getInstance()
+): List<Pair<String, Double>> {
+    val formatter = SimpleDateFormat("dd", Locale.getDefault())
+    val totals = TreeMap<String, Double>()
+
+    repeat(7) {
+        totals[formatter.format(calendar.time)] = 0.0
+        calendar.add(Calendar.DAY_OF_YEAR, -1)
+    }
+
+    val date = Date()
+    transactions.forEach { transaction ->
+        date.time = transaction.date
+        val key = formatter.format(date)
+        totals[key] = (totals[key] ?: 0.0) + transaction.amount
+    }
+
+    return totals.toList().takeLast(10)
+}
+
 // --- Custom Animated Line Trend Chart ---
 @Composable
 fun TrendLineChart(transactions: List<Transaction>, lineColor: Color) {
     // 30 day timeseries
     val points = remember(transactions) {
-        val df = SimpleDateFormat("dd", Locale.getDefault())
-        val totals = TreeMap<String, Double>()
-
-        // Initialize last 7 days of the month with zero
-        val testCal = Calendar.getInstance()
-        for (i in 0..6) {
-            val key = df.format(testCal.time)
-            totals[key] = 0.0
-            testCal.add(Calendar.DAY_OF_YEAR, -1)
-        }
-
-        // Fill stats
-        transactions.forEach {
-            val key = df.format(Date(it.date))
-            totals[key] = (totals[key] ?: 0.0) + it.amount
-        }
-
-        totals.toList().takeLast(10)
+        calculateTrendPoints(transactions)
     }
 
     val maxVal = points.maxOfOrNull { it.second }?.toFloat() ?: 1f

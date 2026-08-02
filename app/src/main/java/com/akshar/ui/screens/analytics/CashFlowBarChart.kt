@@ -27,7 +27,12 @@ fun CashFlowBarChart(transactions: List<Transaction>) {
         val cal = Calendar.getInstance()
         val flow = ArrayList<Triple<String, Double, Double>>() // Days, Income, Expense
 
-        for (i in 0..4) {
+        class DayWindow(val label: String, val start: Long, val end: Long) {
+            var income = 0.0
+            var expense = 0.0
+        }
+
+        val windows = Array(5) {
             val dayStr = df.format(cal.time)
             val startOfDay = cal.apply {
                 set(Calendar.HOUR_OF_DAY, 0)
@@ -36,13 +41,22 @@ fun CashFlowBarChart(transactions: List<Transaction>) {
                 set(Calendar.MILLISECOND, 0)
             }.timeInMillis
             val endOfDay = startOfDay + 86400000L
-
-            val dayTxs = transactions.filter { it.date in startOfDay until endOfDay }
-            val inc = dayTxs.filter { it.type == "INCOME" }.sumOf { it.amount }
-            val exp = dayTxs.filter { it.type == "EXPENSE" }.sumOf { it.amount }
-
-            flow.add(0, Triple(dayStr, inc, exp))
             cal.add(Calendar.DAY_OF_YEAR, -1)
+            DayWindow(dayStr, startOfDay, endOfDay)
+        }
+
+        transactions.forEach { transaction ->
+            val window = windows.firstOrNull { transaction.date in it.start until it.end }
+                ?: return@forEach
+            when (transaction.type) {
+                "INCOME" -> window.income += transaction.amount
+                "EXPENSE" -> window.expense += transaction.amount
+            }
+        }
+
+        for (index in windows.lastIndex downTo 0) {
+            val window = windows[index]
+            flow.add(Triple(window.label, window.income, window.expense))
         }
         flow
     }
