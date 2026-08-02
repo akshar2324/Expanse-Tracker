@@ -74,11 +74,13 @@ class FinanceRepository(private val financeDao: FinanceDao) {
         try {
             val now = System.currentTimeMillis()
             val list = financeDao.getRecurringTransactionsList()
+            val newTransactions = mutableListOf<Transaction>()
+            val updatedRecurrings = mutableListOf<RecurringTransaction>()
             for (recurring in list) {
                 // If never triggered, we can set start to 1 cycle ago or now. Let's say now
                 if (recurring.lastTriggered == 0L) {
                     val updated = recurring.copy(lastTriggered = now)
-                    financeDao.insertRecurringTransaction(updated)
+                    updatedRecurrings.add(updated)
                     continue
                 }
 
@@ -103,14 +105,21 @@ class FinanceRepository(private val financeDao: FinanceDao) {
                         date = tempLast,
                         paymentMethod = recurring.paymentMethod
                     )
-                    financeDao.insertTransaction(tx)
+                    newTransactions.add(tx)
                     generatedAny = true
                 }
 
                 if (generatedAny) {
                     val updated = recurring.copy(lastTriggered = tempLast)
-                    financeDao.insertRecurringTransaction(updated)
+                    updatedRecurrings.add(updated)
                 }
+            }
+
+            if (newTransactions.isNotEmpty()) {
+                financeDao.insertTransactions(newTransactions)
+            }
+            if (updatedRecurrings.isNotEmpty()) {
+                financeDao.insertRecurringTransactions(updatedRecurrings)
             }
         } catch (e: Exception) {
             Log.e("FinanceRepository", "Error processing recurring transactions: ${e.message}", e)
