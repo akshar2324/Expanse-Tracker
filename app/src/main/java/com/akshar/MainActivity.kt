@@ -35,6 +35,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavHostController
 import androidx.navigation.navDeepLink
 import com.akshar.ui.screens.*
 import com.akshar.ui.theme.MyApplicationTheme
@@ -139,6 +140,48 @@ class MainActivity : FragmentActivity() {
 }
 
 @Composable
+fun AppNavGraph(
+    navController: NavHostController,
+    viewModel: FinanceViewModel,
+    modifier: Modifier = Modifier
+) {
+    NavHost(
+        navController = navController,
+        startDestination = "dashboard",
+        modifier = modifier
+    ) {
+        composable("dashboard") {
+            DashboardScreen(
+                viewModel = viewModel,
+                onNavigateToAddTransaction = { navController.navigate("add_transaction") },
+                onNavigateToHistory = { navController.navigate("history") }
+            )
+        }
+        composable(
+            "add_transaction",
+            deepLinks = listOf(navDeepLink { uriPattern = "akspend://add_transaction" })
+        ) {
+            AddTransactionScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable("history") {
+            HistoryScreen(viewModel = viewModel)
+        }
+        composable("analytics") {
+            AnalyticsScreen(viewModel = viewModel)
+        }
+        composable("budgets") {
+            BudgetSavingsScreen(viewModel = viewModel)
+        }
+        composable("tools") {
+            ToolsScreen(viewModel = viewModel)
+        }
+    }
+}
+
+@Composable
 fun AppScaffold(viewModel: FinanceViewModel) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -225,40 +268,7 @@ fun AppScaffold(viewModel: FinanceViewModel) {
                             .widthIn(max = 800.dp)
                             .align(Alignment.Center)
                     ) {
-                        NavHost(
-                            navController = navController,
-                            startDestination = "dashboard",
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            composable("dashboard") {
-                                DashboardScreen(
-                                    viewModel = viewModel,
-                                    onNavigateToAddTransaction = { navController.navigate("add_transaction") },
-                                    onNavigateToHistory = { navController.navigate("history") }
-                                )
-                            }
-                            composable(
-                                "add_transaction",
-                                deepLinks = listOf(navDeepLink { uriPattern = "akspend://add_transaction" })
-                            ) {
-                                AddTransactionScreen(
-                                    viewModel = viewModel,
-                                    onNavigateBack = { navController.popBackStack() }
-                                )
-                            }
-                            composable("history") {
-                                HistoryScreen(viewModel = viewModel)
-                            }
-                            composable("analytics") {
-                                AnalyticsScreen(viewModel = viewModel)
-                            }
-                            composable("budgets") {
-                                BudgetSavingsScreen(viewModel = viewModel)
-                            }
-                            composable("tools") {
-                                ToolsScreen(viewModel = viewModel)
-                            }
-                        }
+                        AppNavGraph(navController = navController, viewModel = viewModel, modifier = Modifier.fillMaxSize())
                     }
                 }
             }
@@ -306,40 +316,7 @@ fun AppScaffold(viewModel: FinanceViewModel) {
                     }
                 }
             ) { innerPadding ->
-                NavHost(
-                    navController = navController,
-                    startDestination = "dashboard",
-                    modifier = Modifier.padding(innerPadding)
-                ) {
-                    composable("dashboard") {
-                        DashboardScreen(
-                            viewModel = viewModel,
-                            onNavigateToAddTransaction = { navController.navigate("add_transaction") },
-                            onNavigateToHistory = { navController.navigate("history") }
-                        )
-                    }
-                    composable(
-                        "add_transaction",
-                        deepLinks = listOf(navDeepLink { uriPattern = "akspend://add_transaction" })
-                    ) {
-                        AddTransactionScreen(
-                            viewModel = viewModel,
-                            onNavigateBack = { navController.popBackStack() }
-                        )
-                    }
-                    composable("history") {
-                        HistoryScreen(viewModel = viewModel)
-                    }
-                    composable("analytics") {
-                        AnalyticsScreen(viewModel = viewModel)
-                    }
-                    composable("budgets") {
-                        BudgetSavingsScreen(viewModel = viewModel)
-                    }
-                    composable("tools") {
-                        ToolsScreen(viewModel = viewModel)
-                    }
-                }
+                AppNavGraph(navController = navController, viewModel = viewModel, modifier = Modifier.padding(innerPadding))
             }
         }
     }
