@@ -2,18 +2,25 @@ package com.akshar.ui.viewmodel
 
 import androidx.test.core.app.ApplicationProvider
 import com.akshar.ExpenseTrackerApp
+import com.akshar.data.model.Debt
+import com.akshar.data.repository.FinanceRepository
 import io.mockk.anyConstructed
+import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.mockk
 import io.mockk.mockkConstructor
 import io.mockk.unmockkAll
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.util.Locale
 
@@ -91,5 +98,35 @@ class FinanceViewModelTest {
             IllegalStateException("Forced JSON failure")
 
         assertNull(viewModel.exportDataToJson())
+    }
+
+    @Test
+    fun `unresolveDebt preserves debt and marks it unresolved`() {
+        val repository = mockk<FinanceRepository>(relaxed = true)
+        val mockApp = mockk<ExpenseTrackerApp>(relaxed = true)
+        every { mockApp.repository } returns repository
+        every { repository.allTransactions } returns MutableStateFlow(emptyList())
+        every { repository.allBudgets } returns MutableStateFlow(emptyList())
+        every { repository.allSavingsGoals } returns MutableStateFlow(emptyList())
+        every { repository.allRecurringTransactions } returns MutableStateFlow(emptyList())
+        every { repository.allDebts } returns MutableStateFlow(emptyList())
+        val subject = FinanceViewModel(mockApp)
+        val debt = Debt(
+            id = 1L,
+            personName = "Test Person",
+            amount = 100.0,
+            type = "BORROWED",
+            date = 1_000L,
+            description = "Test debt",
+            isResolved = true
+        )
+
+        subject.unresolveDebt(debt)
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        coVerify(exactly = 1) {
+            repository.insertDebt(match { it.copy(isResolved = true) == debt && !it.isResolved })
+        }
+        assertFalse(debt.copy(isResolved = false).isResolved)
     }
 }
