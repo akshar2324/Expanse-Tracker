@@ -2,7 +2,14 @@ package com.akshar.ui.viewmodel
 
 import androidx.test.core.app.ApplicationProvider
 import com.akshar.ExpenseTrackerApp
+import io.mockk.anyConstructed
+import io.mockk.every
+import io.mockk.mockkConstructor
+import io.mockk.unmockkAll
+import org.json.JSONObject
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -21,8 +28,12 @@ class FinanceViewModelTest {
     fun setup() {
         app = ApplicationProvider.getApplicationContext() as ExpenseTrackerApp
         viewModel = FinanceViewModel(app)
-        // Set standard locale to ensure test consistency
         Locale.setDefault(Locale.US)
+    }
+
+    @After
+    fun tearDown() {
+        unmockkAll()
     }
 
     @Test
@@ -71,5 +82,14 @@ class FinanceViewModelTest {
     fun `formatCurrencyValue formats values correctly for EU`() {
         viewModel.updateCountry("EU")
         assertEquals("€1,234.56", viewModel.formatCurrencyValue(1234.56))
+    }
+
+    @Test
+    fun `exportDataToJson returns null when JSON creation fails`() {
+        mockkConstructor(JSONObject::class)
+        every { anyConstructed<JSONObject>().put(any<String>(), any<Any>()) } throws
+            IllegalStateException("Forced JSON failure")
+
+        assertNull(viewModel.exportDataToJson())
     }
 }
