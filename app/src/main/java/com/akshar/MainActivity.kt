@@ -490,54 +490,13 @@ fun LockScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         row.forEach { char ->
-                            if (char == "CLEAR") {
-                                IconButton(
-                                    onClick = { handleClear() },
-                                    modifier = Modifier
-                                        .size(72.dp)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "Backspace",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            } else if (char == "FINGERPRINT") {
-                                if (useBiometrics) {
-                                    IconButton(
-                                        onClick = { onTriggerBiometric() },
-                                        modifier = Modifier
-                                            .size(72.dp)
-                                            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Fingerprint,
-                                            contentDescription = "Biometric Lock",
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                } else {
-                                    Spacer(modifier = Modifier.size(72.dp))
-                                }
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .size(72.dp)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
-                                        .clickable { handleNumberClick(char) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = char,
-                                        style = MaterialTheme.typography.titleLarge.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 24.sp
-                                        ),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
+                            PinPadButton(
+                                char = char,
+                                useBiometrics = useBiometrics,
+                                onClear = { handleClear() },
+                                onBiometric = { onTriggerBiometric() },
+                                onNumber = { handleNumberClick(char) }
+                            )
                         }
                     }
                 }
@@ -545,4 +504,66 @@ fun LockScreen(
         }
     }
 }
+}
+
+@Composable
+fun PinPadButton(
+    char: String,
+    useBiometrics: Boolean,
+    onClear: () -> Unit,
+    onBiometric: () -> Unit,
+    onNumber: (String) -> Unit
+) {
+    when (char) {
+        "CLEAR" -> {
+            IconButton(
+                onClick = onClear,
+                modifier = Modifier
+                    .size(72.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Backspace",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        "FINGERPRINT" -> {
+            if (useBiometrics) {
+                IconButton(
+                    onClick = onBiometric,
+                    modifier = Modifier
+                        .size(72.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Fingerprint,
+                        contentDescription = "Biometric Lock",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            } else {
+                Spacer(modifier = Modifier.size(72.dp))
+            }
+        }
+        else -> {
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                    .clickable { onNumber(char) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = char,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 24.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
 }
