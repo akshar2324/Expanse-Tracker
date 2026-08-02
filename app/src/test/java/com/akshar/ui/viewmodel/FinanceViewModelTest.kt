@@ -145,9 +145,56 @@ class FinanceViewModelTest {
     }
 
     @Test
+    fun `resolveDebt preserves debt and marks it resolved`() {
+        val repository = mockk<FinanceRepository>(relaxed = true)
+        val subject = financeViewModelWith(repository)
+        val debt = testDebt(isResolved = false)
+
+        subject.resolveDebt(debt)
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        coVerify(exactly = 1) {
+            repository.insertDebt(match { it.copy(isResolved = false) == debt && it.isResolved })
+        }
+    }
+
+    @Test
+    fun `deleteDebt removes the supplied debt`() {
+        val repository = mockk<FinanceRepository>(relaxed = true)
+        val subject = financeViewModelWith(repository)
+        val debt = testDebt(isResolved = false)
+
+        subject.deleteDebt(debt)
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        coVerify(exactly = 1) { repository.deleteDebt(debt) }
+    }
+
+    @Test
     fun `restoreDataFromJson rejects invalid JSON and sets error status`() {
         assertFalse(viewModel.restoreDataFromJson("this is not valid json"))
         val status = viewModel.backupStatus.value
         assertEquals("Failed to restore backup: invalid JSON format.", status)
     }
+
+    private fun financeViewModelWith(repository: FinanceRepository): FinanceViewModel {
+        val mockApp = mockk<ExpenseTrackerApp>(relaxed = true)
+        every { mockApp.repository } returns repository
+        every { repository.allTransactions } returns MutableStateFlow(emptyList())
+        every { repository.allBudgets } returns MutableStateFlow(emptyList())
+        every { repository.allSavingsGoals } returns MutableStateFlow(emptyList())
+        every { repository.allRecurringTransactions } returns MutableStateFlow(emptyList())
+        every { repository.allDebts } returns MutableStateFlow(emptyList())
+        return FinanceViewModel(mockApp)
+    }
+
+    private fun testDebt(isResolved: Boolean) = Debt(
+        id = 1L,
+        personName = "Test Person",
+        amount = 100.0,
+        type = "BORROWED",
+        date = 1_000L,
+        description = "Test debt",
+        isResolved = isResolved
+    )
 }
