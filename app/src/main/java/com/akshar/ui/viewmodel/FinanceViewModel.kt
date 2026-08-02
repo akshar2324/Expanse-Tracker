@@ -455,7 +455,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                         )
                     }
                 }
-            }
+
                 // Restore Debts
                 if (root.has("debts")) {
                     val array = root.getJSONArray("debts")
@@ -474,6 +474,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                         )
                     }
                 }
+            }
             _backupStatus.value = "Data Restored Successfully!"
             true
         } catch (e: Exception) {
