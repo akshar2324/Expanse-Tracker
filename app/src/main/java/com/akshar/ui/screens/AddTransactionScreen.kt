@@ -177,7 +177,7 @@ fun AddTransactionScreen(
                         Text(text = amountError!!, color = MaterialTheme.colorScheme.error)
                     }
                 },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -355,7 +355,7 @@ fun AddTransactionScreen(
             // --- Save Button ---
             Button(
                 onClick = {
-                    val amt = amountStr.toDoubleOrNull()
+                    val amt = com.akshar.utils.MathUtils.evaluateMathExpression(amountStr)
                     if (amt == null || amt <= 0) {
                         amountError = "Please enter a valid amount greater than zero."
                     } else {

@@ -1164,7 +1164,7 @@ fun AddRecurringDialog(
                     value = amountStr,
                     onValueChange = { amountStr = it },
                     label = { Text("Impact Sum (₹)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1235,7 +1235,7 @@ fun AddRecurringDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val amt = amountStr.toDoubleOrNull() ?: 0.0
+                    val amt = com.akshar.utils.MathUtils.evaluateMathExpression(amountStr) ?: 0.0
                     if (amt > 0 && description.isNotEmpty()) {
                         onConfirm(
                             amt,
@@ -1347,7 +1347,7 @@ fun AddDebtDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val amtVal = amountText.toDoubleOrNull()
+                    val amtVal = com.akshar.utils.MathUtils.evaluateMathExpression(amountText)
                     if (personName.isBlank()) {
                         Toast.makeText(context, "Please enter a name", Toast.LENGTH_SHORT).show()
                     } else if (amtVal == null || amtVal <= 0.0) {
@@ -1422,9 +1422,9 @@ fun CalculatorsTab() {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = {
-                            val p = principal.toDoubleOrNull() ?: 0.0
-                            val r = rate.toDoubleOrNull() ?: 0.0
-                            val t = time.toDoubleOrNull() ?: 0.0
+                            val p = com.akshar.utils.MathUtils.evaluateMathExpression(principal) ?: 0.0
+                            val r = com.akshar.utils.MathUtils.evaluateMathExpression(rate) ?: 0.0
+                            val t = com.akshar.utils.MathUtils.evaluateMathExpression(time) ?: 0.0
                             if (p > 0 && r > 0 && t > 0) {
                                 val rMonthly = r / (12 * 100)
                                 val nMonths = t * 12
@@ -1439,9 +1439,9 @@ fun CalculatorsTab() {
                     }
                     Button(
                         onClick = {
-                            val p = principal.toDoubleOrNull() ?: 0.0
-                            val r = rate.toDoubleOrNull() ?: 0.0
-                            val t = time.toDoubleOrNull() ?: 0.0
+                            val p = com.akshar.utils.MathUtils.evaluateMathExpression(principal) ?: 0.0
+                            val r = com.akshar.utils.MathUtils.evaluateMathExpression(rate) ?: 0.0
+                            val t = com.akshar.utils.MathUtils.evaluateMathExpression(time) ?: 0.0
                             if (p > 0 && r > 0 && t > 0) {
                                 val amount = p * Math.pow(1 + (r / 100), t)
                                 ciResult = amount

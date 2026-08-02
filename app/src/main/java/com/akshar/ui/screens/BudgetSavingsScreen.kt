@@ -570,7 +570,7 @@ fun AddBudgetDialog(
                     value = limitStr,
                     onValueChange = { limitStr = it },
                     label = { Text("Limit Amount ($currencySymbol)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -620,7 +620,7 @@ fun AddBudgetDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val limit = limitStr.toDoubleOrNull() ?: 0.0
+                    val limit = com.akshar.utils.MathUtils.evaluateMathExpression(limitStr) ?: 0.0
                     if (limit > 0) {
                         onConfirm(category, limit, frequency, remindersEnabled, reminderThreshold)
                     }
@@ -665,7 +665,7 @@ fun AddGoalDialog(
                     value = targetStr,
                     onValueChange = { targetStr = it },
                     label = { Text("Target Goal Amount ($currencySymbol)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -674,7 +674,7 @@ fun AddGoalDialog(
                     value = currentStr,
                     onValueChange = { currentStr = it },
                     label = { Text("Initial Saved Amount ($currencySymbol)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -691,8 +691,8 @@ fun AddGoalDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val target = targetStr.toDoubleOrNull() ?: 0.0
-                    val current = currentStr.toDoubleOrNull() ?: 0.0
+                    val target = com.akshar.utils.MathUtils.evaluateMathExpression(targetStr) ?: 0.0
+                    val current = com.akshar.utils.MathUtils.evaluateMathExpression(currentStr) ?: 0.0
                     if (name.isNotEmpty() && target > 0) {
                         onConfirm(name, target, current, targetDate)
                     }
@@ -726,7 +726,7 @@ fun AddSavingsFundsDialog(
                 value = fundStr,
                 onValueChange = { fundStr = it },
                 label = { Text("Contribution Amount ($currencySymbol)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -734,7 +734,7 @@ fun AddSavingsFundsDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val funds = fundStr.toDoubleOrNull() ?: 0.0
+                    val funds = com.akshar.utils.MathUtils.evaluateMathExpression(fundStr) ?: 0.0
                     if (funds > 0) {
                         onConfirm(funds)
                     }
