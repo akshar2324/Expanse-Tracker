@@ -66,7 +66,7 @@ fun BudgetSavingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(MaterialTheme.shapes.medium)
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
@@ -80,7 +80,7 @@ fun BudgetSavingsScreen(
                                 .weight(1f)
                                 .clickable { activeTab = tab }
                                 .padding(2.dp)
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(bg)
                                 .padding(vertical = 12.dp),
                             contentAlignment = Alignment.Center
@@ -268,7 +268,7 @@ fun BudgetRow(
                         val freqText = budget.frequency.uppercase().ifEmpty { "MONTHLY" }
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.primaryContainer)
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
@@ -304,7 +304,7 @@ fun BudgetRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(10.dp)
-                    .clip(RoundedCornerShape(5.dp)),
+                    .clip(MaterialTheme.shapes.medium),
                 color = barColor,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
@@ -415,7 +415,7 @@ fun SavingsGoalRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(10.dp)
-                    .clip(RoundedCornerShape(5.dp)),
+                    .clip(MaterialTheme.shapes.medium),
                 color = AnalyticsBlueDark,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
@@ -507,7 +507,7 @@ fun AddBudgetDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(MaterialTheme.shapes.medium)
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(2.dp)
                 ) {
@@ -520,7 +520,7 @@ fun AddBudgetDialog(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(6.dp))
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(bg)
                                 .clickable { frequency = freq }
                                 .padding(vertical = 8.dp),
@@ -544,7 +544,7 @@ fun AddBudgetDialog(
                         .fillMaxWidth()
                         .clickable { isDropdownExpanded = true }
                         .padding(vertical = 12.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)
                         .padding(horizontal = 16.dp)
                 ) {
                     Text(text = category, fontSize = 16.sp)

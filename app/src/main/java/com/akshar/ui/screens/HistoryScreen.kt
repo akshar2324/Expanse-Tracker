@@ -147,7 +147,7 @@ fun HistoryScreen(
                     },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
             }
 
@@ -162,7 +162,7 @@ fun HistoryScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Column(
                         modifier = Modifier
@@ -326,7 +326,7 @@ fun ScrollableFilterRow(
             val active = it == selectedItem
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(MaterialTheme.shapes.medium)
                     .background(
                         if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(
                             alpha = 0.6f
