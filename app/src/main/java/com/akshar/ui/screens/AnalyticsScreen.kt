@@ -254,10 +254,10 @@ fun PieSliceChart(transactions: List<Transaction>) {
 
     // Color definitions
     val colors = listOf(
-        Color(0xFF26A69A), Color(0xFFEF5350), Color(0xFF42A5F5),
-        Color(0xFFFFB74D), Color(0xFFAB47BC), Color(0xFF26C6DA),
-        Color(0xFF9CCC65), Color(0xFFFF7043), Color(0xFF78909C),
-        Color(0xFFEC407A)
+        MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.tertiary,
+        MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.secondaryContainer,
+        MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.inversePrimary,
+        MaterialTheme.colorScheme.inverseSurface
     )
 
     if (totalSum == 0.0) {

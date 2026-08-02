@@ -119,7 +119,7 @@ fun AddTransactionScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
-                    .clip(RoundedCornerShape(28.dp))
+                    .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -128,7 +128,7 @@ fun AddTransactionScreen(
                         .weight(1f)
                         .fillMaxHeight()
                         .padding(4.dp)
-                        .clip(RoundedCornerShape(24.dp))
+                        .clip(MaterialTheme.shapes.medium)
                         .background(if (isExpense) ExpenseRed else Color.Transparent)
                         .clickable { isExpense = true },
                     contentAlignment = Alignment.Center
@@ -147,7 +147,7 @@ fun AddTransactionScreen(
                         .weight(1f)
                         .fillMaxHeight()
                         .padding(4.dp)
-                        .clip(RoundedCornerShape(24.dp))
+                        .clip(MaterialTheme.shapes.medium)
                         .background(if (!isExpense) IncomeGreen else Color.Transparent)
                         .clickable { isExpense = false },
                     contentAlignment = Alignment.Center
@@ -177,7 +177,7 @@ fun AddTransactionScreen(
                         Text(text = amountError!!, color = MaterialTheme.colorScheme.error)
                     }
                 },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -213,7 +213,7 @@ fun AddTransactionScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(44.dp)
-                                    .clip(RoundedCornerShape(22.dp))
+                                    .clip(MaterialTheme.shapes.medium)
                                     .background(chipColor)
                                     .clickable { categorySelected = category },
                                 contentAlignment = Alignment.Center
@@ -330,7 +330,7 @@ fun AddTransactionScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(44.dp)
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(MaterialTheme.shapes.medium)
                                     .background(surface)
                                     .clickable { paymentMethod = method }
                                     .padding(horizontal = 4.dp),
@@ -355,7 +355,7 @@ fun AddTransactionScreen(
             // --- Save Button ---
             Button(
                 onClick = {
-                    val amt = amountStr.toDoubleOrNull()
+                    val amt = com.akshar.utils.MathUtils.evaluateMathExpression(amountStr)
                     if (amt == null || amt <= 0) {
                         amountError = "Please enter a valid amount greater than zero."
                     } else {
@@ -373,7 +373,7 @@ fun AddTransactionScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                shape = RoundedCornerShape(28.dp),
+                shape = MaterialTheme.shapes.medium,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isExpense) ExpenseRed else IncomeGreen
                 )

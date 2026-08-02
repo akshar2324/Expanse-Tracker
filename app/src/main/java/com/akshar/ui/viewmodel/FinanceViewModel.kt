@@ -325,6 +325,9 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 obj.put("category", it.category)
                 obj.put("limitAmount", it.limitAmount)
                 obj.put("month", it.month)
+                obj.put("frequency", it.frequency)
+                obj.put("remindersEnabled", it.remindersEnabled)
+                obj.put("reminderThreshold", it.reminderThreshold)
                 bgArray.put(obj)
             }
             backupObj.put("budgets", bgArray)
@@ -355,6 +358,20 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 rcArray.put(obj)
             }
             backupObj.put("recurring_transactions", rcArray)
+            // Debts
+            val dbArray = JSONArray()
+            allDebts.value.forEach {
+                val obj = JSONObject()
+                obj.put("personName", it.personName)
+                obj.put("amount", it.amount)
+                obj.put("type", it.type)
+                obj.put("date", it.date)
+                obj.put("description", it.description)
+                obj.put("isResolved", it.isResolved)
+                if (it.dueDate != null) obj.put("dueDate", it.dueDate)
+                dbArray.put(obj)
+            }
+            backupObj.put("debts", dbArray)
 
             backupObj.toString(4)
         } catch (e: Exception) {
@@ -395,7 +412,10 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                             Budget(
                                 category = obj.getString("category"),
                                 limitAmount = obj.getDouble("limitAmount"),
-                                month = obj.getString("month")
+                                month = obj.getString("month"),
+                                frequency = if (obj.has("frequency")) obj.getString("frequency") else "MONTHLY",
+                                remindersEnabled = if (obj.has("remindersEnabled")) obj.getBoolean("remindersEnabled") else false,
+                                reminderThreshold = if (obj.has("reminderThreshold")) obj.getInt("reminderThreshold") else 90
                             )
                         )
                     }
@@ -436,6 +456,24 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
             }
+                // Restore Debts
+                if (root.has("debts")) {
+                    val array = root.getJSONArray("debts")
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        repository.insertDebt(
+                            Debt(
+                                personName = obj.getString("personName"),
+                                amount = obj.getDouble("amount"),
+                                type = obj.getString("type"),
+                                date = obj.getLong("date"),
+                                description = obj.getString("description"),
+                                isResolved = obj.getBoolean("isResolved"),
+                                dueDate = if (obj.has("dueDate")) obj.getLong("dueDate") else null
+                            )
+                        )
+                    }
+                }
             _backupStatus.value = "Data Restored Successfully!"
             true
         } catch (e: Exception) {

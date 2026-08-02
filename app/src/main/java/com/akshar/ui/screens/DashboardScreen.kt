@@ -365,10 +365,10 @@ fun DashboardScreen(
                             val formattedDate = SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(nextDue))
                             
                             val (statusText, badgeBg, badgeText) = when {
-                                diffDays < 0 -> Triple("Overdue", Color(0xFFFDE8E8), Color(0xFFE02424))
-                                diffDays == 0 -> Triple("Today", Color(0xFFFEF3C7), Color(0xFFD97706))
-                                diffDays <= 3 -> Triple("${diffDays}d left", Color(0xFFFEF3C7), Color(0xFFD97706))
-                                else -> Triple("${diffDays}d", Color(0xFFDEF7EC), Color(0xFF03543F))
+                                diffDays < 0 -> Triple("Overdue", MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer)
+                                diffDays == 0 -> Triple("Today", MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
+                                diffDays <= 3 -> Triple("${diffDays}d left", MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
+                                else -> Triple("${diffDays}d", MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
                             }
 
                             Card(
