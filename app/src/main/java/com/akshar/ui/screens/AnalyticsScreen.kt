@@ -349,8 +349,10 @@ fun TrendLineChart(transactions: List<Transaction>, lineColor: Color) {
         }
 
         // Fill stats
+        val dateObj = Date()
         transactions.forEach {
-            val key = df.format(Date(it.date))
+            dateObj.time = it.date
+            val key = df.format(dateObj)
             totals[key] = (totals[key] ?: 0.0) + it.amount
         }
 
