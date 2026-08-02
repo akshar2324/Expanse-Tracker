@@ -461,17 +461,19 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     val array = root.getJSONArray("debts")
                     for (i in 0 until array.length()) {
                         val obj = array.getJSONObject(i)
-                        repository.insertDebt(
-                            Debt(
-                                personName = obj.getString("personName"),
-                                amount = obj.getDouble("amount"),
-                                type = obj.getString("type"),
-                                date = obj.getLong("date"),
-                                description = obj.getString("description"),
-                                isResolved = obj.getBoolean("isResolved"),
-                                dueDate = if (obj.has("dueDate")) obj.getLong("dueDate") else null
+                        viewModelScope.launch {
+                            repository.insertDebt(
+                                Debt(
+                                    personName = obj.getString("personName"),
+                                    amount = obj.getDouble("amount"),
+                                    type = obj.getString("type"),
+                                    date = obj.getLong("date"),
+                                    description = obj.getString("description"),
+                                    isResolved = obj.getBoolean("isResolved"),
+                                    dueDate = if (obj.has("dueDate")) obj.getLong("dueDate") else null
+                                )
                             )
-                        )
+                        }
                     }
                 }
             _backupStatus.value = "Data Restored Successfully!"
