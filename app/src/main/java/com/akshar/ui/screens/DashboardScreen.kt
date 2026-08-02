@@ -89,11 +89,11 @@ fun DashboardScreen(
     val avgDailySpending = if (expensesThisMonth.isEmpty()) 0.0 else (expensesThisMonth.sumOf { it.amount } / daysInMonthElapsed)
 
     // Highest Expense Day
-    val expenseByDay = expencesGroupedByDay(transactions)
+    val expenseByDay = com.akshar.utils.TransactionUtils.expencesGroupedByDay(transactions)
     val highestExpenseDayVal = expenseByDay.maxByOrNull { it.value }?.value ?: 0.0
 
     // Highest Income Day
-    val incomeByDay = incomesGroupedByDay(transactions)
+    val incomeByDay = com.akshar.utils.TransactionUtils.incomesGroupedByDay(transactions)
     val highestIncomeDayVal = incomeByDay.maxByOrNull { it.value }?.value ?: 0.0
 
     // Remaining Budget
@@ -720,17 +720,3 @@ fun TransactionItemRow(
     }
 }
 
-// Group calculation helpers
-private fun expencesGroupedByDay(list: List<Transaction>): Map<String, Double> {
-    val df = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    return list.filter { it.type == "EXPENSE" }
-        .groupBy { df.format(Date(it.date)) }
-        .mapValues { entry -> entry.value.sumOf { it.amount } }
-}
-
-private fun incomesGroupedByDay(list: List<Transaction>): Map<String, Double> {
-    val df = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    return list.filter { it.type == "INCOME" }
-        .groupBy { df.format(Date(it.date)) }
-        .mapValues { entry -> entry.value.sumOf { it.amount } }
-}
