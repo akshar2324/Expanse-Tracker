@@ -18,6 +18,9 @@ interface FinanceDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransaction(transaction: Transaction)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTransactions(transactions: List<Transaction>)
+
     @Delete
     suspend fun deleteTransaction(transaction: Transaction)
 
@@ -38,6 +41,9 @@ interface FinanceDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBudget(budget: Budget)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBudgets(budgets: List<Budget>)
+
     @Query("DELETE FROM budgets WHERE id = :id")
     suspend fun deleteBudgetById(id: Long)
 
@@ -48,6 +54,9 @@ interface FinanceDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSavingsGoal(goal: SavingsGoal)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSavingsGoals(goals: List<SavingsGoal>)
 
     @Query("DELETE FROM savings_goals WHERE id = :id")
     suspend fun deleteSavingsGoalById(id: Long)
@@ -63,6 +72,9 @@ interface FinanceDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRecurringTransaction(recurring: RecurringTransaction)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRecurringTransactions(recurrings: List<RecurringTransaction>)
+
     @Query("DELETE FROM recurring_transactions WHERE id = :id")
     suspend fun deleteRecurringTransactionById(id: Long)
 
@@ -72,6 +84,9 @@ interface FinanceDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDebt(debt: Debt)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDebts(debts: List<Debt>)
 
     @Delete
     suspend fun deleteDebt(debt: Debt)
