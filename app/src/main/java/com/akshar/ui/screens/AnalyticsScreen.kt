@@ -332,29 +332,34 @@ fun PieSliceChart(transactions: List<Transaction>) {
     }
 }
 
+
+fun calculateTrendPoints(transactions: List<Transaction>): List<Pair<String, Double>> {
+    val df = SimpleDateFormat("dd", Locale.getDefault())
+    val totals = TreeMap<String, Double>()
+
+    // Initialize last 7 days of the month with zero
+    val testCal = Calendar.getInstance()
+    for (i in 0..6) {
+        val key = df.format(testCal.time)
+        totals[key] = 0.0
+        testCal.add(Calendar.DAY_OF_YEAR, -1)
+    }
+
+    // Fill stats
+    transactions.forEach {
+        val key = df.format(Date(it.date))
+        totals[key] = (totals[key] ?: 0.0) + it.amount
+    }
+
+    return totals.toList().takeLast(10)
+}
+
 // --- Custom Animated Line Trend Chart ---
 @Composable
 fun TrendLineChart(transactions: List<Transaction>, lineColor: Color) {
     // 30 day timeseries
     val points = remember(transactions) {
-        val df = SimpleDateFormat("dd", Locale.getDefault())
-        val totals = TreeMap<String, Double>()
-
-        // Initialize last 7 days of the month with zero
-        val testCal = Calendar.getInstance()
-        for (i in 0..6) {
-            val key = df.format(testCal.time)
-            totals[key] = 0.0
-            testCal.add(Calendar.DAY_OF_YEAR, -1)
-        }
-
-        // Fill stats
-        transactions.forEach {
-            val key = df.format(Date(it.date))
-            totals[key] = (totals[key] ?: 0.0) + it.amount
-        }
-
-        totals.toList().takeLast(10)
+        calculateTrendPoints(transactions)
     }
 
     val maxVal = points.maxOfOrNull { it.second }?.toFloat() ?: 1f
