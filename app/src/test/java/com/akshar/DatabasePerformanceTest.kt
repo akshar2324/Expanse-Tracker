@@ -9,11 +9,11 @@ import com.akshar.data.db.FinanceDao
 import com.akshar.data.model.Transaction
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.system.measureTimeMillis
-import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class DatabasePerformanceTest {
@@ -69,7 +69,9 @@ class DatabasePerformanceTest {
             financeDao.insertTransactions(transactions2)
         }
 
-        File("performance_results.txt").writeText("Inserting 1000 individual transactions took: $individualInsertTime ms\nInserting 1000 transactions via batch took: $batchInsertTime ms")
-        assert(true)
+        assertTrue(
+            "Batch insert ($batchInsertTime ms) should not be slower than individual inserts ($individualInsertTime ms)",
+            batchInsertTime <= individualInsertTime
+        )
     }
 }
