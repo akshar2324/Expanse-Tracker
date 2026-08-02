@@ -19,6 +19,10 @@ class FinanceRepository(private val financeDao: FinanceDao) {
         financeDao.insertTransaction(transaction)
     }
 
+    suspend fun insertTransactions(transactions: List<Transaction>) {
+        financeDao.insertTransactions(transactions)
+    }
+
     suspend fun deleteTransaction(transaction: Transaction) {
         financeDao.deleteTransaction(transaction)
     }
@@ -39,6 +43,10 @@ class FinanceRepository(private val financeDao: FinanceDao) {
         financeDao.insertBudget(budget)
     }
 
+    suspend fun insertBudgets(budgets: List<Budget>) {
+        financeDao.insertBudgets(budgets)
+    }
+
     suspend fun deleteBudgetById(id: Long) {
         financeDao.deleteBudgetById(id)
     }
@@ -49,6 +57,10 @@ class FinanceRepository(private val financeDao: FinanceDao) {
 
     suspend fun insertSavingsGoal(goal: SavingsGoal) {
         financeDao.insertSavingsGoal(goal)
+    }
+
+    suspend fun insertSavingsGoals(goals: List<SavingsGoal>) {
+        financeDao.insertSavingsGoals(goals)
     }
 
     suspend fun deleteSavingsGoalById(id: Long) {
@@ -63,6 +75,10 @@ class FinanceRepository(private val financeDao: FinanceDao) {
         financeDao.insertRecurringTransaction(recurring)
     }
 
+    suspend fun insertRecurringTransactions(recurrings: List<RecurringTransaction>) {
+        financeDao.insertRecurringTransactions(recurrings)
+    }
+
     suspend fun deleteRecurringTransactionById(id: Long) {
         financeDao.deleteRecurringTransactionById(id)
     }
@@ -74,11 +90,13 @@ class FinanceRepository(private val financeDao: FinanceDao) {
         try {
             val now = System.currentTimeMillis()
             val list = financeDao.getRecurringTransactionsList()
+            val newTransactions = mutableListOf<Transaction>()
+            val updatedRecurrings = mutableListOf<RecurringTransaction>()
             for (recurring in list) {
                 // If never triggered, we can set start to 1 cycle ago or now. Let's say now
                 if (recurring.lastTriggered == 0L) {
                     val updated = recurring.copy(lastTriggered = now)
-                    financeDao.insertRecurringTransaction(updated)
+                    updatedRecurrings.add(updated)
                     continue
                 }
 
@@ -103,14 +121,21 @@ class FinanceRepository(private val financeDao: FinanceDao) {
                         date = tempLast,
                         paymentMethod = recurring.paymentMethod
                     )
-                    financeDao.insertTransaction(tx)
+                    newTransactions.add(tx)
                     generatedAny = true
                 }
 
                 if (generatedAny) {
                     val updated = recurring.copy(lastTriggered = tempLast)
-                    financeDao.insertRecurringTransaction(updated)
+                    updatedRecurrings.add(updated)
                 }
+            }
+
+            if (newTransactions.isNotEmpty()) {
+                financeDao.insertTransactions(newTransactions)
+            }
+            if (updatedRecurrings.isNotEmpty()) {
+                financeDao.insertRecurringTransactions(updatedRecurrings)
             }
         } catch (e: Exception) {
             Log.e("FinanceRepository", "Error processing recurring transactions: ${e.message}", e)
@@ -122,6 +147,10 @@ class FinanceRepository(private val financeDao: FinanceDao) {
 
     suspend fun insertDebt(debt: Debt) {
         financeDao.insertDebt(debt)
+    }
+
+    suspend fun insertDebts(debts: List<Debt>) {
+        financeDao.insertDebts(debts)
     }
 
     suspend fun deleteDebt(debt: Debt) {

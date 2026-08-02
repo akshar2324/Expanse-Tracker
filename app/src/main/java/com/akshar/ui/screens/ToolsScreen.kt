@@ -1,6 +1,5 @@
 package com.akshar.ui.screens
 
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Toast
@@ -54,7 +53,7 @@ fun ToolsScreen(
 
     val dbFilePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
-        onResult = { uri: Uri? ->
+        onResult = { uri ->
             if (uri != null) {
                 viewModel.restoreDatabaseFromDbFile(context, uri)
             } else {
