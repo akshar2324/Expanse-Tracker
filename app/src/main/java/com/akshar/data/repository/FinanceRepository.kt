@@ -19,6 +19,10 @@ class FinanceRepository(private val financeDao: FinanceDao) {
         financeDao.insertTransaction(transaction)
     }
 
+    suspend fun insertTransactions(transactions: List<Transaction>) {
+        financeDao.insertTransactions(transactions)
+    }
+
     suspend fun deleteTransaction(transaction: Transaction) {
         financeDao.deleteTransaction(transaction)
     }
@@ -39,6 +43,10 @@ class FinanceRepository(private val financeDao: FinanceDao) {
         financeDao.insertBudget(budget)
     }
 
+    suspend fun insertBudgets(budgets: List<Budget>) {
+        financeDao.insertBudgets(budgets)
+    }
+
     suspend fun deleteBudgetById(id: Long) {
         financeDao.deleteBudgetById(id)
     }
@@ -51,6 +59,10 @@ class FinanceRepository(private val financeDao: FinanceDao) {
         financeDao.insertSavingsGoal(goal)
     }
 
+    suspend fun insertSavingsGoals(goals: List<SavingsGoal>) {
+        financeDao.insertSavingsGoals(goals)
+    }
+
     suspend fun deleteSavingsGoalById(id: Long) {
         financeDao.deleteSavingsGoalById(id)
     }
@@ -61,6 +73,10 @@ class FinanceRepository(private val financeDao: FinanceDao) {
 
     suspend fun insertRecurringTransaction(recurring: RecurringTransaction) {
         financeDao.insertRecurringTransaction(recurring)
+    }
+
+    suspend fun insertRecurringTransactions(recurrings: List<RecurringTransaction>) {
+        financeDao.insertRecurringTransactions(recurrings)
     }
 
     suspend fun deleteRecurringTransactionById(id: Long) {
@@ -122,6 +138,10 @@ class FinanceRepository(private val financeDao: FinanceDao) {
 
     suspend fun insertDebt(debt: Debt) {
         financeDao.insertDebt(debt)
+    }
+
+    suspend fun insertDebts(debts: List<Debt>) {
+        financeDao.insertDebts(debts)
     }
 
     suspend fun deleteDebt(debt: Debt) {

@@ -388,9 +388,10 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 // Clear and restored sequentially in transactions
                 if (root.has("transactions")) {
                     val array = root.getJSONArray("transactions")
+                    val transactions = mutableListOf<Transaction>()
                     for (i in 0 until array.length()) {
                         val obj = array.getJSONObject(i)
-                        repository.insertTransaction(
+                        transactions.add(
                             Transaction(
                                 amount = obj.getDouble("amount"),
                                 type = obj.getString("type"),
@@ -401,14 +402,18 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                             )
                         )
                     }
+                    if (transactions.isNotEmpty()) {
+                        repository.insertTransactions(transactions)
+                    }
                 }
 
                 // Restore Budgets
                 if (root.has("budgets")) {
                     val array = root.getJSONArray("budgets")
+                    val budgets = mutableListOf<Budget>()
                     for (i in 0 until array.length()) {
                         val obj = array.getJSONObject(i)
-                        repository.insertBudget(
+                        budgets.add(
                             Budget(
                                 category = obj.getString("category"),
                                 limitAmount = obj.getDouble("limitAmount"),
@@ -419,14 +424,18 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                             )
                         )
                     }
+                    if (budgets.isNotEmpty()) {
+                        repository.insertBudgets(budgets)
+                    }
                 }
 
                 // Restore Goals
                 if (root.has("savings_goals")) {
                     val array = root.getJSONArray("savings_goals")
+                    val goals = mutableListOf<SavingsGoal>()
                     for (i in 0 until array.length()) {
                         val obj = array.getJSONObject(i)
-                        repository.insertSavingsGoal(
+                        goals.add(
                             SavingsGoal(
                                 name = obj.getString("name"),
                                 targetAmount = obj.getDouble("targetAmount"),
@@ -435,14 +444,18 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                             )
                         )
                     }
+                    if (goals.isNotEmpty()) {
+                        repository.insertSavingsGoals(goals)
+                    }
                 }
 
                 // Restore Recurrings
                 if (root.has("recurring_transactions")) {
                     val array = root.getJSONArray("recurring_transactions")
+                    val recurrings = mutableListOf<RecurringTransaction>()
                     for (i in 0 until array.length()) {
                         val obj = array.getJSONObject(i)
-                        repository.insertRecurringTransaction(
+                        recurrings.add(
                             RecurringTransaction(
                                 amount = obj.getDouble("amount"),
                                 type = obj.getString("type"),
@@ -454,14 +467,17 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                             )
                         )
                     }
+                    if (recurrings.isNotEmpty()) {
+                        repository.insertRecurringTransactions(recurrings)
+                    }
                 }
-            }
                 // Restore Debts
                 if (root.has("debts")) {
                     val array = root.getJSONArray("debts")
+                    val debts = mutableListOf<Debt>()
                     for (i in 0 until array.length()) {
                         val obj = array.getJSONObject(i)
-                        repository.insertDebt(
+                        debts.add(
                             Debt(
                                 personName = obj.getString("personName"),
                                 amount = obj.getDouble("amount"),
@@ -473,8 +489,12 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                             )
                         )
                     }
+                    if (debts.isNotEmpty()) {
+                        repository.insertDebts(debts)
+                    }
                 }
             _backupStatus.value = "Data Restored Successfully!"
+            }
             true
         } catch (e: Exception) {
             Log.e("FinanceViewModel", "Restore failed", e)
