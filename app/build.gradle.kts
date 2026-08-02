@@ -38,6 +38,12 @@ android {
       keyAlias = keystoreProperties["RELEASE_KEY_ALIAS"] as String?
       keyPassword = keystoreProperties["RELEASE_KEY_PASSWORD"] as String?
     }
+    create("debugConfig") {
+      storeFile = file("${rootDir}/debug.keystore")
+      storePassword = "android"
+      keyAlias = "androiddebugkey"
+      keyPassword = "android"
+    }
   }
 
   buildTypes {
@@ -50,6 +56,9 @@ android {
       ndk {
         debugSymbolLevel = "full"
       }
+    }
+    debug {
+      signingConfig = signingConfigs.getByName("debugConfig")
     }
   }
   compileOptions {
