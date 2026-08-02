@@ -129,4 +129,11 @@ class FinanceViewModelTest {
         }
         assertFalse(debt.copy(isResolved = false).isResolved)
     }
+
+    @Test
+    fun `restoreDataFromJson rejects invalid JSON and sets error status`() {
+        assertFalse(viewModel.restoreDataFromJson("this is not valid json"))
+        val status = viewModel.backupStatus.value
+        assertEquals("Failed to restore backup: invalid JSON format.", status)
+    }
 }
