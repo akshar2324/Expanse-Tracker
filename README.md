@@ -22,7 +22,7 @@ It is designed for people who want a private daily spending tracker without depe
 
 ## Privacy Model
 
-AkSpend is built around local-first data ownership:
+AkSpend is built around local-first data ownership (see [Privacy Model](docs/privacy-model.md) for full details):
 
 - Core finance data is stored in an on-device Room database.
 - The app does not require an account or hosted backend for core workflows.
@@ -42,6 +42,12 @@ AkSpend is built around local-first data ownership:
 - AndroidX Biometric
 - Glance app widgets
 - Gradle Kotlin DSL
+
+## Documentation
+
+- [Security Policy](SECURITY.md)
+- [Release Checklist](docs/release-checklist.md)
+- [Privacy Model](docs/privacy-model.md)
 
 ## Project Structure
 
