@@ -1,6 +1,8 @@
 package com.akshar.data.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "transactions")
@@ -14,7 +16,9 @@ data class Transaction(
     val paymentMethod: String,
     val timestamp: Long = System.currentTimeMillis(),
     val importBatchId: String? = null,
-    val originalCsvRowHash: String? = null
+    val originalCsvRowHash: String? = null,
+    @ColumnInfo(defaultValue = "1") val accountId: Long = 1L,
+    val transferId: String? = null // if part of a transfer, both sides share this ID
 )
 
 @Entity(tableName = "csv_import_profiles")
@@ -76,4 +80,24 @@ data class Debt(
     val description: String,
     val isResolved: Boolean = false,
     val dueDate: Long? = null
+)
+
+@Entity(tableName = "accounts")
+data class Account(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val type: String, // e.g., "Cash", "Bank", "Wallet", "Savings", "Credit Card"
+    val openingBalance: Double = 0.0,
+    val isArchived: Boolean = false,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "reconciliations")
+data class Reconciliation(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val accountId: Long,
+    val statementBalance: Double,
+    val calculatedBalance: Double,
+    val date: Long,
+    val timestamp: Long = System.currentTimeMillis()
 )

@@ -11,6 +11,8 @@ import com.akshar.data.model.SavingsGoal
 import com.akshar.data.model.Transaction
 import com.akshar.data.model.Debt
 import com.akshar.data.model.CsvImportProfile
+import com.akshar.data.model.Account
+import com.akshar.data.model.Reconciliation
 import com.akshar.data.repository.FinanceRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -50,6 +52,12 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allCsvImportProfiles: StateFlow<List<CsvImportProfile>> = repository.allCsvImportProfiles
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val accounts: StateFlow<List<Account>> = repository.allAccounts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val reconciliations: StateFlow<List<Reconciliation>> = repository.allReconciliations
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // --- Country & Currency Settings ---
@@ -160,9 +168,37 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 category = category,
                 description = description,
                 date = date,
-                paymentMethod = paymentMethod
-            )
+                paymentMethod = paymentMethod,
+                            )
             repository.insertTransaction(tx)
+        }
+    }
+
+
+    fun saveTransfer(fromAccountId: Long, toAccountId: Long, amount: Double, description: String, date: Long, transferId: String = UUID.randomUUID().toString()) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val fromTx = Transaction(
+                amount = amount,
+                type = "EXPENSE",
+                category = "Transfer",
+                description = description,
+                date = date,
+                paymentMethod = "Transfer",
+                accountId = fromAccountId,
+                transferId = transferId
+            )
+            val toTx = fromTx.copy(
+                type = "INCOME",
+                accountId = toAccountId,
+                id = 0L
+            )
+            repository.saveTransfer(fromTx, toTx)
+        }
+    }
+
+    fun deleteTransfer(transferId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteTransfer(transferId)
         }
     }
 
@@ -304,6 +340,19 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // --- Backup & Restore (JSON Export-Import) ---
+
+    fun addOrUpdateAccount(account: Account) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.insertAccount(account)
+        }
+    }
+
+    fun addReconciliation(reconciliation: Reconciliation) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.insertReconciliation(reconciliation)
+        }
+    }
+
     fun exportDataToJson(): String? {
         return try {
             val backupObj = JSONObject()
@@ -320,6 +369,8 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 obj.put("paymentMethod", it.paymentMethod)
                 it.importBatchId?.let { id -> obj.put("importBatchId", id) }
                 it.originalCsvRowHash?.let { hash -> obj.put("originalCsvRowHash", hash) }
+                obj.put("accountId", it.accountId)
+                it.transferId?.let { tid -> obj.put("transferId", tid) }
                 txArray.put(obj)
             }
             backupObj.put("transactions", txArray)
@@ -399,6 +450,30 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             }
             backupObj.put("csv_import_profiles", profilesArray)
 
+            // Accounts
+            val accountsArray = JSONArray()
+            accounts.value.forEach {
+                val obj = JSONObject()
+                obj.put("name", it.name)
+                obj.put("type", it.type)
+                obj.put("openingBalance", it.openingBalance)
+                obj.put("isArchived", it.isArchived)
+                accountsArray.put(obj)
+            }
+            backupObj.put("accounts", accountsArray)
+
+            // Reconciliations
+            val reconciliationsArray = JSONArray()
+            reconciliations.value.forEach {
+                val obj = JSONObject()
+                obj.put("accountId", it.accountId)
+                obj.put("statementBalance", it.statementBalance)
+                obj.put("calculatedBalance", it.calculatedBalance)
+                obj.put("date", it.date)
+                reconciliationsArray.put(obj)
+            }
+            backupObj.put("reconciliations", reconciliationsArray)
+
             backupObj.toString(4)
         } catch (e: Exception) {
             Log.e("FinanceViewModel", "Backup Export failed", e)
@@ -426,7 +501,9 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                                 date = obj.getLong("date"),
                                 paymentMethod = obj.getString("paymentMethod"),
                                 importBatchId = if (obj.has("importBatchId")) obj.getString("importBatchId") else null,
-                                originalCsvRowHash = if (obj.has("originalCsvRowHash")) obj.getString("originalCsvRowHash") else null
+                                originalCsvRowHash = if (obj.has("originalCsvRowHash")) obj.getString("originalCsvRowHash") else null,
+                                accountId = if (obj.has("accountId")) obj.getLong("accountId") else 1L,
+                                transferId = if (obj.has("transferId")) obj.getString("transferId") else null
                             )
                         )
                     }
@@ -547,6 +624,57 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     }
                     if (profiles.isNotEmpty()) {
                         repository.insertCsvImportProfiles(profiles)
+                    }
+                }
+
+                // Restore Accounts
+                if (root.has("accounts")) {
+                    val array = root.getJSONArray("accounts")
+                    val accountsList = mutableListOf<Account>()
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        accountsList.add(
+                            Account(
+                                name = obj.getString("name"),
+                                type = obj.getString("type"),
+                                openingBalance = obj.getDouble("openingBalance"),
+                                isArchived = obj.getBoolean("isArchived")
+                            )
+                        )
+                    }
+                    if (accountsList.isNotEmpty()) {
+                        repository.insertAccounts(accountsList)
+                    }
+                } else {
+                    // Provide a default account for old backups
+                    repository.insertAccount(
+                        Account(
+                            id = 1,
+                            name = "Default",
+                            type = "Cash",
+                            openingBalance = 0.0,
+                            isArchived = false
+                        )
+                    )
+                }
+
+                // Restore Reconciliations
+                if (root.has("reconciliations")) {
+                    val array = root.getJSONArray("reconciliations")
+                    val reconciliationsList = mutableListOf<Reconciliation>()
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        reconciliationsList.add(
+                            Reconciliation(
+                                accountId = obj.getLong("accountId"),
+                                statementBalance = obj.getDouble("statementBalance"),
+                                calculatedBalance = obj.getDouble("calculatedBalance"),
+                                date = obj.getLong("date")
+                            )
+                        )
+                    }
+                    if (reconciliationsList.isNotEmpty()) {
+                        repository.insertReconciliations(reconciliationsList)
                     }
                 }
                 _backupStatus.value = "Data Restored Successfully!"

@@ -34,7 +34,8 @@ fun BudgetSavingsScreen(
     modifier: Modifier = Modifier
 ) {
     val budgets by viewModel.allBudgets.collectAsStateWithLifecycle()
-    val transactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val transactions = allTransactions.filter { it.transferId == null }
     val savingsGoals by viewModel.allSavingsGoals.collectAsStateWithLifecycle()
 
     val selectedCountry by viewModel.selectedCountry.collectAsStateWithLifecycle()

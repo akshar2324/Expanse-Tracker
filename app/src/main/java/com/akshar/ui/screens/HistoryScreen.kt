@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.navigation.NavController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +23,7 @@ import com.akshar.data.model.Transaction
 import com.akshar.ui.theme.ExpenseRed
 import com.akshar.ui.theme.IncomeGreen
 import com.akshar.ui.viewmodel.FinanceViewModel
+import com.akshar.data.model.Account
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -29,6 +31,7 @@ import java.util.*
 @Composable
 fun HistoryScreen(
     viewModel: FinanceViewModel,
+    navController: NavController,
     modifier: Modifier = Modifier
 ) {
     val transactions by viewModel.allTransactions.collectAsStateWithLifecycle()
@@ -38,6 +41,8 @@ fun HistoryScreen(
     var selectedTypeFilter by remember { mutableStateOf("ALL") } // "ALL", "EXPENSE", "INCOME"
     var selectedPaymentFilter by remember { mutableStateOf("ALL") } // "ALL", "Cash", "UPI", "Credit Card", "Debit Card", "Bank Transfer", "Wallet"
     var selectedTimeFilter by remember { mutableStateOf("ALL") } // "ALL", "WEEK", "MONTH", "YEAR"
+    var selectedAccountFilter by remember { mutableStateOf<Long?>(null) } // null means "ALL"
+    val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     var sortBy by remember { mutableStateOf("NEWEST") } // "NEWEST", "OLDEST", "HIGHEST", "LOWEST"
 
     var showFilters by remember { mutableStateOf(false) }
@@ -48,7 +53,7 @@ fun HistoryScreen(
 
     // --- Filter logic ---
     val filteredTransactions = remember(
-        transactions, searchQuery, selectedTypeFilter, selectedPaymentFilter, selectedTimeFilter, sortBy
+        transactions, searchQuery, selectedTypeFilter, selectedPaymentFilter, selectedTimeFilter, selectedAccountFilter, sortBy
     ) {
         val now = System.currentTimeMillis()
         val calendar = Calendar.getInstance()
@@ -80,6 +85,9 @@ fun HistoryScreen(
             // Payment method match
             val matchesPayment = selectedPaymentFilter == "ALL" || it.paymentMethod == selectedPaymentFilter
 
+            // Account filter match
+            val matchesAccount = if (selectedAccountFilter == null) true else it.accountId == selectedAccountFilter || (it.transferId != null && (it.accountId == selectedAccountFilter || transactions.any { relatedTx -> relatedTx.transferId == it.transferId && relatedTx.accountId == selectedAccountFilter }))
+
             // Time filter match
             val matchesTime = when (selectedTimeFilter) {
                 "WEEK" -> it.date >= weekAgo
@@ -88,7 +96,7 @@ fun HistoryScreen(
                 else -> true
             }
 
-            matchesQuery && matchesType && matchesPayment && matchesTime
+            matchesQuery && matchesType && matchesPayment && matchesTime && matchesAccount
         }
 
         // Sorting
@@ -301,10 +309,16 @@ fun HistoryScreen(
                     contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
                     items(filteredTransactions) { transaction ->
-                        TransactionItemRow(
-                            transaction = transaction,
-                            onDelete = { viewModel.deleteTransaction(transaction) }
-                        )
+                                            TransactionItem(
+                        transaction = transaction,
+                        onClick = {
+                            if (transaction.transferId != null) {
+                                navController.navigate("addTransfer/${transaction.transferId}")
+                            } else {
+                                navController.navigate("addTransaction/${transaction.id}")
+                            }
+                        }
+                    )
                     }
                 }
             }
@@ -349,3 +363,47 @@ fun ScrollableFilterRow(
 
 // Helpers
 fun List<Transaction>.sortedByByAmountDescending() = sortedByDescending { it.amount }
+
+@Composable
+fun TransactionItem(transaction: Transaction, onClick: () -> Unit) {
+    val formatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+    val isExpense = transaction.type == "EXPENSE"
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = transaction.category, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                if (transaction.description.isNotBlank()) {
+                    Text(
+                        text = transaction.description,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    text = formatter.format(Date(transaction.date)),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = "${if (isExpense) "-" else "+"}₹${transaction.amount}",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = if (isExpense) ExpenseRed else IncomeGreen
+            )
+        }
+    }
+}

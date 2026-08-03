@@ -31,7 +31,7 @@ class FinanceRepositoryPerfTest {
             .allowMainThreadQueries()
             .build()
         dao = db.financeDao()
-        repository = FinanceRepository(dao)
+        repository = FinanceRepository(dao, db)
     }
 
     @After

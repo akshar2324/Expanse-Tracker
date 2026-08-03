@@ -1,11 +1,14 @@
 package com.akshar.data.db
 
 import androidx.room.*
+import com.akshar.data.model.Account
+import com.akshar.data.model.Reconciliation
 import com.akshar.data.model.Budget
 import com.akshar.data.model.RecurringTransaction
 import com.akshar.data.model.SavingsGoal
 import com.akshar.data.model.Transaction
 import com.akshar.data.model.Debt
+import com.akshar.data.model.CsvImportProfile
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -102,17 +105,46 @@ interface FinanceDao {
 
     // --- CSV Import Profiles ---
     @Query("SELECT * FROM csv_import_profiles")
-    fun getAllCsvImportProfiles(): Flow<List<com.akshar.data.model.CsvImportProfile>>
+    fun getAllCsvImportProfiles(): Flow<List<CsvImportProfile>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertCsvImportProfile(profile: com.akshar.data.model.CsvImportProfile): Long
+    suspend fun insertCsvImportProfile(profile: CsvImportProfile): Long
 
     @Query("DELETE FROM csv_import_profiles WHERE id = :id")
     suspend fun deleteCsvImportProfileById(id: Long)
 
     @Query("SELECT * FROM csv_import_profiles")
-    suspend fun getCsvImportProfilesList(): List<com.akshar.data.model.CsvImportProfile>
+    suspend fun getCsvImportProfilesList(): List<CsvImportProfile>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertCsvImportProfiles(profiles: List<com.akshar.data.model.CsvImportProfile>)
+    suspend fun insertCsvImportProfiles(profiles: List<CsvImportProfile>)
+
+    // --- Accounts ---
+    @Query("SELECT * FROM accounts ORDER BY id ASC")
+    fun getAllAccounts(): Flow<List<Account>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAccount(account: Account)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAccounts(accounts: List<Account>)
+
+    @Delete
+    suspend fun deleteAccount(account: Account)
+
+    @Query("DELETE FROM accounts WHERE id = :id")
+    suspend fun deleteAccountById(id: Long)
+
+    // --- Reconciliations ---
+    @Query("SELECT * FROM reconciliations ORDER BY date DESC, id DESC")
+    fun getAllReconciliations(): Flow<List<Reconciliation>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertReconciliation(reconciliation: Reconciliation)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertReconciliations(reconciliations: List<Reconciliation>)
+
+    @Query("DELETE FROM reconciliations WHERE id = :id")
+    suspend fun deleteReconciliationById(id: Long)
 }
