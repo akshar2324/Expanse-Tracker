@@ -65,7 +65,8 @@ fun ToolsScreen(
     val backupStatus by viewModel.backupStatus.collectAsStateWithLifecycle()
 
     val recurringList by viewModel.allRecurringTransactions.collectAsStateWithLifecycle()
-    val transactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val transactions = allTransactions.filter { it.transferId == null }
 
     var activeSubTool by remember { mutableStateOf("RECURRING") } // "RECURRING", "REPORTS", "BACKUP"
 

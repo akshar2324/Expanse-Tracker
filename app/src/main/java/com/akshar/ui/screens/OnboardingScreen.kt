@@ -45,7 +45,7 @@ fun OnboardingScreen(
         listOf(
             OnboardingSlide(
                 title = "PRIVACY FIRST LEDGER",
-                description = "Akshar Ledger works 100% offline. Zero tracking. Zero remote cloud servers. Every record is cryptographically locked strictly inside your device storage.",
+                description = "AkSpend works 100% offline. Zero tracking. Zero remote cloud servers. Every record is cryptographically locked strictly inside your device storage.",
                 icon = Icons.Default.Security,
                 headerTag = "OFFLINE VAULT"
             ),

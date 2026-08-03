@@ -18,6 +18,6 @@ class ExpenseTrackerApp : Application() {
         super.onCreate()
         instance = this
         val database = AppDatabase.getInstance(this)
-        repository = FinanceRepository(database.financeDao())
+        repository = FinanceRepository(database.financeDao(), database)
     }
 }

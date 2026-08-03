@@ -182,8 +182,9 @@ fun AppNavGraph(
         composable("dashboard") {
             DashboardScreen(
                 viewModel = viewModel,
-                onNavigateToAddTransaction = { navController.navigate("add_transaction") },
-                onNavigateToHistory = { navController.navigate("history") }
+                onNavigateToAddTransaction = { navController.navigate("addTransaction") },
+                onNavigateToHistory = { navController.navigate("history") },
+                navController = navController
             )
         }
         composable(
@@ -195,8 +196,37 @@ fun AppNavGraph(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
+                composable("accounts") {
+            AccountsScreen(viewModel = viewModel, navController = navController)
+        }
+                composable("addTransfer") {
+            AddTransferScreen(viewModel = viewModel, navController = navController)
+        }
+        composable("addTransfer/{transferId}") { backStackEntry ->
+            val transferId = backStackEntry.arguments?.getString("transferId")
+            AddTransferScreen(viewModel = viewModel, navController = navController, transferId = transferId)
+        }
+        composable("addEditAccount") {
+            AddEditAccountScreen(viewModel = viewModel, navController = navController)
+        }
+        composable("addEditAccount/{accountId}") { backStackEntry ->
+            val accountId = backStackEntry.arguments?.getString("accountId")?.toLongOrNull()
+            AddEditAccountScreen(viewModel = viewModel, navController = navController, accountId = accountId)
+        }
+        composable("accountDetail/{accountId}") { backStackEntry ->
+            val accountId = backStackEntry.arguments?.getString("accountId")?.toLongOrNull()
+            if (accountId != null) {
+                AccountDetailScreen(viewModel = viewModel, navController = navController, accountId = accountId)
+            }
+        }
+        composable("reconcileAccount/{accountId}") { backStackEntry ->
+            val accountId = backStackEntry.arguments?.getString("accountId")?.toLongOrNull()
+            if (accountId != null) {
+                ReconciliationScreen(viewModel = viewModel, navController = navController, accountId = accountId)
+            }
+        }
         composable("history") {
-            HistoryScreen(viewModel = viewModel)
+            HistoryScreen(viewModel = viewModel, navController = navController)
         }
         composable("analytics") {
             AnalyticsScreen(viewModel = viewModel)
@@ -220,6 +250,7 @@ fun AppScaffold(viewModel: FinanceViewModel) {
     val tabs = remember {
         listOf(
             NavigationTabItem("dashboard", "Home", Icons.Default.Home),
+            NavigationTabItem("accounts", "Accounts", Icons.Default.AccountBalanceWallet),
             NavigationTabItem("history", "Ledger", Icons.Default.FormatListBulleted),
             NavigationTabItem("analytics", "Charts", Icons.Default.PieChart),
             NavigationTabItem("budgets", "Targets", Icons.Default.Flag),
@@ -426,7 +457,7 @@ fun LockScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Akshar Finance Vault",
+                    text = "AkSpend Finance Vault",
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
                 )
                 Spacer(modifier = Modifier.height(8.dp))

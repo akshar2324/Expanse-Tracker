@@ -43,7 +43,8 @@ fun AnalyticsScreen(
     viewModel: FinanceViewModel,
     modifier: Modifier = Modifier
 ) {
-    val transactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val transactions = allTransactions.filter { it.transferId == null }
     val selectedCountry by viewModel.selectedCountry.collectAsStateWithLifecycle()
     val currencySymbol = viewModel.getCurrencySymbol()
 
