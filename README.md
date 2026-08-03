@@ -26,6 +26,7 @@ AkSpend is built around local-first data ownership:
 
 - Core finance data is stored in an on-device Room database.
 - The app does not require an account or hosted backend for core workflows.
+- The checked-in app does not require Firebase, Google services config, or a runtime internet permission.
 - Backup and export happen only when the user chooses them.
 - Android Auto Backup is disabled for app data.
 - User-visible branding is AkSpend. Existing `com.akshar` package names are technical identifiers kept for compatibility.
@@ -108,6 +109,8 @@ RELEASE_KEY_PASSWORD=...
 
 Do not commit real signing keys, passwords, generated APKs/AABs, or private local configuration.
 
+The repository ignores keystores, local signing properties, `google-services.json`, service-account files, and base64-encoded key files.
+
 ## Database Notes
 
 AkSpend uses explicit Room migrations. Destructive migrations should not be used because users may already have local finance data.
@@ -154,3 +157,7 @@ Before opening a pull request:
 - Do not add network-backed runtime features, telemetry, analytics, or cloud-only behavior.
 - Preserve user data with explicit migrations.
 - Run the full verification command.
+
+## License
+
+AkSpend is released under the [MIT License](LICENSE).

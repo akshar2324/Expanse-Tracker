@@ -2,5 +2,5 @@
   "name": "AkSpend",
   "description": "Clean, secure, offline financial ledger, monthly budgets, savings goals, and transaction reminders. Website: https://akshar2324.github.io/AkSpend-Web/ | Privacy Policy: https://akshar2324.github.io/AkSpend-Web/privacy.html | Terms of Service: https://akshar2324.github.io/AkSpend-Web/terms.html",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }
