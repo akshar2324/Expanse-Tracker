@@ -30,6 +30,12 @@ interface FinanceDao {
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun getTransactionById(id: Long): Transaction?
 
+    @Query("DELETE FROM transactions WHERE importBatchId = :batchId")
+    suspend fun deleteTransactionsByBatchId(batchId: String)
+
+    @Query("SELECT originalCsvRowHash FROM transactions WHERE originalCsvRowHash IN (:hashes)")
+    suspend fun getExistingCsvHashes(hashes: List<String>): List<String>
+
 
     // --- Budgets ---
     @Query("SELECT * FROM budgets WHERE month = :month")
@@ -93,4 +99,20 @@ interface FinanceDao {
 
     @Query("DELETE FROM debts WHERE id = :id")
     suspend fun deleteDebtById(id: Long)
+
+    // --- CSV Import Profiles ---
+    @Query("SELECT * FROM csv_import_profiles")
+    fun getAllCsvImportProfiles(): Flow<List<com.akshar.data.model.CsvImportProfile>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCsvImportProfile(profile: com.akshar.data.model.CsvImportProfile): Long
+
+    @Query("DELETE FROM csv_import_profiles WHERE id = :id")
+    suspend fun deleteCsvImportProfileById(id: Long)
+
+    @Query("SELECT * FROM csv_import_profiles")
+    suspend fun getCsvImportProfilesList(): List<com.akshar.data.model.CsvImportProfile>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCsvImportProfiles(profiles: List<com.akshar.data.model.CsvImportProfile>)
 }
