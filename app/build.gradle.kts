@@ -19,8 +19,8 @@ android {
     applicationId = "com.akshar.akspend"
     minSdk = 24
     targetSdk = 36
-    versionCode = 3
-    versionName = "1.2"
+    versionCode = 6
+    versionName = "1.4.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -38,12 +38,6 @@ android {
       keyAlias = keystoreProperties["RELEASE_KEY_ALIAS"] as String?
       keyPassword = keystoreProperties["RELEASE_KEY_PASSWORD"] as String?
     }
-    create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
-    }
   }
 
   buildTypes {
@@ -57,9 +51,6 @@ android {
         debugSymbolLevel = "full"
       }
     }
-    debug {
-      signingConfig = signingConfigs.getByName("debugConfig")
-    }
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -69,7 +60,12 @@ android {
     compose = true
     buildConfig = true
   }
-  testOptions { unitTests { isIncludeAndroidResources = true } }
+  testOptions {
+    unitTests {
+      isIncludeAndroidResources = true
+      all { it.jvmArgs("-Djdk.attach.allowAttachSelf=true") }
+    }
+  }
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
@@ -129,6 +125,7 @@ dependencies {
   testImplementation(libs.roborazzi)
   testImplementation(libs.roborazzi.compose)
   testImplementation(libs.roborazzi.junit.rule)
+  testImplementation("io.mockk:mockk:1.13.8")
   androidTestImplementation(platform(libs.androidx.compose.bom))
   androidTestImplementation(libs.androidx.compose.ui.test.junit4)
   androidTestImplementation(libs.androidx.espresso.core)
