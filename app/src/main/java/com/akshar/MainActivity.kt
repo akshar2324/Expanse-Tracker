@@ -40,6 +40,7 @@ import androidx.navigation.navDeepLink
 import com.akshar.ui.screens.*
 import com.akshar.ui.theme.MyApplicationTheme
 import com.akshar.ui.viewmodel.FinanceViewModel
+import com.akshar.security.BiometricCrypto
 
 class MainActivity : FragmentActivity() {
     
@@ -105,6 +106,13 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun tryLaunchBiometric(onSuccess: () -> Unit) {
+        val authenticationRequest = try {
+            BiometricCrypto.createAuthenticationRequest()
+        } catch (exception: Exception) {
+            Log.e("MainActivity", "Unable to prepare biometric authentication", exception)
+            return
+        }
+
         val executor = ContextCompat.getMainExecutor(this)
         val biometricPrompt = BiometricPrompt(this, executor,
             object : BiometricPrompt.AuthenticationCallback() {
@@ -115,7 +123,28 @@ class MainActivity : FragmentActivity() {
 
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     super.onAuthenticationSucceeded(result)
-                    onSuccess()
+                    val signature = result.cryptoObject?.signature
+                    if (signature == null) {
+                        Log.e("MainActivity", "Biometric result did not contain a signature")
+                        return
+                    }
+
+                    val isVerified = try {
+                        signature.update(authenticationRequest.challenge)
+                        val signedChallenge = signature.sign()
+                        BiometricCrypto.verifySignature(
+                            authenticationRequest.publicKey,
+                            authenticationRequest.challenge,
+                            signedChallenge
+                        )
+                    } catch (exception: Exception) {
+                        Log.e("MainActivity", "Biometric signature verification failed", exception)
+                        false
+                    }
+
+                    if (isVerified) {
+                        onSuccess()
+                    }
                 }
 
                 override fun onAuthenticationFailed() {
@@ -132,7 +161,7 @@ class MainActivity : FragmentActivity() {
             .build()
 
         try {
-            biometricPrompt.authenticate(promptInfo)
+            biometricPrompt.authenticate(promptInfo, authenticationRequest.cryptoObject)
         } catch (e: Exception) {
             Log.e("MainActivity", "Error launching Biometric prompting: ${e.message}")
         }
