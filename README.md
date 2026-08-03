@@ -102,6 +102,12 @@ Full local verification:
 ./gradlew compileDebugKotlin testDebugUnitTest lintDebug assembleDebug
 ```
 
+You can also run the repository safety guard to ensure no secrets or network configurations have been accidentally introduced:
+
+```bash
+./scripts/repo_guard.sh
+```
+
 ## Release Signing
 
 Release signing uses `keystore.properties` if present:
