@@ -67,6 +67,11 @@ app/src/main/java/com/akshar/
 docs/                Static support pages
 ```
 
+## Play Store & Testing
+
+- [Play Store Listing & Copy](docs/play-store-listing.md) - Details for the Play Store listing.
+- [Tester Onboarding Guide](docs/tester-onboarding.md) - How to join the closed test and provide feedback.
+
 ## Requirements
 
 - Android Studio
