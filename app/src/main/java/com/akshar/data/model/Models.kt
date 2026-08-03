@@ -12,7 +12,26 @@ data class Transaction(
     val description: String,
     val date: Long, // timestamp in ms
     val paymentMethod: String,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val importBatchId: String? = null,
+    val originalCsvRowHash: String? = null
+)
+
+@Entity(tableName = "csv_import_profiles")
+data class CsvImportProfile(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val delimiter: String,
+    val hasHeader: Boolean,
+    val dateColumn: String,
+    val dateFormat: String,
+    val amountColumn: String? = null,
+    val debitColumn: String? = null,
+    val creditColumn: String? = null,
+    val descriptionColumn: String,
+    val categoryColumn: String? = null,
+    val locale: String,
+    val invertAmountSigns: Boolean = false
 )
 
 @Entity(tableName = "budgets")

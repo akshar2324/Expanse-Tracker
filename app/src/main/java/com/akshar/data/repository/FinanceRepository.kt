@@ -9,6 +9,7 @@ import com.akshar.data.model.Transaction
 import com.akshar.data.model.Debt
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import com.akshar.data.model.CsvImportProfile
 
 class FinanceRepository(private val financeDao: FinanceDao) {
 
@@ -159,5 +160,32 @@ class FinanceRepository(private val financeDao: FinanceDao) {
 
     suspend fun deleteDebtById(id: Long) {
         financeDao.deleteDebtById(id)
+    }
+
+    suspend fun getExistingCsvHashes(hashes: List<String>): List<String> {
+        return financeDao.getExistingCsvHashes(hashes)
+    }
+
+    suspend fun deleteTransactionsByBatchId(batchId: String) {
+        financeDao.deleteTransactionsByBatchId(batchId)
+    }
+
+    // --- CSV Import Profiles ---
+    val allCsvImportProfiles: Flow<List<com.akshar.data.model.CsvImportProfile>> = financeDao.getAllCsvImportProfiles()
+
+    suspend fun insertCsvImportProfile(profile: com.akshar.data.model.CsvImportProfile): Long {
+        return financeDao.insertCsvImportProfile(profile)
+    }
+
+    suspend fun deleteCsvImportProfileById(id: Long) {
+        financeDao.deleteCsvImportProfileById(id)
+    }
+
+    suspend fun getCsvImportProfilesList(): List<com.akshar.data.model.CsvImportProfile> {
+        return financeDao.getCsvImportProfilesList()
+    }
+
+    suspend fun insertCsvImportProfiles(profiles: List<com.akshar.data.model.CsvImportProfile>) {
+        financeDao.insertCsvImportProfiles(profiles)
     }
 }

@@ -10,6 +10,7 @@ import com.akshar.data.model.RecurringTransaction
 import com.akshar.data.model.SavingsGoal
 import com.akshar.data.model.Transaction
 import com.akshar.data.model.Debt
+import com.akshar.data.model.CsvImportProfile
 import com.akshar.data.repository.FinanceRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -46,6 +47,9 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allDebts: StateFlow<List<Debt>> = repository.allDebts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allCsvImportProfiles: StateFlow<List<CsvImportProfile>> = repository.allCsvImportProfiles
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // --- Country & Currency Settings ---
@@ -314,6 +318,8 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 obj.put("description", it.description)
                 obj.put("date", it.date)
                 obj.put("paymentMethod", it.paymentMethod)
+                it.importBatchId?.let { id -> obj.put("importBatchId", id) }
+                it.originalCsvRowHash?.let { hash -> obj.put("originalCsvRowHash", hash) }
                 txArray.put(obj)
             }
             backupObj.put("transactions", txArray)
@@ -373,6 +379,26 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             }
             backupObj.put("debts", dbArray)
 
+            // CsvImportProfiles
+            val profilesArray = JSONArray()
+            allCsvImportProfiles.value.forEach {
+                val obj = JSONObject()
+                obj.put("name", it.name)
+                obj.put("delimiter", it.delimiter)
+                obj.put("hasHeader", it.hasHeader)
+                obj.put("dateColumn", it.dateColumn)
+                obj.put("dateFormat", it.dateFormat)
+                it.amountColumn?.let { col -> obj.put("amountColumn", col) }
+                it.debitColumn?.let { col -> obj.put("debitColumn", col) }
+                it.creditColumn?.let { col -> obj.put("creditColumn", col) }
+                obj.put("descriptionColumn", it.descriptionColumn)
+                it.categoryColumn?.let { col -> obj.put("categoryColumn", col) }
+                obj.put("locale", it.locale)
+                obj.put("invertAmountSigns", it.invertAmountSigns)
+                profilesArray.put(obj)
+            }
+            backupObj.put("csv_import_profiles", profilesArray)
+
             backupObj.toString(4)
         } catch (e: Exception) {
             Log.e("FinanceViewModel", "Backup Export failed", e)
@@ -398,7 +424,9 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                                 category = obj.getString("category"),
                                 description = obj.getString("description"),
                                 date = obj.getLong("date"),
-                                paymentMethod = obj.getString("paymentMethod")
+                                paymentMethod = obj.getString("paymentMethod"),
+                                importBatchId = if (obj.has("importBatchId")) obj.getString("importBatchId") else null,
+                                originalCsvRowHash = if (obj.has("originalCsvRowHash")) obj.getString("originalCsvRowHash") else null
                             )
                         )
                     }
@@ -491,6 +519,34 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     }
                     if (debts.isNotEmpty()) {
                         repository.insertDebts(debts)
+                    }
+                }
+
+                // Restore CsvImportProfiles
+                if (root.has("csv_import_profiles")) {
+                    val array = root.getJSONArray("csv_import_profiles")
+                    val profiles = mutableListOf<CsvImportProfile>()
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        profiles.add(
+                            CsvImportProfile(
+                                name = obj.getString("name"),
+                                delimiter = obj.getString("delimiter"),
+                                hasHeader = obj.getBoolean("hasHeader"),
+                                dateColumn = obj.getString("dateColumn"),
+                                dateFormat = obj.getString("dateFormat"),
+                                amountColumn = if (obj.has("amountColumn")) obj.getString("amountColumn") else null,
+                                debitColumn = if (obj.has("debitColumn")) obj.getString("debitColumn") else null,
+                                creditColumn = if (obj.has("creditColumn")) obj.getString("creditColumn") else null,
+                                descriptionColumn = obj.getString("descriptionColumn"),
+                                categoryColumn = if (obj.has("categoryColumn")) obj.getString("categoryColumn") else null,
+                                locale = obj.getString("locale"),
+                                invertAmountSigns = obj.getBoolean("invertAmountSigns")
+                            )
+                        )
+                    }
+                    if (profiles.isNotEmpty()) {
+                        repository.insertCsvImportProfiles(profiles)
                     }
                 }
                 _backupStatus.value = "Data Restored Successfully!"
