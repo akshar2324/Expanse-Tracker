@@ -10,7 +10,14 @@ import com.akshar.data.model.RecurringTransaction
 import com.akshar.data.model.SavingsGoal
 import com.akshar.data.model.Transaction
 import com.akshar.data.model.Debt
+import com.akshar.data.model.CsvImportProfile
+import com.akshar.data.model.Account
+import com.akshar.data.model.Reconciliation
+import com.akshar.data.model.Bill
+import com.akshar.data.model.BillOccurrence
 import com.akshar.data.repository.FinanceRepository
+import com.akshar.utils.NotificationHelper
+import com.akshar.utils.BillForecastEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -48,8 +55,23 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     val allDebts: StateFlow<List<Debt>> = repository.allDebts
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allCsvImportProfiles: StateFlow<List<CsvImportProfile>> = repository.allCsvImportProfiles
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val accounts: StateFlow<List<Account>> = repository.allAccounts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val reconciliations: StateFlow<List<Reconciliation>> = repository.allReconciliations
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allBills: StateFlow<List<Bill>> = repository.allBills
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allBillOccurrences: StateFlow<List<BillOccurrence>> = repository.allBillOccurrences
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     // --- Country & Currency Settings ---
-    private val countryPrefs = application.getSharedPreferences("country_settings", android.content.Context.MODE_PRIVATE)
+    private val countryPrefs = getApplication<Application>().getSharedPreferences("country_settings", android.content.Context.MODE_PRIVATE)
 
     private val _selectedCountry = MutableStateFlow(countryPrefs.getString("selected_country", "IN") ?: "IN")
     val selectedCountry: StateFlow<String> = _selectedCountry.asStateFlow()
@@ -129,6 +151,42 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    // --- Bills ---
+    fun addBill(bill: Bill) {
+        viewModelScope.launch {
+            val id = repository.insertBill(bill)
+            scheduleNextReminder(bill.copy(id = id))
+        }
+    }
+
+    fun updateBill(bill: Bill) {
+        viewModelScope.launch {
+            repository.updateBill(bill)
+            if (bill.isActive) {
+                scheduleNextReminder(bill)
+            } else {
+                NotificationHelper.cancelBillReminder(getApplication<Application>(), bill.id)
+            }
+        }
+    }
+
+    fun deleteBill(billId: Long) {
+        viewModelScope.launch {
+            repository.deleteBillById(billId)
+            NotificationHelper.cancelBillReminder(getApplication<Application>(), billId)
+        }
+    }
+
+    fun addBillOccurrence(occurrence: BillOccurrence) {
+        viewModelScope.launch {
+            repository.insertBillOccurrence(occurrence)
+            val bill = repository.allBills.firstOrNull()?.find { it.id == occurrence.billId }
+            if (bill != null && bill.isActive) {
+                scheduleNextReminder(bill)
+            }
+        }
+    }
+
     // --- Backup & Restore UI Feedback States ---
     private val _backupStatus = MutableStateFlow("")
     val backupStatus: StateFlow<String> = _backupStatus.asStateFlow()
@@ -156,9 +214,37 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 category = category,
                 description = description,
                 date = date,
-                paymentMethod = paymentMethod
-            )
+                paymentMethod = paymentMethod,
+                            )
             repository.insertTransaction(tx)
+        }
+    }
+
+
+    fun saveTransfer(fromAccountId: Long, toAccountId: Long, amount: Double, description: String, date: Long, transferId: String = UUID.randomUUID().toString()) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val fromTx = Transaction(
+                amount = amount,
+                type = "EXPENSE",
+                category = "Transfer",
+                description = description,
+                date = date,
+                paymentMethod = "Transfer",
+                accountId = fromAccountId,
+                transferId = transferId
+            )
+            val toTx = fromTx.copy(
+                type = "INCOME",
+                accountId = toAccountId,
+                id = 0L
+            )
+            repository.saveTransfer(fromTx, toTx)
+        }
+    }
+
+    fun deleteTransfer(transferId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteTransfer(transferId)
         }
     }
 
@@ -300,6 +386,19 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // --- Backup & Restore (JSON Export-Import) ---
+
+    fun addOrUpdateAccount(account: Account) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.insertAccount(account)
+        }
+    }
+
+    fun addReconciliation(reconciliation: Reconciliation) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.insertReconciliation(reconciliation)
+        }
+    }
+
     fun exportDataToJson(): String? {
         return try {
             val backupObj = JSONObject()
@@ -314,6 +413,10 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 obj.put("description", it.description)
                 obj.put("date", it.date)
                 obj.put("paymentMethod", it.paymentMethod)
+                it.importBatchId?.let { id -> obj.put("importBatchId", id) }
+                it.originalCsvRowHash?.let { hash -> obj.put("originalCsvRowHash", hash) }
+                obj.put("accountId", it.accountId)
+                it.transferId?.let { tid -> obj.put("transferId", tid) }
                 txArray.put(obj)
             }
             backupObj.put("transactions", txArray)
@@ -373,6 +476,80 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             }
             backupObj.put("debts", dbArray)
 
+            // CsvImportProfiles
+            val profilesArray = JSONArray()
+            allCsvImportProfiles.value.forEach {
+                val obj = JSONObject()
+                obj.put("name", it.name)
+                obj.put("delimiter", it.delimiter)
+                obj.put("hasHeader", it.hasHeader)
+                obj.put("dateColumn", it.dateColumn)
+                obj.put("dateFormat", it.dateFormat)
+                it.amountColumn?.let { col -> obj.put("amountColumn", col) }
+                it.debitColumn?.let { col -> obj.put("debitColumn", col) }
+                it.creditColumn?.let { col -> obj.put("creditColumn", col) }
+                obj.put("descriptionColumn", it.descriptionColumn)
+                it.categoryColumn?.let { col -> obj.put("categoryColumn", col) }
+                obj.put("locale", it.locale)
+                obj.put("invertAmountSigns", it.invertAmountSigns)
+                profilesArray.put(obj)
+            }
+            backupObj.put("csv_import_profiles", profilesArray)
+
+            // Accounts
+            val accountsArray = JSONArray()
+            accounts.value.forEach {
+                val obj = JSONObject()
+                obj.put("name", it.name)
+                obj.put("type", it.type)
+                obj.put("openingBalance", it.openingBalance)
+                obj.put("isArchived", it.isArchived)
+                accountsArray.put(obj)
+            }
+            backupObj.put("accounts", accountsArray)
+
+            // Reconciliations
+            val reconciliationsArray = JSONArray()
+            reconciliations.value.forEach {
+                val obj = JSONObject()
+                obj.put("accountId", it.accountId)
+                obj.put("statementBalance", it.statementBalance)
+                obj.put("calculatedBalance", it.calculatedBalance)
+                obj.put("date", it.date)
+                reconciliationsArray.put(obj)
+            }
+            backupObj.put("reconciliations", reconciliationsArray)
+
+            // Bills
+            val billsArray = JSONArray()
+            allBills.value.forEach { b ->
+                val obj = JSONObject()
+                obj.put("id", b.id)
+                obj.put("title", b.title)
+                obj.put("amount", b.amount)
+                obj.put("type", b.type)
+                obj.put("category", b.category)
+                obj.put("startDate", b.startDate)
+                obj.put("recurrence", b.recurrence)
+                if (b.accountId != null) obj.put("accountId", b.accountId)
+                obj.put("reminderLeadTimeDays", b.reminderLeadTimeDays)
+                obj.put("isActive", b.isActive)
+                billsArray.put(obj)
+            }
+            backupObj.put("bills", billsArray)
+
+            // Bill Occurrences
+            val billOccurrencesArray = JSONArray()
+            allBillOccurrences.value.forEach { o ->
+                val obj = JSONObject()
+                obj.put("id", o.id)
+                obj.put("billId", o.billId)
+                obj.put("dueDate", o.dueDate)
+                obj.put("state", o.state)
+                billOccurrencesArray.put(obj)
+            }
+            backupObj.put("bill_occurrences", billOccurrencesArray)
+
             backupObj.toString(4)
         } catch (e: Exception) {
             Log.e("FinanceViewModel", "Backup Export failed", e)
@@ -398,7 +575,11 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                                 category = obj.getString("category"),
                                 description = obj.getString("description"),
                                 date = obj.getLong("date"),
-                                paymentMethod = obj.getString("paymentMethod")
+                                paymentMethod = obj.getString("paymentMethod"),
+                                importBatchId = if (obj.has("importBatchId")) obj.getString("importBatchId") else null,
+                                originalCsvRowHash = if (obj.has("originalCsvRowHash")) obj.getString("originalCsvRowHash") else null,
+                                accountId = if (obj.has("accountId")) obj.getLong("accountId") else 1L,
+                                transferId = if (obj.has("transferId")) obj.getString("transferId") else null
                             )
                         )
                     }
@@ -493,6 +674,128 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                         repository.insertDebts(debts)
                     }
                 }
+
+                // Restore CsvImportProfiles
+                if (root.has("csv_import_profiles")) {
+                    val array = root.getJSONArray("csv_import_profiles")
+                    val profiles = mutableListOf<CsvImportProfile>()
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        profiles.add(
+                            CsvImportProfile(
+                                name = obj.getString("name"),
+                                delimiter = obj.getString("delimiter"),
+                                hasHeader = obj.getBoolean("hasHeader"),
+                                dateColumn = obj.getString("dateColumn"),
+                                dateFormat = obj.getString("dateFormat"),
+                                amountColumn = if (obj.has("amountColumn")) obj.getString("amountColumn") else null,
+                                debitColumn = if (obj.has("debitColumn")) obj.getString("debitColumn") else null,
+                                creditColumn = if (obj.has("creditColumn")) obj.getString("creditColumn") else null,
+                                descriptionColumn = obj.getString("descriptionColumn"),
+                                categoryColumn = if (obj.has("categoryColumn")) obj.getString("categoryColumn") else null,
+                                locale = obj.getString("locale"),
+                                invertAmountSigns = obj.getBoolean("invertAmountSigns")
+                            )
+                        )
+                    }
+                    if (profiles.isNotEmpty()) {
+                        repository.insertCsvImportProfiles(profiles)
+                    }
+                }
+
+                // Restore Accounts
+                if (root.has("accounts")) {
+                    val array = root.getJSONArray("accounts")
+                    val accountsList = mutableListOf<Account>()
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        accountsList.add(
+                            Account(
+                                name = obj.getString("name"),
+                                type = obj.getString("type"),
+                                openingBalance = obj.getDouble("openingBalance"),
+                                isArchived = obj.getBoolean("isArchived")
+                            )
+                        )
+                    }
+                    if (accountsList.isNotEmpty()) {
+                        repository.insertAccounts(accountsList)
+                    }
+                } else {
+                    // Provide a default account for old backups
+                    repository.insertAccount(
+                        Account(
+                            id = 1,
+                            name = "Default",
+                            type = "Cash",
+                            openingBalance = 0.0,
+                            isArchived = false
+                        )
+                    )
+                }
+
+                // Restore Reconciliations
+                if (root.has("reconciliations")) {
+                    val array = root.getJSONArray("reconciliations")
+                    val reconciliationsList = mutableListOf<Reconciliation>()
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        reconciliationsList.add(
+                            Reconciliation(
+                                accountId = obj.getLong("accountId"),
+                                statementBalance = obj.getDouble("statementBalance"),
+                                calculatedBalance = obj.getDouble("calculatedBalance"),
+                                date = obj.getLong("date")
+                            )
+                        )
+                    }
+                    if (reconciliationsList.isNotEmpty()) {
+                        repository.insertReconciliations(reconciliationsList)
+                    }
+                }
+
+                // Restore Bills
+                if (root.has("bills")) {
+                    val array = root.getJSONArray("bills")
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        val originalId = if (obj.has("id")) obj.getLong("id") else null
+                        val newBill = Bill(
+                            title = obj.getString("title"),
+                            amount = obj.getDouble("amount"),
+                            type = obj.getString("type"),
+                            category = obj.getString("category"),
+                            startDate = obj.getLong("startDate"),
+                            recurrence = obj.getString("recurrence"),
+                            accountId = if (obj.has("accountId")) obj.getLong("accountId") else null,
+                            reminderLeadTimeDays = obj.getInt("reminderLeadTimeDays"),
+                            isActive = obj.getBoolean("isActive")
+                        )
+                        val newId = repository.insertBill(newBill)
+
+                        // Restore Bill Occurrences for this Bill
+                        if (originalId != null && root.has("bill_occurrences")) {
+                             val occArray = root.getJSONArray("bill_occurrences")
+                             val occurrences = mutableListOf<BillOccurrence>()
+                             for (j in 0 until occArray.length()) {
+                                 val occObj = occArray.getJSONObject(j)
+                                 if (occObj.getLong("billId") == originalId) {
+                                     occurrences.add(
+                                         BillOccurrence(
+                                             billId = newId,
+                                             dueDate = occObj.getLong("dueDate"),
+                                             state = occObj.getString("state")
+                                         )
+                                     )
+                                 }
+                             }
+                             if (occurrences.isNotEmpty()) {
+                                 repository.insertBillOccurrences(occurrences)
+                             }
+                        }
+                    }
+                }
+
                 _backupStatus.value = "Data Restored Successfully!"
             }
             true
@@ -617,6 +920,20 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 Log.e("FinanceViewModel", "Failed to restore database from file", e)
                 _backupStatus.value = "Failed to restore backup file: ${e.message}"
             }
+        }
+    }
+
+    private suspend fun scheduleNextReminder(bill: Bill) {
+        val engine = BillForecastEngine()
+        val allOccurrences = repository.getOccurrencesForBill(bill.id).firstOrNull() ?: emptyList()
+        val paidOrSkipped = allOccurrences.map { it.dueDate }.toSet()
+        val projected = engine.expandRecurrence(bill, bill.startDate, 20)
+        val nextDue = projected.firstOrNull { it !in paidOrSkipped && it >= System.currentTimeMillis() - (bill.reminderLeadTimeDays * 24L * 60 * 60 * 1000) }
+
+        if (nextDue != null) {
+            NotificationHelper.scheduleBillReminder(getApplication<Application>(), bill, nextDue)
+        } else {
+            NotificationHelper.cancelBillReminder(getApplication<Application>(), bill.id)
         }
     }
 }

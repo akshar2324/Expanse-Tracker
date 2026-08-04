@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
+import androidx.navigation.NavController
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -37,9 +38,11 @@ fun DashboardScreen(
     viewModel: FinanceViewModel,
     onNavigateToAddTransaction: () -> Unit,
     onNavigateToHistory: () -> Unit,
+    navController: NavController,
     modifier: Modifier = Modifier
 ) {
-    val transactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val transactions = allTransactions.filter { it.transferId == null }
     val budgets by viewModel.allBudgets.collectAsStateWithLifecycle()
     val recurringList by viewModel.allRecurringTransactions.collectAsStateWithLifecycle()
 
@@ -105,12 +108,21 @@ fun DashboardScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onNavigateToAddTransaction,
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.padding(bottom = 16.dp, end = 16.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Transaction")
+            Column(horizontalAlignment = Alignment.End) {
+                FloatingActionButton(
+                    onClick = { navController.navigate("addTransfer") },
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier.padding(bottom = 8.dp, end = 16.dp)
+                ) {
+                    Icon(Icons.Default.CompareArrows, contentDescription = "Add Transfer")
+                }
+                FloatingActionButton(
+                    onClick = onNavigateToAddTransaction,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.padding(bottom = 16.dp, end = 16.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Transaction")
+                }
             }
         }
     ) { innerPadding ->
@@ -162,6 +174,7 @@ fun DashboardScreen(
                 recentTxs = recentTxs,
                 currencySymbol = currencySymbol,
                 onNavigateToHistory = onNavigateToHistory,
+                navController = navController,
                 onDelete = { tx -> viewModel.deleteTransaction(tx) }
             )
         }
@@ -545,6 +558,7 @@ fun LazyListScope.recentTransactionsSection(
     recentTxs: List<Transaction>,
     currencySymbol: String,
     onNavigateToHistory: () -> Unit,
+    navController: NavController,
     onDelete: (Transaction) -> Unit
 ) {
     item {

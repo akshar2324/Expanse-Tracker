@@ -65,7 +65,8 @@ fun ToolsScreen(
     val backupStatus by viewModel.backupStatus.collectAsStateWithLifecycle()
 
     val recurringList by viewModel.allRecurringTransactions.collectAsStateWithLifecycle()
-    val transactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val transactions = allTransactions.filter { it.transferId == null }
 
     var activeSubTool by remember { mutableStateOf("RECURRING") } // "RECURRING", "REPORTS", "BACKUP"
 
@@ -107,6 +108,7 @@ fun ToolsScreen(
                     val baseTools = remember(selectedCountry) {
                         val list = mutableListOf<Pair<String, String>>()
                         list.add("RECURRING" to "Reminders")
+                        list.add("CSV_IMPORT" to "Import CSV")
                         list.add("DEBTS" to "Borrow/Lent")
                         list.add("VAULT" to "Vault")
                         list.add("REPORTS" to "Reports")
@@ -153,6 +155,10 @@ fun ToolsScreen(
             when (activeSubTool) {
                 "CALCULATORS" -> {
                     CalculatorsTab()
+                }
+                "CSV_IMPORT" -> {
+                    val csvViewModel = androidx.lifecycle.viewmodel.compose.viewModel<com.akshar.ui.viewmodel.CsvImportViewModel>()
+                    CsvImportScreen(viewModel = csvViewModel, onBack = { activeSubTool = "RECURRING" })
                 }
                 // --- 1. Recurring Transactions ---
                 "RECURRING" -> {

@@ -1,11 +1,16 @@
 package com.akshar.data.db
 
 import androidx.room.*
+import com.akshar.data.model.Account
+import com.akshar.data.model.Reconciliation
 import com.akshar.data.model.Budget
 import com.akshar.data.model.RecurringTransaction
 import com.akshar.data.model.SavingsGoal
 import com.akshar.data.model.Transaction
 import com.akshar.data.model.Debt
+import com.akshar.data.model.CsvImportProfile
+import com.akshar.data.model.Bill
+import com.akshar.data.model.BillOccurrence
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -29,6 +34,12 @@ interface FinanceDao {
 
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun getTransactionById(id: Long): Transaction?
+
+    @Query("DELETE FROM transactions WHERE importBatchId = :batchId")
+    suspend fun deleteTransactionsByBatchId(batchId: String)
+
+    @Query("SELECT originalCsvRowHash FROM transactions WHERE originalCsvRowHash IN (:hashes)")
+    suspend fun getExistingCsvHashes(hashes: List<String>): List<String>
 
 
     // --- Budgets ---
@@ -93,4 +104,84 @@ interface FinanceDao {
 
     @Query("DELETE FROM debts WHERE id = :id")
     suspend fun deleteDebtById(id: Long)
+
+    // --- CSV Import Profiles ---
+    @Query("SELECT * FROM csv_import_profiles")
+    fun getAllCsvImportProfiles(): Flow<List<CsvImportProfile>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCsvImportProfile(profile: CsvImportProfile): Long
+
+    @Query("DELETE FROM csv_import_profiles WHERE id = :id")
+    suspend fun deleteCsvImportProfileById(id: Long)
+
+    @Query("SELECT * FROM csv_import_profiles")
+    suspend fun getCsvImportProfilesList(): List<CsvImportProfile>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCsvImportProfiles(profiles: List<CsvImportProfile>)
+
+    // --- Accounts ---
+    @Query("SELECT * FROM accounts ORDER BY id ASC")
+    fun getAllAccounts(): Flow<List<Account>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAccount(account: Account)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAccounts(accounts: List<Account>)
+
+    @Delete
+    suspend fun deleteAccount(account: Account)
+
+    @Query("DELETE FROM accounts WHERE id = :id")
+    suspend fun deleteAccountById(id: Long)
+
+    // --- Reconciliations ---
+    @Query("SELECT * FROM reconciliations ORDER BY date DESC, id DESC")
+    fun getAllReconciliations(): Flow<List<Reconciliation>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertReconciliation(reconciliation: Reconciliation)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertReconciliations(reconciliations: List<Reconciliation>)
+
+    @Query("DELETE FROM reconciliations WHERE id = :id")
+    suspend fun deleteReconciliationById(id: Long)
+
+    // --- Bills ---
+    @Query("SELECT * FROM bills")
+    fun getAllBills(): Flow<List<Bill>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBill(bill: Bill): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBills(bills: List<Bill>)
+
+    @Query("DELETE FROM bills WHERE id = :id")
+    suspend fun deleteBillById(id: Long)
+
+    @Update
+    suspend fun updateBill(bill: Bill)
+
+    // --- Bill Occurrences ---
+    @Query("SELECT * FROM bill_occurrences WHERE billId = :billId")
+    fun getOccurrencesForBill(billId: Long): Flow<List<BillOccurrence>>
+
+    @Query("SELECT * FROM bill_occurrences")
+    fun getAllBillOccurrences(): Flow<List<BillOccurrence>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBillOccurrence(occurrence: BillOccurrence)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBillOccurrences(occurrences: List<BillOccurrence>)
+
+    @Update
+    suspend fun updateBillOccurrence(occurrence: BillOccurrence)
+
+    @Query("DELETE FROM bill_occurrences WHERE billId = :billId")
+    suspend fun deleteOccurrencesByBillId(billId: Long)
 }

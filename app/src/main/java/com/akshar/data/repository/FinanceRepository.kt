@@ -1,16 +1,23 @@
 package com.akshar.data.repository
 
 import android.util.Log
+import androidx.room.withTransaction
+import com.akshar.data.db.AppDatabase
 import com.akshar.data.db.FinanceDao
+import com.akshar.data.model.Account
 import com.akshar.data.model.Budget
+import com.akshar.data.model.CsvImportProfile
 import com.akshar.data.model.RecurringTransaction
+import com.akshar.data.model.Reconciliation
 import com.akshar.data.model.SavingsGoal
 import com.akshar.data.model.Transaction
 import com.akshar.data.model.Debt
+import com.akshar.data.model.Bill
+import com.akshar.data.model.BillOccurrence
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
-class FinanceRepository(private val financeDao: FinanceDao) {
+class FinanceRepository(private val financeDao: FinanceDao, private val database: AppDatabase) {
 
     // --- Transactions ---
     val allTransactions: Flow<List<Transaction>> = financeDao.getAllTransactions()
@@ -29,6 +36,23 @@ class FinanceRepository(private val financeDao: FinanceDao) {
 
     suspend fun deleteTransactionById(id: Long) {
         financeDao.deleteTransactionById(id)
+    }
+
+    suspend fun saveTransfer(fromTransaction: Transaction, toTransaction: Transaction) {
+        database.withTransaction {
+            financeDao.insertTransaction(fromTransaction)
+            financeDao.insertTransaction(toTransaction)
+        }
+    }
+
+    suspend fun deleteTransfer(transferId: String) {
+        database.withTransaction {
+            val transactions = financeDao.getAllTransactions().first()
+            val toDelete = transactions.filter { it.transferId == transferId }
+            toDelete.forEach { tx ->
+                financeDao.deleteTransaction(tx)
+            }
+        }
     }
 
 
@@ -159,5 +183,108 @@ class FinanceRepository(private val financeDao: FinanceDao) {
 
     suspend fun deleteDebtById(id: Long) {
         financeDao.deleteDebtById(id)
+    }
+
+    suspend fun getExistingCsvHashes(hashes: List<String>): List<String> {
+        return financeDao.getExistingCsvHashes(hashes)
+    }
+
+    suspend fun deleteTransactionsByBatchId(batchId: String) {
+        financeDao.deleteTransactionsByBatchId(batchId)
+    }
+
+    // --- CSV Import Profiles ---
+    val allCsvImportProfiles: Flow<List<CsvImportProfile>> = financeDao.getAllCsvImportProfiles()
+
+    suspend fun insertCsvImportProfile(profile: CsvImportProfile): Long {
+        return financeDao.insertCsvImportProfile(profile)
+    }
+
+    suspend fun deleteCsvImportProfileById(id: Long) {
+        financeDao.deleteCsvImportProfileById(id)
+    }
+
+    suspend fun getCsvImportProfilesList(): List<CsvImportProfile> {
+        return financeDao.getCsvImportProfilesList()
+    }
+
+    suspend fun insertCsvImportProfiles(profiles: List<CsvImportProfile>) {
+        financeDao.insertCsvImportProfiles(profiles)
+    }
+
+    // --- Accounts ---
+    val allAccounts: Flow<List<Account>> = financeDao.getAllAccounts()
+
+    suspend fun insertAccount(account: Account) {
+        financeDao.insertAccount(account)
+    }
+
+    suspend fun insertAccounts(accounts: List<Account>) {
+        financeDao.insertAccounts(accounts)
+    }
+
+    suspend fun deleteAccount(account: Account) {
+        financeDao.deleteAccount(account)
+    }
+
+    suspend fun deleteAccountById(id: Long) {
+        financeDao.deleteAccountById(id)
+    }
+
+    // --- Reconciliations ---
+    val allReconciliations: Flow<List<Reconciliation>> = financeDao.getAllReconciliations()
+
+    suspend fun insertReconciliation(reconciliation: Reconciliation) {
+        financeDao.insertReconciliation(reconciliation)
+    }
+
+    suspend fun insertReconciliations(reconciliations: List<Reconciliation>) {
+        financeDao.insertReconciliations(reconciliations)
+    }
+
+    suspend fun deleteReconciliationById(id: Long) {
+        financeDao.deleteReconciliationById(id)
+    }
+
+    // --- Bills ---
+    val allBills: Flow<List<Bill>> = financeDao.getAllBills()
+
+    suspend fun insertBill(bill: Bill): Long {
+        return financeDao.insertBill(bill)
+    }
+
+    suspend fun insertBills(bills: List<Bill>) {
+        financeDao.insertBills(bills)
+    }
+
+    suspend fun updateBill(bill: Bill) {
+        financeDao.updateBill(bill)
+    }
+
+    suspend fun deleteBillById(id: Long) {
+        financeDao.deleteBillById(id)
+    }
+
+    // --- Bill Occurrences ---
+    val allBillOccurrences: Flow<List<BillOccurrence>> = financeDao.getAllBillOccurrences()
+
+    fun getOccurrencesForBill(billId: Long): Flow<List<BillOccurrence>> {
+        return financeDao.getOccurrencesForBill(billId)
+    }
+
+    suspend fun insertBillOccurrence(occurrence: BillOccurrence) {
+        financeDao.insertBillOccurrence(occurrence)
+    }
+
+    suspend fun insertBillOccurrences(occurrences: List<BillOccurrence>) {
+        financeDao.insertBillOccurrences(occurrences)
+    }
+
+    suspend fun updateBillOccurrence(occurrence: BillOccurrence) {
+        financeDao.updateBillOccurrence(occurrence)
+    }
+
+    suspend fun deleteOccurrencesByBillId(billId: Long) {
+        financeDao.deleteOccurrencesByBillId(billId)
     }
 }

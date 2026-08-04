@@ -40,6 +40,7 @@ import androidx.navigation.navDeepLink
 import com.akshar.ui.screens.*
 import com.akshar.ui.theme.MyApplicationTheme
 import com.akshar.ui.viewmodel.FinanceViewModel
+import com.akshar.security.BiometricCrypto
 
 class MainActivity : FragmentActivity() {
     
@@ -105,6 +106,13 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun tryLaunchBiometric(onSuccess: () -> Unit) {
+        val authenticationRequest = try {
+            BiometricCrypto.createAuthenticationRequest()
+        } catch (exception: Exception) {
+            Log.e("MainActivity", "Unable to prepare biometric authentication", exception)
+            return
+        }
+
         val executor = ContextCompat.getMainExecutor(this)
         val biometricPrompt = BiometricPrompt(this, executor,
             object : BiometricPrompt.AuthenticationCallback() {
@@ -115,7 +123,28 @@ class MainActivity : FragmentActivity() {
 
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     super.onAuthenticationSucceeded(result)
-                    onSuccess()
+                    val signature = result.cryptoObject?.signature
+                    if (signature == null) {
+                        Log.e("MainActivity", "Biometric result did not contain a signature")
+                        return
+                    }
+
+                    val isVerified = try {
+                        signature.update(authenticationRequest.challenge)
+                        val signedChallenge = signature.sign()
+                        BiometricCrypto.verifySignature(
+                            authenticationRequest.publicKey,
+                            authenticationRequest.challenge,
+                            signedChallenge
+                        )
+                    } catch (exception: Exception) {
+                        Log.e("MainActivity", "Biometric signature verification failed", exception)
+                        false
+                    }
+
+                    if (isVerified) {
+                        onSuccess()
+                    }
                 }
 
                 override fun onAuthenticationFailed() {
@@ -132,7 +161,7 @@ class MainActivity : FragmentActivity() {
             .build()
 
         try {
-            biometricPrompt.authenticate(promptInfo)
+            biometricPrompt.authenticate(promptInfo, authenticationRequest.cryptoObject)
         } catch (e: Exception) {
             Log.e("MainActivity", "Error launching Biometric prompting: ${e.message}")
         }
@@ -153,8 +182,9 @@ fun AppNavGraph(
         composable("dashboard") {
             DashboardScreen(
                 viewModel = viewModel,
-                onNavigateToAddTransaction = { navController.navigate("add_transaction") },
-                onNavigateToHistory = { navController.navigate("history") }
+                onNavigateToAddTransaction = { navController.navigate("addTransaction") },
+                onNavigateToHistory = { navController.navigate("history") },
+                navController = navController
             )
         }
         composable(
@@ -166,8 +196,37 @@ fun AppNavGraph(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
+                composable("accounts") {
+            AccountsScreen(viewModel = viewModel, navController = navController)
+        }
+                composable("addTransfer") {
+            AddTransferScreen(viewModel = viewModel, navController = navController)
+        }
+        composable("addTransfer/{transferId}") { backStackEntry ->
+            val transferId = backStackEntry.arguments?.getString("transferId")
+            AddTransferScreen(viewModel = viewModel, navController = navController, transferId = transferId)
+        }
+        composable("addEditAccount") {
+            AddEditAccountScreen(viewModel = viewModel, navController = navController)
+        }
+        composable("addEditAccount/{accountId}") { backStackEntry ->
+            val accountId = backStackEntry.arguments?.getString("accountId")?.toLongOrNull()
+            AddEditAccountScreen(viewModel = viewModel, navController = navController, accountId = accountId)
+        }
+        composable("accountDetail/{accountId}") { backStackEntry ->
+            val accountId = backStackEntry.arguments?.getString("accountId")?.toLongOrNull()
+            if (accountId != null) {
+                AccountDetailScreen(viewModel = viewModel, navController = navController, accountId = accountId)
+            }
+        }
+        composable("reconcileAccount/{accountId}") { backStackEntry ->
+            val accountId = backStackEntry.arguments?.getString("accountId")?.toLongOrNull()
+            if (accountId != null) {
+                ReconciliationScreen(viewModel = viewModel, navController = navController, accountId = accountId)
+            }
+        }
         composable("history") {
-            HistoryScreen(viewModel = viewModel)
+            HistoryScreen(viewModel = viewModel, navController = navController)
         }
         composable("analytics") {
             AnalyticsScreen(viewModel = viewModel)
@@ -191,6 +250,7 @@ fun AppScaffold(viewModel: FinanceViewModel) {
     val tabs = remember {
         listOf(
             NavigationTabItem("dashboard", "Home", Icons.Default.Home),
+            NavigationTabItem("accounts", "Accounts", Icons.Default.AccountBalanceWallet),
             NavigationTabItem("history", "Ledger", Icons.Default.FormatListBulleted),
             NavigationTabItem("analytics", "Charts", Icons.Default.PieChart),
             NavigationTabItem("budgets", "Targets", Icons.Default.Flag),
@@ -397,7 +457,7 @@ fun LockScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Akshar Finance Vault",
+                    text = "AkSpend Finance Vault",
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
