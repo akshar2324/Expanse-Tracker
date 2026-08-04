@@ -108,6 +108,7 @@ fun ToolsScreen(
                     val baseTools = remember(selectedCountry) {
                         val list = mutableListOf<Pair<String, String>>()
                         list.add("RECURRING" to "Reminders")
+                        list.add("WEEKLY_DIGEST" to "Weekly Digest")
                         list.add("CSV_IMPORT" to "Import CSV")
                         list.add("DEBTS" to "Borrow/Lent")
                         list.add("VAULT" to "Vault")
@@ -153,6 +154,9 @@ fun ToolsScreen(
         ) {
 
             when (activeSubTool) {
+                "WEEKLY_DIGEST" -> {
+                    WeeklyDigestScreen(viewModel = viewModel, onBack = { activeSubTool = "RECURRING" })
+                }
                 "CALCULATORS" -> {
                     CalculatorsTab()
                 }
