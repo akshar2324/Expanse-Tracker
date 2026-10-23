@@ -36,6 +36,10 @@ class FinanceRepository(private val financeDao: FinanceDao, private val database
         financeDao.deleteTransactionById(id)
     }
 
+    suspend fun getTransactionById(id: Long): Transaction? {
+        return financeDao.getTransactionById(id)
+    }
+
     suspend fun saveTransfer(fromTransaction: Transaction, toTransaction: Transaction) {
         database.withTransaction {
             financeDao.insertTransaction(fromTransaction)

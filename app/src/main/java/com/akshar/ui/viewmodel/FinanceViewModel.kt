@@ -159,19 +159,31 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         category: String,
         description: String,
         date: Long,
-        paymentMethod: String
+        paymentMethod: String,
+        existing: Transaction? = null // when editing, keeps id, account, and import metadata
     ) {
         viewModelScope.launch {
-            val tx = Transaction(
+            val tx = existing?.copy(
                 amount = amount,
                 type = type,
                 category = category,
                 description = description,
                 date = date,
-                paymentMethod = paymentMethod,
-                            )
+                paymentMethod = paymentMethod
+            ) ?: Transaction(
+                amount = amount,
+                type = type,
+                category = category,
+                description = description,
+                date = date,
+                paymentMethod = paymentMethod
+            )
             repository.insertTransaction(tx)
         }
+    }
+
+    suspend fun getTransactionById(id: Long): Transaction? {
+        return repository.getTransactionById(id)
     }
 
 
