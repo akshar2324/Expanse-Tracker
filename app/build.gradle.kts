@@ -8,6 +8,10 @@ plugins {
   alias(libs.plugins.roborazzi)
 }
 
+val byteBuddyAgent: Configuration by configurations.creating {
+  isTransitive = false
+}
+
 android {
   namespace = "com.akshar"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
@@ -60,7 +64,16 @@ android {
   testOptions {
     unitTests {
       isIncludeAndroidResources = true
-      all { it.jvmArgs("-Djdk.attach.allowAttachSelf=true") }
+      all { test ->
+        // Load ByteBuddy's agent at JVM start so MockK's inline mocking never
+        // has to self-attach, which times out in a busy shared test JVM.
+        val agentJar: FileCollection = byteBuddyAgent
+        test.inputs.files(agentJar).withPropertyName("byteBuddyAgent")
+        test.jvmArgumentProviders.add(
+          CommandLineArgumentProvider { listOf("-javaagent:${agentJar.singleFile.absolutePath}") }
+        )
+        test.jvmArgs("-Djdk.attach.allowAttachSelf=true", "-XX:+EnableDynamicAgentLoading")
+      }
     }
   }
 }
@@ -108,7 +121,8 @@ dependencies {
   testImplementation(libs.roborazzi)
   testImplementation(libs.roborazzi.compose)
   testImplementation(libs.roborazzi.junit.rule)
-  testImplementation("io.mockk:mockk:1.13.8")
+  testImplementation(libs.mockk)
+  byteBuddyAgent(libs.byte.buddy.agent)
   androidTestImplementation(platform(libs.androidx.compose.bom))
   androidTestImplementation(libs.androidx.compose.ui.test.junit4)
   androidTestImplementation(libs.androidx.espresso.core)
