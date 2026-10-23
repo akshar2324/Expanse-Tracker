@@ -1,27 +1,28 @@
 package com.akshar.ui.screens
 
 import androidx.compose.animation.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.FilterListOff
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.material.icons.rounded.SwapHoriz
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import com.akshar.ui.components.*
+import com.akshar.ui.theme.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.navigation.NavController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.akshar.data.model.Transaction
-import com.akshar.ui.theme.ExpenseRed
-import com.akshar.ui.theme.IncomeGreen
 import com.akshar.ui.viewmodel.FinanceViewModel
 import com.akshar.data.model.Account
 import java.text.SimpleDateFormat
@@ -110,152 +111,137 @@ fun HistoryScreen(
         list
     }
 
-    Scaffold(
-        contentWindowInsets = WindowInsets(0.dp),
-        topBar = {
-            TopAppBar(
-                title = { Text("Financial Ledger") },
+    val currencySymbol = viewModel.getCurrencySymbol()
+    val filtersActive = selectedTypeFilter != "ALL" || selectedPaymentFilter != "ALL" || selectedTimeFilter != "ALL" || searchQuery.isNotEmpty()
+    val groupByDay = sortBy == "NEWEST" || sortBy == "OLDEST"
+    val groups = remember(filteredTransactions, groupByDay) {
+        if (groupByDay) filteredTransactions.groupBy { dayKey(it.date) }.toList()
+        else listOf("" to filteredTransactions)
+    }
+    val finance = AkSpendTheme.finance
+    val totalIn = filteredTransactions.filter { it.type == "INCOME" && it.transferId == null }.sumOf { it.amount }
+    val totalOut = filteredTransactions.filter { it.type == "EXPENSE" && it.transferId == null }.sumOf { it.amount }
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = Spacing.gutter,
+            end = Spacing.gutter,
+            bottom = LocalFloatingBarInset.current + Spacing.lg
+        ),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        item(key = "header") {
+            ScreenHeader(
+                title = "Activity",
+                subtitle = "Every expense, income and transfer",
+                insetHorizontally = false,
                 actions = {
-                    IconButton(onClick = { showFilters = !showFilters }) {
-                        Icon(
-                            imageVector = if (showFilters) Icons.Default.FilterListOff else Icons.Default.FilterList,
-                            contentDescription = "Toggle Filters"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
-                windowInsets = WindowInsets(0.dp)
+                    GlassIconButton(
+                        icon = if (showFilters) Icons.Rounded.FilterListOff else Icons.Rounded.Tune,
+                        contentDescription = if (showFilters) "Hide filters" else "Show filters",
+                        onClick = { showFilters = !showFilters },
+                        tint = if (filtersActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    )
+                }
             )
         }
-    ) { innerPadding ->
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background)
-        ) {
 
-            // --- Elegant Search Field ---
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search transactions...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search Icon") },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear search")
-                            }
+        item(key = "search") {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Search by description or category") },
+                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Rounded.Close, contentDescription = "Clear search")
                         }
-                    },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
-                )
-            }
+                    }
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = PillShape,
+                colors = glassTextFieldColors()
+            )
+        }
 
-            // --- Expandable Filters Drawer Area ---
+        item(key = "filters") {
             AnimatedVisibility(
                 visible = showFilters,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
+                enter = expandVertically(motionSpec()) + fadeIn(motionSpec()),
+                exit = shrinkVertically(motionSpec(Durations.quick)) + fadeOut(motionSpec(Durations.quick))
             ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // --- 1. Type filter chips (All, Expense, Income) ---
-                        Text("Transaction Type", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("ALL", "EXPENSE", "INCOME").forEach { type ->
-                                FilterChip(
-                                    selected = selectedTypeFilter == type,
-                                    onClick = { selectedTypeFilter = type },
-                                    label = { Text(type) }
-                                )
+                GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(Spacing.lg)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        FilterGroupLabel("Type")
+                        ScrollableFilterRow(
+                            items = listOf("ALL", "EXPENSE", "INCOME"),
+                            selectedItem = selectedTypeFilter,
+                            onSelect = { selectedTypeFilter = it },
+                            labelFor = { if (it == "ALL") "All" else it.lowercase().replaceFirstChar { c -> c.uppercase() } }
+                        )
+                        FilterGroupLabel("Sort by")
+                        ScrollableFilterRow(
+                            items = listOf("NEWEST", "OLDEST", "HIGHEST", "LOWEST"),
+                            selectedItem = sortBy,
+                            onSelect = { sortBy = it },
+                            labelFor = {
+                                when (it) {
+                                    "NEWEST" -> "Newest"
+                                    "OLDEST" -> "Oldest"
+                                    "HIGHEST" -> "Highest amount"
+                                    else -> "Lowest amount"
+                                }
                             }
-                        }
-
-                        // --- 2. Sorting select ---
-                        Text("Sort Results", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("NEWEST", "OLDEST", "HIGHEST", "LOWEST").forEach { sortOption ->
-                                FilterChip(
-                                    selected = sortBy == sortOption,
-                                    onClick = { sortBy = sortOption },
-                                    label = { Text(sortOption) }
-                                )
+                        )
+                        FilterGroupLabel("Payment method")
+                        ScrollableFilterRow(
+                            items = paymentMethods,
+                            selectedItem = selectedPaymentFilter,
+                            onSelect = { selectedPaymentFilter = it }
+                        )
+                        FilterGroupLabel("Date range")
+                        ScrollableFilterRow(
+                            items = timeFilters,
+                            selectedItem = selectedTimeFilter,
+                            onSelect = { selectedTimeFilter = it },
+                            labelFor = {
+                                when (it) {
+                                    "WEEK" -> "Last 7 days"
+                                    "MONTH" -> "This month"
+                                    "YEAR" -> "This year"
+                                    else -> "All time"
+                                }
                             }
-                        }
-
-                        // --- 3. Payment Filter Segment ---
-                        Text("Payment Method", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            // Render a custom smaller selection block
-                            ScrollableFilterRow(
-                                items = paymentMethods,
-                                selectedItem = selectedPaymentFilter,
-                                onSelect = { selectedPaymentFilter = it }
-                            )
-                        }
-
-                        // --- 4. Date range filter ---
-                        Text("Date Range", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            timeFilters.forEach { tf ->
-                                FilterChip(
-                                    selected = selectedTimeFilter == tf,
-                                    onClick = { selectedTimeFilter = tf },
-                                    label = {
-                                        Text(
-                                            when (tf) {
-                                                "WEEK" -> "This Week"
-                                                "MONTH" -> "This Month"
-                                                "YEAR" -> "This Year"
-                                                else -> "All Time"
-                                            }
-                                        )
-                                    }
-                                )
-                            }
-                        }
+                        )
                     }
                 }
             }
+        }
 
-            // --- Header Statistics Info ---
+        item(key = "summary") {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                    .heightIn(min = Spacing.touchTarget),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Showing ${filteredTransactions.size} transactions",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
-                        fontWeight = FontWeight.Bold
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = "${filteredTransactions.size} ${if (filteredTransactions.size == 1) "entry" else "entries"}",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                )
-                if (selectedTypeFilter != "ALL" || selectedPaymentFilter != "ALL" || selectedTimeFilter != "ALL" || searchQuery.isNotEmpty()) {
+                    Text(
+                        text = "+$currencySymbol${String.format("%,.0f", totalIn)}  ·  -$currencySymbol${String.format("%,.0f", totalOut)}",
+                        style = MaterialTheme.typography.bodySmall.money(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (filtersActive) {
                     TextButton(
                         onClick = {
                             selectedTypeFilter = "ALL"
@@ -265,60 +251,65 @@ fun HistoryScreen(
                             sortBy = "NEWEST"
                         }
                     ) {
-                        Text("Reset Filters", fontSize = 12.sp)
+                        Text("Reset filters", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
+        }
 
-            // --- History ledger listings ---
-            if (filteredTransactions.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FilterNone,
-                            contentDescription = "No Matches Found",
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                            modifier = Modifier.size(64.dp)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "No matching transactions.",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        if (filteredTransactions.isEmpty()) {
+            item(key = "empty") {
+                EmptyState(
+                    icon = Icons.Rounded.SearchOff,
+                    title = if (transactions.isEmpty()) "Nothing here yet" else "No matches",
+                    message = if (transactions.isEmpty()) "Transactions you add will appear here, newest first."
+                    else "Try a different search or clear the filters."
+                )
+            }
+        } else {
+            groups.forEach { (day, dayTransactions) ->
+                if (day.isNotEmpty()) {
+                    item(key = "day-$day") {
+                        val net = dayTransactions.filter { it.transferId == null }.sumOf { if (it.type == "EXPENSE") -it.amount else it.amount }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = Spacing.sm, start = Spacing.xs, end = Spacing.xs),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = day,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.semantics { heading() }
                             )
-                        )
-                        Text(
-                            text = "Try clearing search keywords or filters.",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            Text(
+                                text = "${if (net >= 0) "+" else "-"}$currencySymbol${String.format("%,.0f", kotlin.math.abs(net))}",
+                                style = MaterialTheme.typography.labelLarge.money(),
+                                color = if (net >= 0) finance.income else MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        )
+                        }
                     }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(bottom = 80.dp)
-                ) {
-                    items(filteredTransactions) { transaction ->
-                                            TransactionItem(
-                        transaction = transaction,
-                        onClick = {
-                            if (transaction.transferId != null) {
-                                navController.navigate("addTransfer/${transaction.transferId}")
-                            } else {
-                                navController.navigate("addTransaction/${transaction.id}")
-                            }
+                item(key = "group-$day-${dayTransactions.first().id}") {
+                    GlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(vertical = Spacing.xs)
+                    ) {
+                        dayTransactions.forEachIndexed { index, transaction ->
+                            if (index > 0) GlassDivider()
+                            TransactionItem(
+                                transaction = transaction,
+                                currencySymbol = currencySymbol,
+                                onClick = {
+                                    if (transaction.transferId != null) {
+                                        navController.navigate("addTransfer/${transaction.transferId}")
+                                    } else {
+                                        navController.navigate("addTransaction/${transaction.id}")
+                                    }
+                                }
+                            )
                         }
-                    )
                     }
                 }
             }
@@ -326,37 +317,53 @@ fun HistoryScreen(
     }
 }
 
-// Custom horizontal filter helper
+private fun dayKey(timestamp: Long): String {
+    val today = Calendar.getInstance()
+    val day = Calendar.getInstance().apply { timeInMillis = timestamp }
+    val sameYear = today.get(Calendar.YEAR) == day.get(Calendar.YEAR)
+    val dayDiff = today.get(Calendar.DAY_OF_YEAR) - day.get(Calendar.DAY_OF_YEAR)
+    return when {
+        sameYear && dayDiff == 0 -> "Today"
+        sameYear && dayDiff == 1 -> "Yesterday"
+        sameYear -> SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(timestamp))
+        else -> SimpleDateFormat("d MMMM yyyy", Locale.getDefault()).format(Date(timestamp))
+    }
+}
+
+@Composable
+private fun FilterGroupLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = Spacing.xs)
+    )
+}
+
+// Horizontal row of selectable capsules; each one is a full 48dp touch target.
 @Composable
 fun ScrollableFilterRow(
     items: List<String>,
     selectedItem: String,
-    onSelect: (String) -> Unit
+    onSelect: (String) -> Unit,
+    labelFor: (String) -> String = { if (it == "ALL") "All payments" else it }
 ) {
     androidx.compose.foundation.lazy.LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
-        items(items) { it ->
-            val active = it == selectedItem
-            Box(
-                modifier = Modifier
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(
-                        if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(
-                            alpha = 0.6f
-                        )
-                    )
-                    .clickable { onSelect(it) }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Text(
-                    text = if (it == "ALL") "All Payments" else it,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+        items(items) { item ->
+            FilterChip(
+                selected = item == selectedItem,
+                onClick = { onSelect(item) },
+                label = { Text(labelFor(item), style = MaterialTheme.typography.labelLarge) },
+                shape = PillShape,
+                modifier = Modifier.heightIn(min = Spacing.touchTarget),
+                colors = FilterChipDefaults.filterChipColors(
+                    containerColor = AkSpendTheme.glass.fill,
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                 )
-            }
+            )
         }
     }
 }
@@ -365,45 +372,37 @@ fun ScrollableFilterRow(
 fun List<Transaction>.sortedByByAmountDescending() = sortedByDescending { it.amount }
 
 @Composable
-fun TransactionItem(transaction: Transaction, onClick: () -> Unit) {
-    val formatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+fun TransactionItem(transaction: Transaction, onClick: () -> Unit, currencySymbol: String = "₹") {
+    val formatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     val isExpense = transaction.type == "EXPENSE"
+    val isTransfer = transaction.transferId != null
+    val finance = AkSpendTheme.finance
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = transaction.category, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                if (transaction.description.isNotBlank()) {
-                    Text(
-                        text = transaction.description,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Text(
-                    text = formatter.format(Date(transaction.date)),
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Text(
-                text = "${if (isExpense) "-" else "+"}₹${transaction.amount}",
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                color = if (isExpense) ExpenseRed else IncomeGreen
+    GlassListRow(
+        title = transaction.description.ifBlank { transaction.category },
+        subtitle = listOfNotNull(
+            if (isTransfer) "Transfer" else transaction.category,
+            transaction.paymentMethod.takeIf { it.isNotBlank() },
+            formatter.format(Date(transaction.date))
+        ).joinToString(" · "),
+        leading = {
+            IconBadge(
+                icon = if (isTransfer) Icons.Rounded.SwapHoriz else categoryIcon(transaction.category),
+                tint = if (isTransfer) finance.transfer else categoryTint(transaction.category),
+                size = 44.dp
             )
-        }
-    }
+        },
+        trailing = {
+            Text(
+                text = "${if (isExpense) "-" else "+"}$currencySymbol${String.format("%,.2f", transaction.amount)}",
+                style = MaterialTheme.typography.titleSmall.money(),
+                color = when {
+                    isTransfer -> MaterialTheme.colorScheme.onSurfaceVariant
+                    isExpense -> finance.expense
+                    else -> finance.income
+                }
+            )
+        },
+        onClick = onClick
+    )
 }
