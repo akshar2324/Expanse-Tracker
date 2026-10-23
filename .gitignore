@@ -30,3 +30,6 @@ app/google-services.json
 service-account*.json
 play-store*.json
 release*.json
+
+# Generated build outputs
+.build-outputs/
