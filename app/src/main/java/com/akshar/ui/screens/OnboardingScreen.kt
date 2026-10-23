@@ -1,34 +1,42 @@
 package com.akshar.ui.screens
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CurrencyExchange
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Savings
+import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.akshar.ui.components.IconBadge
+import com.akshar.ui.components.motionSpec
+import com.akshar.ui.theme.*
 import com.akshar.ui.viewmodel.FinanceViewModel
 
 @OptIn(ExperimentalAnimationApi::class)
@@ -37,90 +45,85 @@ fun OnboardingScreen(
     viewModel: FinanceViewModel,
     onFinish: () -> Unit
 ) {
-    val context = LocalContext.current
     var currentSlide by remember { mutableStateOf(0) }
     val selectedCountry by viewModel.selectedCountry.collectAsStateWithLifecycle()
+    val glass = AkSpendTheme.glass
 
     val slides = remember {
         listOf(
             OnboardingSlide(
-                title = "PRIVACY FIRST LEDGER",
-                description = "AkSpend works 100% offline. Zero tracking. Zero remote cloud servers. Every record is cryptographically locked strictly inside your device storage.",
-                icon = Icons.Default.Security,
-                headerTag = "OFFLINE VAULT"
+                title = "Your money, only on your phone",
+                description = "AkSpend works fully offline. No accounts, no tracking, no cloud. Every entry is stored on this device and leaves only when you export it.",
+                icon = Icons.Rounded.Shield,
+                headerTag = "Private by design"
             ),
             OnboardingSlide(
-                title = "TARGETS & REMINDERS",
-                description = "Define spending targets and recurrent payment alerts dynamically. Use offline backup controls to download secure SQLite database snapshots.",
-                icon = Icons.Default.Flag,
-                headerTag = "BUDGETING"
+                title = "Budgets that keep you calm",
+                description = "Set gentle limits, save toward goals and get reminders for repeating bills. Back up your data to a file whenever you like.",
+                icon = Icons.Rounded.Savings,
+                headerTag = "Plan ahead"
             ),
             OnboardingSlide(
-                title = "CHOOSE YOUR CURRENCY",
-                description = "Your biometric gate is armed by default with standard passcode '1234'. Customize security anytime in Tools. Choose your starting region currency to begin.",
-                icon = Icons.Default.LockOpen,
-                headerTag = "FINALIZE CONFIGURATION"
+                title = "Pick your currency",
+                description = "The app is locked with the passcode 1234 to start. You can change it, or turn on fingerprint unlock, under More › Vault.",
+                icon = Icons.Rounded.Lock,
+                headerTag = "Almost done"
             )
         )
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        GlassBackdrop()
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             Column(
                 modifier = Modifier
-                    .widthIn(max = 680.dp)
+                    .widthIn(max = 560.dp)
                     .fillMaxHeight()
-                    .padding(24.dp)
-                    .safeDrawingPadding(),
+                    .safeDrawingPadding()
+                    .padding(Spacing.xxl),
                 verticalArrangement = Arrangement.SpaceBetween,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Header Bar
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "AKSHAR LEDGER",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 2.sp,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
-                        )
+                        text = "AkSpend",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primary
                     )
-
                     Text(
-                        text = "${currentSlide + 1} / ${slides.size}",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        text = "${currentSlide + 1} of ${slides.size}",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                // Slide Content Area with smooth animations
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
+                    val reducedMotion = AkSpendTheme.reducedMotion
+                    val fadeInSpec = motionSpec<Float>()
+                    val fadeOutSpec = motionSpec<Float>(Durations.quick)
+                    val slideInSpec = motionSpec<IntOffset>()
+                    val slideOutSpec = motionSpec<IntOffset>(Durations.quick)
                     AnimatedContent(
                         targetState = currentSlide,
                         transitionSpec = {
-                            if (targetState > initialState) {
-                                (fadeIn(animationSpec = tween(220)) + slideInHorizontally(animationSpec = tween(220)) { width -> width })
-                                    .togetherWith(fadeOut(animationSpec = tween(220)) + slideOutHorizontally(animationSpec = tween(220)) { width -> -width })
+                            val direction = if (targetState > initialState) 1 else -1
+                            if (reducedMotion) {
+                                fadeIn(fadeInSpec) togetherWith fadeOut(fadeOutSpec)
                             } else {
-                                (fadeIn(animationSpec = tween(220)) + slideInHorizontally(animationSpec = tween(220)) { width -> -width })
-                                    .togetherWith(fadeOut(animationSpec = tween(220)) + slideOutHorizontally(animationSpec = tween(220)) { width -> width })
+                                (fadeIn(fadeInSpec) + slideInHorizontally(slideInSpec) { it / 4 * direction })
+                                    .togetherWith(fadeOut(fadeOutSpec) + slideOutHorizontally(slideOutSpec) { -it / 4 * direction })
                             }
                         },
                         label = "slideTransition"
@@ -131,124 +134,82 @@ fun OnboardingScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            // Tag
                             Box(
                                 modifier = Modifier
-                                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = slide.headerTag,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = 1.sp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(32.dp))
-
-                            // Large Minimal Monochrome Icon
-                            Box(
-                                modifier = Modifier
-                                    .size(112.dp)
-                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f), CircleShape)
-                                    .border(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f), CircleShape),
+                                    .size(132.dp)
+                                    .glassPanel(CircleShape, glass, glass.fillStrong),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = slide.icon,
-                                    contentDescription = slide.title,
-                                    tint = MaterialTheme.colorScheme.onBackground,
-                                    modifier = Modifier.size(48.dp)
-                                )
+                                IconBadge(icon = slide.icon, tint = MaterialTheme.colorScheme.primary, size = 88.dp)
                             }
 
-                            Spacer(modifier = Modifier.height(40.dp))
+                            Spacer(modifier = Modifier.height(Spacing.xxxl))
 
-                            // Text Content
+                            Text(
+                                text = slide.headerTag.uppercase(),
+                                style = MaterialTheme.typography.labelMedium.eyebrow(),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(Spacing.sm))
                             Text(
                                 text = slide.title,
-                                style = MaterialTheme.typography.headlineMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 0.5.sp,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                ),
-                                textAlign = TextAlign.Center
+                                style = MaterialTheme.typography.headlineLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.semantics { heading() }
                             )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
+                            Spacer(modifier = Modifier.height(Spacing.md))
                             Text(
                                 text = slide.description,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                                    lineHeight = 22.sp
-                                ),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(horizontal = 16.dp)
+                                modifier = Modifier.padding(horizontal = Spacing.sm)
                             )
 
-                            // Special action inside Slide 3 (Currency Select Grid)
                             if (slideIndex == 2) {
-                                Spacer(modifier = Modifier.height(32.dp))
-                                Text(
-                                    text = "SELECT SYSTEM CURRENCY",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
-                                    ),
-                                    modifier = Modifier.padding(bottom = 12.dp)
+                                Spacer(modifier = Modifier.height(Spacing.xxl))
+                                val currencies = listOf(
+                                    OnboardingCurrency("India", "IN", "INR (₹)"),
+                                    OnboardingCurrency("United States", "US", "USD ($)"),
+                                    OnboardingCurrency("Europe", "EU", "EUR (€)"),
+                                    OnboardingCurrency("Japan", "JP", "JPY (¥)")
                                 )
-
                                 Row(
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .selectableGroup(),
+                                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                                 ) {
-                                    val currencies = listOf(
-                                        OnboardingCurrency("India", "IN", "INR (₹)"),
-                                        OnboardingCurrency("United States", "US", "USD ($)"),
-                                        OnboardingCurrency("Europe", "EU", "EUR (€)"),
-                                        OnboardingCurrency("Japan", "JP", "JPY (¥)")
-                                    )
-
                                     currencies.forEach { currency ->
                                         val isSelected = selectedCountry == currency.code
-                                        Box(
+                                        Column(
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(
-                                                    if (isSelected) MaterialTheme.colorScheme.primary 
-                                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                                .heightIn(min = 72.dp)
+                                                .glassPanel(
+                                                    MaterialTheme.shapes.medium,
+                                                    glass,
+                                                    if (isSelected) MaterialTheme.colorScheme.primary else glass.fillStrong
                                                 )
-                                                .border(
-                                                    width = 1.dp,
-                                                    color = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.outlineVariant,
-                                                    shape = RoundedCornerShape(8.dp)
-                                                )
-                                                .clickable {
+                                                .selectable(selected = isSelected, role = Role.RadioButton) {
                                                     viewModel.updateCountry(currency.code)
                                                 }
-                                                .padding(vertical = 12.dp),
-                                            contentAlignment = Alignment.Center
+                                                .semantics { contentDescription = "${currency.friendlyName}, ${currency.symbolLabel}" }
+                                                .padding(vertical = Spacing.md),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
                                         ) {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Text(
-                                                    text = currency.code,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 16.sp,
-                                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                                                )
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                Text(
-                                                    text = currency.symbolLabel.substringBefore(" "),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    fontSize = 10.sp,
-                                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
+                                            Text(
+                                                text = currency.symbolLabel.substringAfter("(").removeSuffix(")"),
+                                                style = MaterialTheme.typography.titleLarge,
+                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = currency.symbolLabel.substringBefore(" "),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
                                         }
                                     }
                                 }
@@ -257,83 +218,65 @@ fun OnboardingScreen(
                     }
                 }
 
-                // Navigation Controls Footer
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.xl),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Slide Indicators
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.semantics(mergeDescendants = true) {
+                            contentDescription = "Step ${currentSlide + 1} of ${slides.size}"
+                        }
                     ) {
                         slides.indices.forEach { idx ->
                             val active = idx == currentSlide
+                            val width by animateDpAsState(if (active) 28.dp else 8.dp, motionSpec(), label = "dot")
                             Box(
                                 modifier = Modifier
-                                    .height(6.dp)
-                                    .width(if (active) 24.dp else 6.dp)
+                                    .height(8.dp)
+                                    .width(width)
                                     .clip(CircleShape)
                                     .background(
-                                        if (active) MaterialTheme.colorScheme.primary 
-                                        else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.15f)
+                                        if (active) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f)
                                     )
                             )
                         }
                     }
 
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Back logic
                         if (currentSlide > 0) {
                             OutlinedButton(
                                 onClick = { currentSlide-- },
-                                modifier = Modifier.height(50.dp),
-                                shape = RoundedCornerShape(12.dp)
+                                modifier = Modifier.height(56.dp),
+                                shape = PillShape
                             ) {
-                                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("BACK")
+                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null)
+                                Spacer(modifier = Modifier.width(Spacing.sm))
+                                Text("Back", style = MaterialTheme.typography.labelLarge)
                             }
-                        } else {
-                            Spacer(modifier = Modifier.width(1.dp))
                         }
 
-                        // Forward or Done logic
-                        if (currentSlide < slides.size - 1) {
-                            Button(
-                                onClick = { currentSlide++ },
-                                modifier = Modifier.height(50.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary
-                                ),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("NEXT")
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Icon(Icons.Default.ArrowForward, contentDescription = "Next")
-                            }
-                        } else {
-                            Button(
-                                onClick = {
-                                    onFinish()
-                                },
-                                modifier = Modifier.height(50.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary
-                                ),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("FINISH & LOCK")
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Icon(Icons.Default.CheckCircle, contentDescription = "Finish")
-                            }
+                        val isLast = currentSlide == slides.size - 1
+                        Button(
+                            onClick = { if (isLast) onFinish() else currentSlide++ },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp),
+                            shape = PillShape
+                        ) {
+                            Text(if (isLast) "Get started" else "Continue", style = MaterialTheme.typography.titleMedium)
+                            Spacer(modifier = Modifier.width(Spacing.sm))
+                            Icon(
+                                if (isLast) Icons.Rounded.CheckCircle else Icons.AutoMirrored.Rounded.ArrowForward,
+                                contentDescription = null
+                            )
                         }
                     }
                 }

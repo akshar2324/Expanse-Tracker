@@ -38,7 +38,46 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavHostController
 import androidx.navigation.navDeepLink
 import com.akshar.ui.screens.*
-import com.akshar.ui.theme.MyApplicationTheme
+import com.akshar.ui.theme.AkSpendTheme
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.automirrored.rounded.Backspace
+import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.Savings
+import androidx.compose.material.icons.rounded.AccountBalanceWallet
+import androidx.compose.material.icons.rounded.Fingerprint
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Insights
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Savings
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.akshar.ui.components.IconBadge
+import com.akshar.ui.components.LocalFloatingBarInset
+import com.akshar.ui.components.motionSpec
+import com.akshar.ui.theme.Durations
+import com.akshar.ui.theme.GlassBackdrop
+import com.akshar.ui.theme.GlassBlurState
+import com.akshar.ui.theme.PillShape
+import com.akshar.ui.theme.Spacing
+import com.akshar.ui.theme.glassBarBackground
+import com.akshar.ui.theme.glassBlurSource
+import com.akshar.ui.theme.glassPanel
+import com.akshar.ui.theme.money
+import com.akshar.ui.theme.rememberGlassBlurState
 import com.akshar.ui.viewmodel.FinanceViewModel
 import com.akshar.security.BiometricCrypto
 
@@ -67,7 +106,7 @@ class MainActivity : FragmentActivity() {
         }
 
         setContent {
-            MyApplicationTheme {
+            AkSpendTheme {
                 val viewModel: FinanceViewModel = viewModel()
                 val isUnlocked by remember { isUnlockedState }
 
@@ -174,10 +213,19 @@ fun AppNavGraph(
     viewModel: FinanceViewModel,
     modifier: Modifier = Modifier
 ) {
+    // Screens are translucent over the shared backdrop, so use a quick fade-through instead of
+    // a long cross-fade where both screens would be visible at once.
+    val reducedMotion = AkSpendTheme.reducedMotion
+    val navFadeIn = if (reducedMotion) snap() else tween<Float>(Durations.standard, delayMillis = 70)
+    val navFadeOut = if (reducedMotion) snap() else tween<Float>(Durations.quick - 60)
     NavHost(
         navController = navController,
         startDestination = "dashboard",
-        modifier = modifier
+        modifier = modifier,
+        enterTransition = { fadeIn(navFadeIn) },
+        exitTransition = { fadeOut(navFadeOut) },
+        popEnterTransition = { fadeIn(navFadeIn) },
+        popExitTransition = { fadeOut(navFadeOut) }
     ) {
         composable("dashboard") {
             DashboardScreen(
@@ -235,149 +283,231 @@ fun AppNavGraph(
             BudgetSavingsScreen(viewModel = viewModel)
         }
         composable("tools") {
-            ToolsScreen(viewModel = viewModel)
+            ToolsScreen(viewModel = viewModel, navController = navController)
+        }
+        composable("weeklyDigest") {
+            WeeklyDigestScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable("csvImport") {
+            val csvViewModel = viewModel<com.akshar.ui.viewmodel.CsvImportViewModel>()
+            CsvImportScreen(viewModel = csvViewModel, onBack = { navController.popBackStack() })
         }
     }
 }
+
+/** Primary destinations. At most five, so labels stay readable at large font scales. */
+private val primaryTabs = listOf(
+    NavigationTabItem("dashboard", "Home", Icons.Outlined.Home, Icons.Rounded.Home),
+    NavigationTabItem("history", "Activity", Icons.AutoMirrored.Outlined.ReceiptLong, Icons.AutoMirrored.Rounded.ReceiptLong),
+    NavigationTabItem("budgets", "Budgets", Icons.Outlined.Savings, Icons.Rounded.Savings),
+    NavigationTabItem("analytics", "Insights", Icons.Outlined.Insights, Icons.Rounded.Insights),
+    NavigationTabItem("tools", "More", Icons.Outlined.GridView, Icons.Rounded.GridView)
+)
 
 @Composable
 fun AppScaffold(viewModel: FinanceViewModel) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val tabs = primaryTabs
 
-    // Tab configurations
-    val tabs = remember {
-        listOf(
-            NavigationTabItem("dashboard", "Home", Icons.Default.Home),
-            NavigationTabItem("accounts", "Accounts", Icons.Default.AccountBalanceWallet),
-            NavigationTabItem("history", "Ledger", Icons.Default.FormatListBulleted),
-            NavigationTabItem("analytics", "Charts", Icons.Default.PieChart),
-            NavigationTabItem("budgets", "Targets", Icons.Default.Flag),
-            NavigationTabItem("tools", "Tools", Icons.Default.Build)
-        )
+    // Tabs keep the floating bar; pushed screens (forms, details) get the full height and
+    // their own back button, like a navigation stack.
+    val showNavigation = currentRoute == null || tabs.any { it.route == currentRoute }
+
+    val navigateToTab: (String) -> Unit = { route ->
+        if (currentRoute != route) {
+            navController.navigate(route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
     }
 
-    // Hide bars when entering input form to allow full keyboard space
-    val showNavigation = currentRoute != "add_transaction"
+    val blurState = rememberGlassBlurState()
+    val contentInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val isWide = maxWidth >= 600.dp
 
         if (isWide) {
-            // Adaptive Wide Screen Layout using Navigation Rail
-            Row(modifier = Modifier.fillMaxSize()) {
-                if (showNavigation) {
-                    NavigationRail(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        header = {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Icon(
-                                imageVector = Icons.Default.AccountBalance,
-                                contentDescription = "Logo",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.height(32.dp))
-                        },
-                        modifier = Modifier.fillMaxHeight()
-                    ) {
-                        tabs.forEach { tab ->
-                            val selected = currentRoute == tab.route
-                            NavigationRailItem(
-                                selected = selected,
-                                onClick = {
-                                    if (currentRoute != tab.route) {
-                                        navController.navigate(tab.route) {
-                                            popUpTo(navController.graph.findStartDestination().id) {
-                                                saveState = true
-                                            }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
-                                    }
-                                },
-                                icon = {
-                                    Icon(
-                                        imageVector = tab.icon,
-                                        contentDescription = tab.label,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                },
-                                label = { Text(tab.label, fontSize = 11.sp, fontWeight = FontWeight.Medium) },
-                                colors = NavigationRailItemDefaults.colors(
-                                    selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                                    indicatorColor = MaterialTheme.colorScheme.primary
-                                )
-                            )
-                        }
+            // Adaptive wide layout: a floating glass rail beside a centred content column.
+            Box(Modifier.fillMaxSize()) {
+                GlassBackdrop()
+                Row(modifier = Modifier.fillMaxSize()) {
+                    if (showNavigation) {
+                        GlassNavigationRail(tabs = tabs, currentRoute = currentRoute, onSelect = navigateToTab)
                     }
-                }
-
-                // Wide screen centered container to keep layout balanced
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.background)
-                ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .widthIn(max = 800.dp)
-                            .align(Alignment.Center)
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .windowInsetsPadding(contentInsets)
                     ) {
-                        AppNavGraph(navController = navController, viewModel = viewModel, modifier = Modifier.fillMaxSize())
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .widthIn(max = 800.dp)
+                                .align(Alignment.Center)
+                        ) {
+                            AppNavGraph(navController = navController, viewModel = viewModel, modifier = Modifier.fillMaxSize())
+                        }
                     }
                 }
             }
         } else {
-            // Standard compact mobile layout
-            Scaffold(
-                modifier = Modifier.fillMaxSize(),
-                bottomBar = {
-                    if (showNavigation) {
-                        NavigationBar(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 8.dp
-                        ) {
-                            tabs.forEach { tab ->
-                                val selected = currentRoute == tab.route
-                                NavigationBarItem(
-                                    selected = selected,
-                                    onClick = {
-                                        if (currentRoute != tab.route) {
-                                            navController.navigate(tab.route) {
-                                                popUpTo(navController.graph.findStartDestination().id) {
-                                                    saveState = true
-                                                }
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                        }
-                                    },
-                                    icon = {
-                                        Icon(
-                                            imageVector = tab.icon,
-                                            contentDescription = tab.label,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    },
-                                    label = { Text(tab.label, fontSize = 11.sp) },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                                        indicatorColor = MaterialTheme.colorScheme.primary
-                                    )
-                                )
-                            }
-                        }
+            val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            val barInset = if (showNavigation) FloatingBarHeight + FloatingBarMargin + navBarBottom + Spacing.lg else 0.dp
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.fillMaxSize().glassBlurSource(blurState)) {
+                    GlassBackdrop()
+                    CompositionLocalProvider(LocalFloatingBarInset provides barInset) {
+                        AppNavGraph(
+                            navController = navController,
+                            viewModel = viewModel,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .windowInsetsPadding(contentInsets)
+                        )
                     }
                 }
-            ) { innerPadding ->
-                AppNavGraph(navController = navController, viewModel = viewModel, modifier = Modifier.padding(innerPadding))
+
+                AnimatedVisibility(
+                    visible = showNavigation,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    enter = fadeIn(motionSpec<Float>()) + slideInVertically(motionSpec<IntOffset>()) { it / 2 },
+                    exit = fadeOut(motionSpec<Float>(Durations.quick)) + slideOutVertically(motionSpec<IntOffset>(Durations.quick)) { it / 2 }
+                ) {
+                    FloatingTabBar(
+                        tabs = tabs,
+                        currentRoute = currentRoute,
+                        onSelect = navigateToTab,
+                        blurState = blurState
+                    )
+                }
             }
+        }
+    }
+}
+
+private val FloatingBarHeight = 68.dp
+private val FloatingBarMargin = 12.dp
+
+/** Capsule tab bar that floats over content and frosts whatever scrolls underneath it. */
+@Composable
+private fun FloatingTabBar(
+    tabs: List<NavigationTabItem>,
+    currentRoute: String?,
+    onSelect: (String) -> Unit,
+    blurState: GlassBlurState?,
+) {
+    val glass = AkSpendTheme.glass
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(start = Spacing.lg, end = Spacing.lg, bottom = FloatingBarMargin),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            modifier = Modifier
+                .widthIn(max = 520.dp)
+                .fillMaxWidth()
+                .height(FloatingBarHeight)
+                .shadow(18.dp, PillShape, ambientColor = glass.shadow, spotColor = glass.shadow)
+                .glassBarBackground(blurState, PillShape, glass)
+                .padding(6.dp)
+                .selectableGroup(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            tabs.forEach { tab ->
+                TabBarItem(
+                    tab = tab,
+                    selected = currentRoute == tab.route,
+                    onClick = { onSelect(tab.route) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TabBarItem(
+    tab: NavigationTabItem,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val indicator by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primary.copy(alpha = if (AkSpendTheme.isDark) 0.22f else 0.13f) else Color.Transparent,
+        motionSpec(),
+        label = "tabIndicator"
+    )
+    val contentColor by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        motionSpec(),
+        label = "tabContent"
+    )
+    Column(
+        modifier = modifier
+            .fillMaxHeight()
+            .clip(PillShape)
+            .background(indicator)
+            .selectable(selected = selected, role = Role.Tab, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = if (selected) tab.selectedIcon else tab.icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = tab.label,
+            style = MaterialTheme.typography.labelMedium,
+            color = contentColor,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+private fun GlassNavigationRail(
+    tabs: List<NavigationTabItem>,
+    currentRoute: String?,
+    onSelect: (String) -> Unit,
+) {
+    val glass = AkSpendTheme.glass
+    Column(
+        modifier = Modifier
+            .fillMaxHeight()
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical + WindowInsetsSides.Start))
+            .padding(Spacing.md)
+            .width(88.dp)
+            .glassPanel(RoundedCornerShape(32.dp), glass, glass.fillStrong)
+            .padding(vertical = Spacing.lg)
+            .selectableGroup(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+    ) {
+        IconBadge(icon = Icons.Rounded.AccountBalanceWallet, tint = MaterialTheme.colorScheme.primary, size = 44.dp)
+        Spacer(Modifier.height(Spacing.lg))
+        tabs.forEach { tab ->
+            TabBarItem(
+                tab = tab,
+                selected = currentRoute == tab.route,
+                onClick = { onSelect(tab.route) },
+                modifier = Modifier
+                    .width(72.dp)
+                    .height(64.dp)
+            )
         }
     }
 }
@@ -385,7 +515,8 @@ fun AppScaffold(viewModel: FinanceViewModel) {
 data class NavigationTabItem(
     val route: String,
     val label: String,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val selectedIcon: androidx.compose.ui.graphics.vector.ImageVector = icon
 )
 
 @Composable
@@ -420,127 +551,120 @@ fun LockScreen(
         showError = false
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        GlassBackdrop()
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             Column(
                 modifier = Modifier
-                    .widthIn(max = 500.dp)
+                    .widthIn(max = 460.dp)
                     .fillMaxHeight()
-                    .padding(24.dp)
-                    .safeDrawingPadding(),
+                    .safeDrawingPadding()
+                    .padding(Spacing.xxl),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-            // Header Space
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 40.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-                    contentAlignment = Alignment.Center
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(top = Spacing.xxxl)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = "App Locked",
+                    IconBadge(
+                        icon = Icons.Rounded.Lock,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(28.dp)
+                        size = 72.dp,
+                        contentDescription = "App locked"
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.xl))
+                    Text(
+                        text = "Welcome back",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.sm))
+                    Text(
+                        text = "Enter your passcode to open AkSpend",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
                     )
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "AkSpend Finance Vault",
-                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Security required to view financial metrics",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    textAlign = TextAlign.Center
-                )
-            }
 
-            // PIN Indicator Dots
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier.weight(1f)
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // PIN indicator dots
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = "${pinInput.length} of 4 digits entered"
+                        }
                 ) {
-                    for (i in 0 until 4) {
-                        val active = i < pinInput.length
-                        Box(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .background(
-                                    color = if (showError) MaterialTheme.colorScheme.error 
-                                            else if (active) MaterialTheme.colorScheme.primary 
-                                            else MaterialTheme.colorScheme.outlineVariant,
-                                    shape = CircleShape
-                                )
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                if (showError) {
-                    Text(
-                        text = "Incorrect Passcode. Try again.",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
-                    )
-                } else {
-                    Text(
-                        text = if (correctPin == "1234") "Enter Code (Default: 1234)" else "Enter 4-Digit Security Code",
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-
-            // Numeric Pad Grid
-            Column(
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.padding(bottom = 24.dp)
-            ) {
-                val buttonRows = listOf(
-                    listOf("1", "2", "3"),
-                    listOf("4", "5", "6"),
-                    listOf("7", "8", "9"),
-                    listOf("CLEAR", "0", "FINGERPRINT")
-                )
-
-                buttonRows.forEach { row ->
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        row.forEach { char ->
-                            PinPadButton(
-                                char = char,
-                                useBiometrics = useBiometrics,
-                                onClear = { handleClear() },
-                                onBiometric = { onTriggerBiometric() },
-                                onNumber = { handleNumberClick(char) }
+                        for (i in 0 until 4) {
+                            val active = i < pinInput.length
+                            Box(
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        when {
+                                            showError -> MaterialTheme.colorScheme.error
+                                            active -> MaterialTheme.colorScheme.primary
+                                            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f)
+                                        }
+                                    )
                             )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(Spacing.lg))
+                    Text(
+                        text = when {
+                            showError -> "That passcode didn't match. Try again."
+                            correctPin == "1234" -> "Default passcode is 1234. You can change it in More › Vault."
+                            else -> "Enter your 4-digit passcode"
+                        },
+                        color = if (showError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(Spacing.lg),
+                    modifier = Modifier.padding(bottom = Spacing.lg)
+                ) {
+                    val buttonRows = listOf(
+                        listOf("1", "2", "3"),
+                        listOf("4", "5", "6"),
+                        listOf("7", "8", "9"),
+                        listOf("FINGERPRINT", "0", "CLEAR")
+                    )
+
+                    buttonRows.forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            row.forEach { char ->
+                                PinPadButton(
+                                    char = char,
+                                    useBiometrics = useBiometrics,
+                                    onClear = { handleClear() },
+                                    onBiometric = { onTriggerBiometric() },
+                                    onNumber = { handleNumberClick(char) }
+                                )
+                            }
                         }
                     }
                 }
             }
         }
     }
-}
 }
 
 @Composable
@@ -551,54 +675,55 @@ fun PinPadButton(
     onBiometric: () -> Unit,
     onNumber: (String) -> Unit
 ) {
+    val glass = AkSpendTheme.glass
+    val keyModifier = Modifier
+        .size(76.dp)
+        .glassPanel(CircleShape, glass, glass.fillStrong)
     when (char) {
         "CLEAR" -> {
-            IconButton(
-                onClick = onClear,
+            Box(
                 modifier = Modifier
-                    .size(72.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), CircleShape)
+                    .size(76.dp)
+                    .clip(CircleShape)
+                    .clickable(onClickLabel = "Delete last digit", role = Role.Button, onClick = onClear),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Backspace",
+                    imageVector = Icons.AutoMirrored.Rounded.Backspace,
+                    contentDescription = "Delete last digit",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
         "FINGERPRINT" -> {
             if (useBiometrics) {
-                IconButton(
-                    onClick = onBiometric,
+                Box(
                     modifier = Modifier
-                        .size(72.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                        .size(76.dp)
+                        .clip(CircleShape)
+                        .clickable(role = Role.Button, onClick = onBiometric),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Fingerprint,
-                        contentDescription = "Biometric Lock",
-                        tint = MaterialTheme.colorScheme.primary
+                        imageVector = Icons.Rounded.Fingerprint,
+                        contentDescription = "Unlock with fingerprint",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(32.dp)
                     )
                 }
             } else {
-                Spacer(modifier = Modifier.size(72.dp))
+                Spacer(modifier = Modifier.size(76.dp))
             }
         }
         else -> {
             Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
-                    .clickable { onNumber(char) },
+                modifier = keyModifier.clickable(role = Role.Button) { onNumber(char) },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = char,
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.headlineMedium.money(),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }

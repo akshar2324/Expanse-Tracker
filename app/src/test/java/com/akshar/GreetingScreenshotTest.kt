@@ -8,7 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
-import com.akshar.ui.theme.MyApplicationTheme
+import com.akshar.ui.theme.AkSpendTheme
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
@@ -28,7 +28,7 @@ class GreetingScreenshotTest {
   @Test
   fun greeting_screenshot() {
     composeTestRule.setContent { 
-      MyApplicationTheme { 
+      AkSpendTheme { 
         Surface(modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
           Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
             Text(

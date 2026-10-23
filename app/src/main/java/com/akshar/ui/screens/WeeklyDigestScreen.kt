@@ -1,5 +1,13 @@
 package com.akshar.ui.screens
 
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.WarningAmber
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import com.akshar.ui.components.*
+import com.akshar.ui.theme.*
+import com.akshar.ui.theme.AkSpendTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,8 +27,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akshar.insights.InsightEngine
 import com.akshar.insights.WeeklyDigestSummary
-import com.akshar.ui.theme.ExpenseRed
-import com.akshar.ui.theme.IncomeGreen
 import com.akshar.ui.viewmodel.FinanceViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,216 +51,184 @@ fun WeeklyDigestScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Weekly Digest", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
+    Column(modifier = Modifier.fillMaxSize()) {
+        val data = summary
+        when {
+            data == null -> {
+                ScreenHeader(title = "Weekly digest", onBack = onBack)
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
-            )
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            val data = summary
-            if (data == null) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (data.hasInsufficientData) {
-                WeeklyDigestEmptyState()
-            } else {
-                WeeklyDigestContent(
-                    summary = data,
-                    formatCurrency = viewModel::formatCurrencyValue
-                )
             }
+            data.hasInsufficientData -> {
+                ScreenHeader(title = "Weekly digest", onBack = onBack)
+                WeeklyDigestEmptyState()
+            }
+            else -> WeeklyDigestContent(
+                summary = data,
+                formatCurrency = viewModel::formatCurrencyValue,
+                onBack = onBack
+            )
         }
     }
 }
 
 @Composable
 private fun WeeklyDigestEmptyState() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.Info,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Not enough data for this week.",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = "Add some transactions to see your weekly digest.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+    Box(Modifier.fillMaxWidth().padding(Spacing.gutter)) {
+        EmptyState(
+            icon = Icons.Rounded.AutoAwesome,
+            title = "Your digest is warming up",
+            message = "Log a few transactions this week and your summary will appear here."
         )
     }
 }
 
 @Composable
+private fun DigestSection(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier
+            .padding(top = Spacing.sm)
+            .semantics { heading() }
+    )
+}
+
+@Composable
 private fun WeeklyDigestContent(
     summary: WeeklyDigestSummary,
-    formatCurrency: (Double) -> String
+    formatCurrency: (Double) -> String,
+    onBack: () -> Unit
 ) {
+    val finance = AkSpendTheme.finance
     LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(start = Spacing.gutter, end = Spacing.gutter, bottom = Spacing.xxxl),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md),
+        modifier = Modifier.navigationBarsPadding()
     ) {
         item {
-            Card(
+            ScreenHeader(
+                title = "Weekly digest",
+                subtitle = "Your week in review, worked out on this device",
+                onBack = onBack,
+                insetHorizontally = false
+            )
+        }
+        item {
+            GlassCard(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                shape = MaterialTheme.shapes.extraLarge,
+                fill = AkSpendTheme.glass.fillStrong
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("This Week's Cash Flow", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Text("Income", style = MaterialTheme.typography.bodySmall)
-                            Text(
-                                formatCurrency(summary.totalIncome),
-                                fontWeight = FontWeight.Bold,
-                                color = IncomeGreen
-                            )
-                        }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("Spent", style = MaterialTheme.typography.bodySmall)
-                            Text(
-                                formatCurrency(summary.totalSpent),
-                                fontWeight = FontWeight.Bold,
-                                color = ExpenseRed
-                            )
-                        }
+                val netColor = if (summary.netCashFlow >= 0) finance.income else finance.expense
+                Text("NET THIS WEEK", style = MaterialTheme.typography.labelMedium.eyebrow(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(Spacing.xs))
+                Text(formatCurrency(summary.netCashFlow), style = MaterialTheme.typography.displaySmall.money(), color = netColor)
+                Spacer(Modifier.height(Spacing.lg))
+                Row(Modifier.fillMaxWidth()) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Earned", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(formatCurrency(summary.totalIncome), style = MaterialTheme.typography.titleMedium.money(), color = finance.income)
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    HorizontalDivider()
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val netColor = if (summary.netCashFlow >= 0) IncomeGreen else ExpenseRed
-                    Text("Net: ${formatCurrency(summary.netCashFlow)}", fontWeight = FontWeight.Bold, color = netColor)
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                        Text("Spent", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(formatCurrency(summary.totalSpent), style = MaterialTheme.typography.titleMedium.money(), color = finance.expense)
+                    }
                 }
             }
         }
 
         if (summary.anomalies.isNotEmpty()) {
-            item {
-                Text("Anomalies", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            }
+            item { DigestSection("Worth a look") }
             items(summary.anomalies) { anomaly ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.errorContainer)
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(anomaly.description, color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodyMedium)
-                        Text("+${formatCurrency(anomaly.anomalyAmount)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onErrorContainer)
+                GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(Spacing.lg)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconBadge(icon = Icons.Rounded.WarningAmber, tint = finance.warning, contentDescription = "Unusual spend")
+                        Spacer(modifier = Modifier.width(Spacing.md))
+                        Column(Modifier.weight(1f)) {
+                            Text(anomaly.description, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
+                            Text("+${formatCurrency(anomaly.anomalyAmount)}", style = MaterialTheme.typography.titleSmall.money(), color = finance.expense)
+                        }
                     }
                 }
             }
         }
 
         if (summary.topCategories.isNotEmpty()) {
+            item { DigestSection("Top categories") }
             item {
-                Text("Top Categories", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            }
-            items(summary.topCategories) { cat ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(cat.categoryName, fontWeight = FontWeight.Medium)
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(formatCurrency(cat.amountSpent), fontWeight = FontWeight.Bold)
-                        Text(String.format("%.1f%%", cat.percentageOfTotal), style = MaterialTheme.typography.bodySmall)
+                GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = Spacing.xs)) {
+                    summary.topCategories.forEachIndexed { index, cat ->
+                        if (index > 0) GlassDivider()
+                        GlassListRow(
+                            title = cat.categoryName,
+                            subtitle = String.format("%.1f%% of spending", cat.percentageOfTotal),
+                            leading = { IconBadge(icon = categoryIcon(cat.categoryName), tint = categoryTint(cat.categoryName)) },
+                            trailing = {
+                                Text(formatCurrency(cat.amountSpent), style = MaterialTheme.typography.titleSmall.money(), color = MaterialTheme.colorScheme.onSurface)
+                            }
+                        )
                     }
                 }
             }
         }
-        
+
         if (summary.budgetProgress.isNotEmpty()) {
-            item {
-                Text("Budget Progress", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            }
+            item { DigestSection("Budgets") }
             items(summary.budgetProgress) { budget ->
                 val progress = if (budget.budgetLimit > 0) (budget.spentSoFar / budget.budgetLimit).toFloat() else 0f
                 val clampedProgress = progress.coerceIn(0f, 1f)
-                val color = if (budget.isOverBudget) ExpenseRed else IncomeGreen
-                
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .padding(12.dp)
-                ) {
+                val color = if (budget.isOverBudget) finance.expense else finance.income
+
+                GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(Spacing.lg)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(budget.categoryName, fontWeight = FontWeight.Bold)
-                        Text("${formatCurrency(budget.spentSoFar)} / ${formatCurrency(budget.budgetLimit)}")
+                        Text(budget.categoryName, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            "${formatCurrency(budget.spentSoFar)} / ${formatCurrency(budget.budgetLimit)}",
+                            style = MaterialTheme.typography.bodySmall.money(),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Spacing.sm))
                     LinearProgressIndicator(
                         progress = { clampedProgress },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().height(8.dp).clip(PillShape),
                         color = color,
-                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                        strokeCap = StrokeCap.Round,
+                        drawStopIndicator = {}
                     )
                     if (budget.isOverBudget) {
-                        Text("Over budget!", color = ExpenseRed, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                        Text("Over budget", color = finance.expense, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = Spacing.xs))
                     }
                 }
             }
         }
 
         summary.outlook?.let { outlook ->
+            item { DigestSection("Next week") }
             item {
-                Text("Next Week Outlook", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        if (outlook.expectedRecurringSpend > 0) {
-                            Text(
-                                formatCurrency(outlook.expectedRecurringSpend),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
+                GlassCard(modifier = Modifier.fillMaxWidth(), fill = AkSpendTheme.glass.fillStrong) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconBadge(icon = Icons.Rounded.AutoAwesome, tint = MaterialTheme.colorScheme.tertiary)
+                        Spacer(Modifier.width(Spacing.md))
+                        Column {
+                            if (outlook.expectedRecurringSpend > 0) {
+                                Text("Expected bills", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    formatCurrency(outlook.expectedRecurringSpend),
+                                    style = MaterialTheme.typography.titleMedium.money(),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(Spacing.xs))
+                            }
+                            Text(outlook.suggestion, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                         }
-                        Text(outlook.suggestion, color = MaterialTheme.colorScheme.onTertiaryContainer)
                     }
                 }
             }

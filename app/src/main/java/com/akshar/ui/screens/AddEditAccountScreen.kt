@@ -1,5 +1,10 @@
 package com.akshar.ui.screens
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.akshar.ui.components.*
+import com.akshar.ui.theme.*
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -31,29 +36,26 @@ fun AddEditAccountScreen(
     var typeExpanded by remember { mutableStateOf(false) }
     val types = listOf("Cash", "Bank", "Wallet", "Savings", "Credit Card")
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (existingAccount == null) "Add Account" else "Edit Account") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .imePadding()
+            .navigationBarsPadding()
+    ) {
+        ScreenHeader(title = if (existingAccount == null) "New account" else "Edit account", onBack = { navController.popBackStack() })
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.gutter)
+                .padding(bottom = Spacing.xxl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
             OutlinedTextField(
+                colors = glassTextFieldColors(),
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Account Name") },
+                label = { Text("Account name") },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -62,10 +64,11 @@ fun AddEditAccountScreen(
                 onExpandedChange = { typeExpanded = !typeExpanded }
             ) {
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = type,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Account Type") },
+                    label = { Text("Account type") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
                     modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).fillMaxWidth()
                 )
@@ -86,9 +89,10 @@ fun AddEditAccountScreen(
             }
 
             OutlinedTextField(
+                colors = glassTextFieldColors(),
                 value = openingBalance,
                 onValueChange = { openingBalance = it },
-                label = { Text("Opening Balance") },
+                label = { Text("Opening balance") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -96,9 +100,10 @@ fun AddEditAccountScreen(
             if (existingAccount != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Archived (hide from new transactions)")
+                    Text("Archive (hide from new transactions)", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     Switch(checked = isArchived, onCheckedChange = { isArchived = it })
                 }
             }
@@ -118,9 +123,9 @@ fun AddEditAccountScreen(
                         navController.popBackStack()
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().height(56.dp)
             ) {
-                Text("Save")
+                Text("Save account", style = MaterialTheme.typography.labelLarge)
             }
         }
     }
