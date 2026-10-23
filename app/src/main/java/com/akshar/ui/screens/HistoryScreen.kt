@@ -1,5 +1,6 @@
 package com.akshar.ui.screens
 
+import com.akshar.TransactionRoutes
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -315,7 +316,7 @@ fun HistoryScreen(
                             if (transaction.transferId != null) {
                                 navController.navigate("addTransfer/${transaction.transferId}")
                             } else {
-                                navController.navigate("addTransaction/${transaction.id}")
+                                navController.navigate(TransactionRoutes.edit(transaction.id))
                             }
                         }
                     )
