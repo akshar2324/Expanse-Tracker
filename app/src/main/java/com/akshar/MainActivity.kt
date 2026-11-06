@@ -2,6 +2,7 @@ package com.akshar
 
 import android.os.Bundle
 import android.util.Log
+import android.content.Intent
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.biometric.BiometricManager
@@ -96,8 +97,15 @@ class MainActivity : FragmentActivity() {
         outState.putBoolean(KEY_UNLOCKED, isUnlockedState.value)
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        AppNavigationRequests.handle(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) AppNavigationRequests.handle(intent)
         enableEdgeToEdge()
         
         val sharedPrefs = getSharedPreferences("vault_settings", android.content.Context.MODE_PRIVATE)
@@ -346,6 +354,15 @@ fun AppScaffold(viewModel: FinanceViewModel) {
                 launchSingleTop = true
                 restoreState = true
             }
+        }
+    }
+
+    // A widget tap asks for a tab; open it once the scaffold (and so the unlocked app) shows.
+    val pendingTab by AppNavigationRequests.pendingTab.collectAsState()
+    LaunchedEffect(pendingTab) {
+        pendingTab?.let { route ->
+            if (tabs.any { it.route == route }) navigateToTab(route)
+            AppNavigationRequests.consumed()
         }
     }
 

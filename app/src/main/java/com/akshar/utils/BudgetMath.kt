@@ -37,6 +37,12 @@ object BudgetMath {
             }.sumOf { it.amount }
         )
 
+    /** All monthly expenses, including categories without a budget; transfers never count. */
+    fun totalSpentInMonth(transactions: List<Transaction>, month: String): Double =
+        MoneyUtils.roundMoney(transactions.filter {
+            it.transferId == null && it.type == "EXPENSE" && PeriodUtils.isInMonth(it.date, month)
+        }.sumOf { it.amount })
+
     fun summary(activeBudgets: List<Budget>, transactions: List<Transaction>): BudgetSummary =
         BudgetSummary(
             totalLimit = MoneyUtils.roundMoney(activeBudgets.sumOf { it.limitAmount }),
