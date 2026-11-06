@@ -13,7 +13,8 @@ import com.akshar.data.model.SavingsGoal
 import com.akshar.data.model.Transaction
 import com.akshar.data.model.Debt
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
+import com.akshar.data.backup.BackupSnapshot
+import com.akshar.utils.PeriodUtils
 
 class FinanceRepository(private val financeDao: FinanceDao, private val database: AppDatabase) {
 
@@ -40,21 +41,26 @@ class FinanceRepository(private val financeDao: FinanceDao, private val database
         return financeDao.getTransactionById(id)
     }
 
+    /**
+     * Saves both legs of a transfer atomically. Any legs already stored under the same
+     * transferId are replaced in the same database transaction, so editing a transfer can never
+     * leave it half-written or deleted.
+     */
     suspend fun saveTransfer(fromTransaction: Transaction, toTransaction: Transaction) {
         database.withTransaction {
+            fromTransaction.transferId?.let { financeDao.deleteTransactionsByTransferId(it) }
             financeDao.insertTransaction(fromTransaction)
             financeDao.insertTransaction(toTransaction)
         }
     }
 
     suspend fun deleteTransfer(transferId: String) {
-        database.withTransaction {
-            val transactions = financeDao.getAllTransactions().first()
-            val toDelete = transactions.filter { it.transferId == transferId }
-            toDelete.forEach { tx ->
-                financeDao.deleteTransaction(tx)
-            }
-        }
+        financeDao.deleteTransactionsByTransferId(transferId)
+    }
+
+    /** Both legs of a transfer: the EXPENSE (source) leg first, then the INCOME (destination) leg. */
+    suspend fun getTransferLegs(transferId: String): List<Transaction> {
+        return financeDao.getTransactionsByTransferId(transferId)
     }
 
 
@@ -112,56 +118,54 @@ class FinanceRepository(private val financeDao: FinanceDao, private val database
     /**
      * Examines all recurring transactions and generates actual ledger entries if overdue.
      */
-    suspend fun autoProcessRecurringTransactions() {
+    suspend fun autoProcessRecurringTransactions(now: Long = System.currentTimeMillis()) {
         try {
-            val now = System.currentTimeMillis()
             val list = financeDao.getRecurringTransactionsList()
             val newTransactions = mutableListOf<Transaction>()
             val updatedRecurrings = mutableListOf<RecurringTransaction>()
             for (recurring in list) {
-                // If never triggered, we can set start to 1 cycle ago or now. Let's say now
+                // Never triggered: start the schedule now without back-filling.
                 if (recurring.lastTriggered == 0L) {
-                    val updated = recurring.copy(lastTriggered = now)
-                    updatedRecurrings.add(updated)
+                    updatedRecurrings.add(recurring.copy(lastTriggered = now))
                     continue
                 }
 
-                val periodMs = when (recurring.frequency.uppercase()) {
-                    "DAILY" -> 86400000L
-                    "WEEKLY" -> 7 * 86400000L
-                    "MONTHLY" -> 30 * 86400000L // approximate
-                    "YEARLY" -> 365 * 86400000L // approximate
-                    else -> 30 * 86400000L
-                }
-
-                var tempLast = recurring.lastTriggered
-                var generatedAny = false
-                while (now - tempLast >= periodMs) {
-                    tempLast += periodMs
-                    // Generate a real transaction
-                    val tx = Transaction(
-                        amount = recurring.amount,
-                        type = recurring.type,
-                        category = recurring.category,
-                        description = "${recurring.description} (Auto-Recurring)",
-                        date = tempLast,
-                        paymentMethod = recurring.paymentMethod
+                // Occurrences are counted from the last trigger with calendar arithmetic, so a
+                // monthly entry stays on the same day of the month instead of drifting by
+                // 30-day steps (and yearly entries ignore leap days).
+                var steps = 1
+                var lastGenerated = recurring.lastTriggered
+                while (true) {
+                    val occurrence = PeriodUtils.addPeriods(recurring.lastTriggered, recurring.frequency, steps)
+                    if (occurrence > now) break
+                    newTransactions.add(
+                        Transaction(
+                            amount = recurring.amount,
+                            type = recurring.type,
+                            category = recurring.category,
+                            description = "${recurring.description} (Auto-Recurring)",
+                            date = occurrence,
+                            paymentMethod = recurring.paymentMethod
+                        )
                     )
-                    newTransactions.add(tx)
-                    generatedAny = true
+                    lastGenerated = occurrence
+                    steps++
                 }
 
-                if (generatedAny) {
-                    val updated = recurring.copy(lastTriggered = tempLast)
-                    updatedRecurrings.add(updated)
+                if (lastGenerated != recurring.lastTriggered) {
+                    updatedRecurrings.add(recurring.copy(lastTriggered = lastGenerated))
                 }
             }
 
-            if (newTransactions.isNotEmpty()) {
-                financeDao.insertTransactions(newTransactions)
-            }
-            if (updatedRecurrings.isNotEmpty()) {
-                financeDao.insertRecurringTransactions(updatedRecurrings)
+            // Ledger entries and the new trigger times are written together, so a crash
+            // part-way cannot generate the same occurrences twice on the next launch.
+            database.withTransaction {
+                if (newTransactions.isNotEmpty()) {
+                    financeDao.insertTransactions(newTransactions)
+                }
+                if (updatedRecurrings.isNotEmpty()) {
+                    financeDao.insertRecurringTransactions(updatedRecurrings)
+                }
             }
         } catch (e: Exception) {
             Log.e("FinanceRepository", "Error processing recurring transactions: ${e.message}", e)
@@ -246,5 +250,47 @@ class FinanceRepository(private val financeDao: FinanceDao, private val database
 
     suspend fun deleteReconciliationById(id: Long) {
         financeDao.deleteReconciliationById(id)
+    }
+
+    // --- Backup & Restore ---
+
+    /** Reads every table directly from the database (not from UI state) for a JSON backup. */
+    suspend fun exportSnapshot(): BackupSnapshot = database.withTransaction {
+        BackupSnapshot(
+            transactions = financeDao.getTransactionsList(),
+            budgets = financeDao.getBudgetsList(),
+            savingsGoals = financeDao.getSavingsGoalsList(),
+            recurringTransactions = financeDao.getRecurringTransactionsList(),
+            debts = financeDao.getDebtsList(),
+            csvImportProfiles = financeDao.getCsvImportProfilesList(),
+            accounts = financeDao.getAccountsList(),
+            reconciliations = financeDao.getReconciliationsList()
+        )
+    }
+
+    /**
+     * Replaces all data with [snapshot] in a single transaction. If any insert fails the
+     * previous data is kept untouched. Restoring the same backup twice does not duplicate rows.
+     */
+    suspend fun replaceAllData(snapshot: BackupSnapshot) {
+        database.withTransaction {
+            financeDao.clearTransactions()
+            financeDao.clearBudgets()
+            financeDao.clearSavingsGoals()
+            financeDao.clearRecurringTransactions()
+            financeDao.clearDebts()
+            financeDao.clearCsvImportProfiles()
+            financeDao.clearAccounts()
+            financeDao.clearReconciliations()
+
+            financeDao.insertAccounts(snapshot.accounts)
+            financeDao.insertTransactions(snapshot.transactions)
+            financeDao.insertBudgets(snapshot.budgets)
+            financeDao.insertSavingsGoals(snapshot.savingsGoals)
+            financeDao.insertRecurringTransactions(snapshot.recurringTransactions)
+            financeDao.insertDebts(snapshot.debts)
+            financeDao.insertCsvImportProfiles(snapshot.csvImportProfiles)
+            financeDao.insertReconciliations(snapshot.reconciliations)
+        }
     }
 }

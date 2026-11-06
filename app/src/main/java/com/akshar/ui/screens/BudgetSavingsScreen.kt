@@ -58,21 +58,10 @@ fun BudgetSavingsScreen(
     var showAddSavingsFundsDialog by remember { mutableStateOf<SavingsGoal?>(null) }
 
     // Month strings
-    val currentMonthStr = remember { SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date()) }
-    val currentWeekStr = remember { getCurrentWeekKey() }
+    val currentMonthStr = remember { com.akshar.utils.PeriodUtils.monthKey(System.currentTimeMillis()) }
 
-    val activeBudgets = budgets.filter {
-        (it.frequency == "WEEKLY" && it.month == currentWeekStr) ||
-        (it.frequency == "MONTHLY" && it.month == currentMonthStr) ||
-        (it.frequency.isBlank() && it.month == currentMonthStr)
-    }
-    val budgetSpent: (Budget) -> Double = { budget ->
-        transactions.filter {
-            it.type == "EXPENSE" &&
-                    it.category.equals(budget.category, ignoreCase = true) &&
-                    (if (budget.frequency == "WEEKLY") isSameWeek(it.date, budget.month) else isSameMonth(it.date, budget.month))
-        }.sumOf { it.amount }
-    }
+    val activeBudgets = com.akshar.utils.BudgetMath.activeBudgets(budgets)
+    val budgetSpent: (Budget) -> Double = { budget -> com.akshar.utils.BudgetMath.spentFor(budget, transactions) }
     val bottomInset = LocalFloatingBarInset.current
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -110,8 +99,9 @@ fun BudgetSavingsScreen(
                     }
                 } else {
                     item {
-                        val totalLimit = activeBudgets.sumOf { it.limitAmount }
-                        val totalSpent = activeBudgets.sumOf { budgetSpent(it) }
+                        val summary = com.akshar.utils.BudgetMath.summary(activeBudgets, transactions)
+                        val totalLimit = summary.totalLimit
+                        val totalSpent = summary.totalSpent
                         BudgetSummaryCard(totalSpent = totalSpent, totalLimit = totalLimit, currencySymbol = currencySymbol)
                     }
                     items(activeBudgets, key = { it.id }) { budget ->
@@ -570,7 +560,7 @@ fun AddBudgetDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val limit = com.akshar.utils.MathUtils.evaluateMathExpression(limitStr) ?: 0.0
+                    val limit = com.akshar.utils.MoneyUtils.parseAmount(limitStr) ?: 0.0
                     if (limit > 0) {
                         onConfirm(category, limit, frequency, remindersEnabled, reminderThreshold)
                     }
@@ -645,8 +635,8 @@ fun AddGoalDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val target = com.akshar.utils.MathUtils.evaluateMathExpression(targetStr) ?: 0.0
-                    val current = com.akshar.utils.MathUtils.evaluateMathExpression(currentStr) ?: 0.0
+                    val target = com.akshar.utils.MoneyUtils.parseAmount(targetStr) ?: 0.0
+                    val current = com.akshar.utils.MoneyUtils.parseAmount(currentStr) ?: 0.0
                     if (name.isNotEmpty() && target > 0) {
                         onConfirm(name, target, current, targetDate)
                     }
@@ -689,7 +679,7 @@ fun AddSavingsFundsDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val funds = com.akshar.utils.MathUtils.evaluateMathExpression(fundStr) ?: 0.0
+                    val funds = com.akshar.utils.MoneyUtils.parseAmount(fundStr) ?: 0.0
                     if (funds > 0) {
                         onConfirm(funds)
                     }
@@ -706,23 +696,6 @@ fun AddSavingsFundsDialog(
     )
 }
 
-// Helper: check if transaction timestamp is in the specified yyyy-MM
-private fun isSameMonth(timestamp: Long, monthYYYYMM: String): Boolean {
-    val df = SimpleDateFormat("yyyy-MM", Locale.getDefault())
-    return df.format(Date(timestamp)) == monthYYYYMM
-}
-
-private fun getCurrentWeekKey(): String {
-    val cal = Calendar.getInstance()
-    val year = cal.get(Calendar.YEAR)
-    val week = cal.get(Calendar.WEEK_OF_YEAR)
-    return "$year-W$week"
-}
-
-private fun isSameWeek(timestamp: Long, weekKey: String): Boolean {
-    val cal = Calendar.getInstance()
-    cal.timeInMillis = timestamp
-    val year = cal.get(Calendar.YEAR)
-    val week = cal.get(Calendar.WEEK_OF_YEAR)
-    return "$year-W$week" == weekKey
-}
+// Period keys live in PeriodUtils (locale-independent digits, week-based year at New Year).
+private fun getCurrentWeekKey(): String =
+    com.akshar.utils.PeriodUtils.weekKey(System.currentTimeMillis())

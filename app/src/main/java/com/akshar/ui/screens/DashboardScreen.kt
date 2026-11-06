@@ -110,9 +110,11 @@ fun DashboardScreen(
     val highestIncomeDayVal = incomeByDay.maxByOrNull { it.value }?.value ?: 0.0
 
     // Remaining Budget
-    val currentMonthStr = remember { SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date()) }
-    val totalBudgetLimit = budgets.filter { it.month == currentMonthStr }.sumOf { it.limitAmount }
-    val remainingBudget = (totalBudgetLimit - monthExpense).coerceAtLeast(0.0)
+    val currentMonthStr = remember { com.akshar.utils.PeriodUtils.monthKey(System.currentTimeMillis()) }
+    // Same per-category calculation as the Budgets tab: only spending in budgeted categories counts.
+    val budgetSummary = com.akshar.utils.BudgetMath.summary(com.akshar.utils.BudgetMath.activeBudgets(budgets), transactions)
+    val totalBudgetLimit = budgetSummary.totalLimit
+    val remainingBudget = budgetSummary.remaining
 
     val entrance = rememberEntranceState(itemCount = 7)
     val bottomInset = LocalFloatingBarInset.current
@@ -141,6 +143,7 @@ fun DashboardScreen(
                     monthIncome = monthIncome,
                     monthExpense = monthExpense,
                     totalBudgetLimit = totalBudgetLimit,
+                    budgetSpent = budgetSummary.totalSpent,
                     currencySymbol = currencySymbol,
                     onAddTransfer = { navController.navigate("addTransfer") },
                     onOpenAccounts = { navController.navigate("accounts") },
@@ -266,6 +269,7 @@ private fun BalanceHero(
     monthIncome: Double,
     monthExpense: Double,
     totalBudgetLimit: Double,
+    budgetSpent: Double = monthExpense,
     currencySymbol: String,
     onAddTransfer: () -> Unit,
     onOpenAccounts: () -> Unit,
@@ -311,7 +315,7 @@ private fun BalanceHero(
             )
         }
         if (totalBudgetLimit > 0) {
-            val used = (monthExpense / totalBudgetLimit).toFloat().coerceIn(0f, 1f)
+            val used = (budgetSpent / totalBudgetLimit).toFloat().coerceIn(0f, 1f)
             val animatedUsed by animateFloatAsState(used, motionSpec(Durations.emphasized * 2), label = "budgetUsed")
             Spacer(modifier = Modifier.height(Spacing.lg))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

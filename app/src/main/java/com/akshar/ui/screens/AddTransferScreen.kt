@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
@@ -20,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.akshar.ui.viewmodel.FinanceViewModel
 import com.akshar.data.model.Account
+import com.akshar.utils.MoneyUtils
+import java.math.BigDecimal
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -35,11 +38,33 @@ fun AddTransferScreen(
     val activeAccounts = accounts.filter { !it.isArchived }
 
     // Default or existing state
-    var amount by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var fromAccountId by remember { mutableStateOf(activeAccounts.firstOrNull()?.id ?: 1L) }
-    var toAccountId by remember { mutableStateOf(activeAccounts.getOrNull(1)?.id ?: activeAccounts.firstOrNull()?.id ?: 1L) }
-    var selectedDate by remember { mutableStateOf(System.currentTimeMillis()) }
+    var amount by rememberSaveable { mutableStateOf("") }
+    var description by rememberSaveable { mutableStateOf("") }
+    var fromAccountId by rememberSaveable { mutableStateOf(activeAccounts.firstOrNull()?.id ?: 1L) }
+    var toAccountId by rememberSaveable { mutableStateOf(activeAccounts.getOrNull(1)?.id ?: activeAccounts.firstOrNull()?.id ?: 1L) }
+    var selectedDate by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
+    var accountsChosen by rememberSaveable { mutableStateOf(false) }
+
+    // New transfer: accounts may still be loading on first composition, so pick sensible
+    // defaults once they arrive. Edit: load both legs once and prefill the form.
+    LaunchedEffect(transferId, activeAccounts.isNotEmpty()) {
+        if (accountsChosen) return@LaunchedEffect
+        if (transferId != null) {
+            val legs = viewModel.getTransferLegs(transferId)
+            val from = legs.firstOrNull { it.type == "EXPENSE" } ?: return@LaunchedEffect
+            val to = legs.firstOrNull { it.type == "INCOME" }
+            amount = BigDecimal(from.amount.toString()).stripTrailingZeros().toPlainString()
+            description = from.description
+            selectedDate = from.date
+            fromAccountId = from.accountId
+            toAccountId = to?.accountId ?: from.accountId
+            accountsChosen = true
+        } else if (activeAccounts.isNotEmpty()) {
+            fromAccountId = activeAccounts.first().id
+            toAccountId = activeAccounts.getOrNull(1)?.id ?: activeAccounts.first().id
+            accountsChosen = true
+        }
+    }
 
     val formatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
 
@@ -170,11 +195,9 @@ fun AddTransferScreen(
 
             Button(
                 onClick = {
-                    val parsedAmount = amount.toDoubleOrNull() ?: 0.0
+                    val parsedAmount = MoneyUtils.parseAmount(amount) ?: 0.0
                     if (parsedAmount > 0 && fromAccountId != toAccountId) {
-                        if (transferId != null) {
-                            viewModel.deleteTransfer(transferId)
-                        }
+                        // saveTransfer replaces the existing legs atomically when editing.
                         viewModel.saveTransfer(
                             fromAccountId = fromAccountId,
                             toAccountId = toAccountId,

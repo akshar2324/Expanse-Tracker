@@ -1,5 +1,6 @@
 package com.akshar.ui.screens
 
+import com.akshar.utils.launchFilePicker
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Toast
@@ -577,7 +578,7 @@ fun ToolsScreen(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Button(
                                     onClick = {
-                                        dbFilePickerLauncher.launch("application/octet-stream")
+                                        dbFilePickerLauncher.launchFilePicker(context, "application/octet-stream")
                                     },
                                     modifier = Modifier.fillMaxWidth().height(50.dp),
                                     colors = ButtonDefaults.buttonColors(
@@ -1320,7 +1321,7 @@ fun AddRecurringDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val amt = com.akshar.utils.MathUtils.evaluateMathExpression(amountStr) ?: 0.0
+                    val amt = com.akshar.utils.MoneyUtils.parseAmount(amountStr) ?: 0.0
                     if (amt > 0 && description.isNotEmpty()) {
                         onConfirm(
                             amt,
@@ -1435,7 +1436,7 @@ fun AddDebtDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val amtVal = com.akshar.utils.MathUtils.evaluateMathExpression(amountText)
+                    val amtVal = com.akshar.utils.MoneyUtils.parseAmount(amountText)
                     if (personName.isBlank()) {
                         Toast.makeText(context, "Please enter a name", Toast.LENGTH_SHORT).show()
                     } else if (amtVal == null || amtVal <= 0.0) {

@@ -2,11 +2,13 @@ package com.akshar.utils
 
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
 import java.io.InputStream
+import java.text.DecimalFormat
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.Date
 import java.text.ParseException
+import java.text.ParsePosition
 import java.security.MessageDigest
 
 data class ParsedCsvRow(
@@ -35,6 +37,36 @@ object CsvParser {
     private fun sha256(string: String): String {
         val bytes = MessageDigest.getInstance("SHA-256").digest(string.toByteArray())
         return bytes.joinToString("") { "%02x".format(it) }
+    }
+
+    /**
+     * Parses [text] with [format] and requires the whole string to be consumed. NumberFormat
+     * otherwise stops at the first character it does not understand, so "12,50" in an en_US
+     * profile silently became 1250 and "1.234,56" became 1.234.
+     */
+    internal fun parseNumberStrict(format: NumberFormat, text: String): Double {
+        val normalized = text.trim().let { if (it.startsWith("+")) it.substring(1) else it }
+        // DecimalFormat accepts grouping separators anywhere ("12,50" -> 1250), so require
+        // proper groups of three digits whenever the locale's grouping separator appears.
+        val symbols = (format as? DecimalFormat)?.decimalFormatSymbols
+        if (symbols != null) {
+            val group = Regex.escape(symbols.groupingSeparator.toString())
+            val decimal = Regex.escape(symbols.decimalSeparator.toString())
+            val digits = normalized.removePrefix("-")
+            if (digits.contains(symbols.groupingSeparator) &&
+                !Regex("^\\d{1,3}($group\\d{3})+($decimal\\d+)?$").matches(digits)
+            ) {
+                throw ParseException("Invalid amount format: $text", 0)
+            }
+        }
+        val position = ParsePosition(0)
+        val number = format.parse(normalized, position)
+        if (number == null || position.index != normalized.length) {
+            throw ParseException("Invalid amount format: $text", position.errorIndex.coerceAtLeast(0))
+        }
+        val value = number.toDouble()
+        if (!value.isFinite()) throw ParseException("Invalid amount format: $text", 0)
+        return value
     }
 
     fun parse(
@@ -74,8 +106,12 @@ object CsvParser {
         val parsedRows = mutableListOf<ParsedCsvRow>()
         val errors = mutableListOf<CsvParseError>()
 
-        val localeParts = localeString.split("_", "-")
-        val locale = if (localeParts.size == 2) Locale(localeParts[0], localeParts[1]) else Locale.getDefault()
+        val localeParts = localeString.split("_", "-").filter { it.isNotBlank() }
+        val locale = when (localeParts.size) {
+            0 -> Locale.getDefault()
+            1 -> Locale(localeParts[0])
+            else -> Locale(localeParts[0], localeParts[1])
+        }
         val numberFormat = NumberFormat.getInstance(locale)
         val dateFormat = SimpleDateFormat(dateFormatString, Locale.getDefault())
         dateFormat.isLenient = false
@@ -103,7 +139,7 @@ object CsvParser {
                 if (amountColIdx in row.indices) {
                     val amountStr = row[amountColIdx].trim().replace(Regex("[^\\d.,+-]"), "")
                     if (amountStr.isEmpty()) throw IllegalArgumentException("Empty amount")
-                    val parsedNum = numberFormat.parse(amountStr)?.toDouble() ?: throw ParseException("Invalid amount format", 0)
+                    val parsedNum = parseNumberStrict(numberFormat, amountStr)
                     finalAmount = parsedNum
                     if (invertAmountSigns) finalAmount = -finalAmount
 
@@ -117,8 +153,8 @@ object CsvParser {
                     val debitStr = if (debitColIdx in row.indices) row[debitColIdx].trim().replace(Regex("[^\\d.,]"), "") else ""
                     val creditStr = if (creditColIdx in row.indices) row[creditColIdx].trim().replace(Regex("[^\\d.,]"), "") else ""
 
-                    val debitAmt = if (debitStr.isNotEmpty()) numberFormat.parse(debitStr)?.toDouble() ?: 0.0 else 0.0
-                    val creditAmt = if (creditStr.isNotEmpty()) numberFormat.parse(creditStr)?.toDouble() ?: 0.0 else 0.0
+                    val debitAmt = if (debitStr.isNotEmpty()) parseNumberStrict(numberFormat, debitStr) else 0.0
+                    val creditAmt = if (creditStr.isNotEmpty()) parseNumberStrict(numberFormat, creditStr) else 0.0
 
                     if (debitAmt > 0) {
                         finalAmount = debitAmt
@@ -133,6 +169,7 @@ object CsvParser {
                      throw IllegalArgumentException("Amount column(s) not specified correctly")
                 }
 
+                finalAmount = MoneyUtils.roundMoney(finalAmount)
                 if (finalAmount == 0.0) {
                     throw IllegalArgumentException("Amount cannot be zero")
                 }
