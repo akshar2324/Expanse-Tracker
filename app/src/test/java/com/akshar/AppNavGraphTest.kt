@@ -95,6 +95,24 @@ class AppNavGraphTest {
     }
 
     @Test
+    fun `deleting a transfer requires confirmation and cancel preserves both legs`() {
+        val from = Transaction(amount = 25.0, type = "EXPENSE", category = "Transfer", description = "Move", date = 1L, paymentMethod = "Transfer", accountId = 1L, transferId = "audit-transfer")
+        runBlocking {
+            app.repository.insertAccount(com.akshar.data.model.Account(id = 2L, name = "Bank", type = "Bank"))
+            app.repository.saveTransfer(from, from.copy(type = "INCOME", accountId = 2L))
+        }
+        composeTestRule.runOnUiThread { navController.navigate("addTransfer/audit-transfer") }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Delete transfer").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Delete transfer?").assertExists()
+        composeTestRule.onNodeWithText("Cancel").performClick()
+        assertEquals(2, runBlocking { app.repository.getTransferLegs("audit-transfer").size })
+        composeTestRule.onNodeWithText("Delete transfer").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Delete").performClick()
+        composeTestRule.waitUntil(5_000) { runBlocking { app.repository.getTransferLegs("audit-transfer").isEmpty() } }
+    }
+
+    @Test
     fun `bank sms is read, reviewed and saved as an expense`() {
         composeTestRule.runOnUiThread { navController.navigate(SmsImportRoutes.IMPORT) }
         composeTestRule.waitForIdle()
