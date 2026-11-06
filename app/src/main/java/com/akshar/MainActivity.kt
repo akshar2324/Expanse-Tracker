@@ -182,18 +182,26 @@ fun AppNavGraph(
         composable("dashboard") {
             DashboardScreen(
                 viewModel = viewModel,
-                onNavigateToAddTransaction = { navController.navigate("addTransaction") },
+                onNavigateToAddTransaction = { navController.navigate(TransactionRoutes.ADD) },
                 onNavigateToHistory = { navController.navigate("history") },
                 navController = navController
             )
         }
         composable(
-            "add_transaction",
+            TransactionRoutes.ADD,
             deepLinks = listOf(navDeepLink { uriPattern = "akspend://add_transaction" })
         ) {
             AddTransactionScreen(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(TransactionRoutes.EDIT) { backStackEntry ->
+            val transactionId = backStackEntry.arguments?.getString("transactionId")?.toLongOrNull()
+            AddTransactionScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() },
+                transactionId = transactionId
             )
         }
                 composable("accounts") {
@@ -259,7 +267,7 @@ fun AppScaffold(viewModel: FinanceViewModel) {
     }
 
     // Hide bars when entering input form to allow full keyboard space
-    val showNavigation = currentRoute != "add_transaction"
+    val showNavigation = currentRoute != TransactionRoutes.ADD && currentRoute != TransactionRoutes.EDIT
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val isWide = maxWidth >= 600.dp
@@ -380,6 +388,14 @@ fun AppScaffold(viewModel: FinanceViewModel) {
             }
         }
     }
+}
+
+// Routes for the add/edit transaction screen. ADD also backs the widget deep link.
+object TransactionRoutes {
+    const val ADD = "add_transaction"
+    const val EDIT = "add_transaction/{transactionId}"
+
+    fun edit(transactionId: Long) = "add_transaction/$transactionId"
 }
 
 data class NavigationTabItem(
