@@ -164,10 +164,11 @@ class CsvImportViewModel(
                     _parseErrors.value = result.errors
 
                     val hashes = result.rows.map { it.hash }
-                    val existingHashes = repository.getExistingCsvHashes(hashes).toSet()
+                    val seenHashes = repository.getExistingCsvHashes(hashes).toMutableSet()
 
                     val validationRows = result.rows.map { row ->
-                        val isDuplicate = existingHashes.contains(row.hash)
+                        // Include earlier rows in this file, not just rows already in Room.
+                        val isDuplicate = !seenHashes.add(row.hash)
                         ValidationRow(parsedRow = row, isDuplicate = isDuplicate, skip = isDuplicate)
                     }
 
