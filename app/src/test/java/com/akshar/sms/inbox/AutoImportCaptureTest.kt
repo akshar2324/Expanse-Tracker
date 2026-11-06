@@ -32,6 +32,14 @@ class AutoImportCaptureTest {
     }
 
     @Test
+    fun bankTemplateFromPersonalContact_isNeverQueued() {
+        for (sender in listOf("Mom", "+919876543210", "", "Lunch group")) {
+            assertNull("Bank wording does not authenticate a sender: $sender", capture(messages, sender, hdfcSms))
+        }
+        assertNull(capture(messages, null, hdfcSms))
+    }
+
+    @Test
     fun unwatchedApp_isIgnored() {
         assertNull(capture("com.whatsapp", "JD-HDFCBK-S", hdfcSms))
         assertFalse(AutoImportCapture.isWatched("com.example.game"))

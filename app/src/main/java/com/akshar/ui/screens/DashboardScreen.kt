@@ -95,17 +95,24 @@ fun DashboardScreen(
         }.timeInMillis
     }
 
-    val todayIncome = transactions.filter { it.type == "INCOME" && it.date >= startOfToday }.sumOf { it.amount }
-    val todayExpense = transactions.filter { it.type == "EXPENSE" && it.date >= startOfToday }.sumOf { it.amount }
+    val startOfTomorrow = remember(startOfToday) {
+        Calendar.getInstance().apply { timeInMillis = startOfToday; add(Calendar.DAY_OF_YEAR, 1) }.timeInMillis
+    }
+    val startOfNextMonth = remember(startOfMonth) {
+        Calendar.getInstance().apply { timeInMillis = startOfMonth; add(Calendar.MONTH, 1) }.timeInMillis
+    }
 
-    val monthIncome = transactions.filter { it.type == "INCOME" && it.date >= startOfMonth }.sumOf { it.amount }
-    val monthExpense = transactions.filter { it.type == "EXPENSE" && it.date >= startOfMonth }.sumOf { it.amount }
+    val todayIncome = transactions.filter { it.type == "INCOME" && it.date >= startOfToday && it.date < startOfTomorrow }.sumOf { it.amount }
+    val todayExpense = transactions.filter { it.type == "EXPENSE" && it.date >= startOfToday && it.date < startOfTomorrow }.sumOf { it.amount }
+
+    val monthIncome = transactions.filter { it.type == "INCOME" && it.date >= startOfMonth && it.date < startOfNextMonth }.sumOf { it.amount }
+    val monthExpense = transactions.filter { it.type == "EXPENSE" && it.date >= startOfMonth && it.date < startOfNextMonth }.sumOf { it.amount }
 
     // --- Quick Stats Calculations ---
     val recentTxs = transactions.take(10)
 
     // Average spending (daily average in the current month)
-    val expensesThisMonth = transactions.filter { it.type == "EXPENSE" && it.date >= startOfMonth }
+    val expensesThisMonth = transactions.filter { it.type == "EXPENSE" && it.date >= startOfMonth && it.date < startOfNextMonth }
     val daysInMonthElapsed = remember {
         val todayDay = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
         todayDay.coerceAtLeast(1)

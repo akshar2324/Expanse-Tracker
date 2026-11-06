@@ -37,6 +37,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.akshar.data.model.Transaction
 import com.akshar.ui.viewmodel.FinanceViewModel
+import com.akshar.utils.CategoryMemory
+import com.akshar.utils.DuplicateCandidate
+import com.akshar.utils.DuplicateMatch
+import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.text.SimpleDateFormat
 import java.util.*
@@ -61,6 +65,8 @@ fun AddTransactionScreen(
     var dateSelected by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
     var paymentMethod by rememberSaveable { mutableStateOf("Cash") }
     var prefilledFromTransaction by rememberSaveable { mutableStateOf(false) }
+    // Once the user taps a category themselves, learned suggestions stop changing it.
+    var categoryTouched by rememberSaveable { mutableStateOf(false) }
 
     val expenseCategories = remember {
         listOf(
@@ -122,6 +128,21 @@ fun AddTransactionScreen(
         prefill.paymentMethod?.let { paymentMethod = it }
     }
 
+    // Learned merchant -> category mappings, used to preselect the category on new entries.
+    var memory by remember { mutableStateOf(CategoryMemory.EMPTY) }
+    var categoryFromMemory by remember { mutableStateOf(false) }
+    LaunchedEffect(transactionId) {
+        if (transactionId == null) memory = runCatching { viewModel.categoryMemory() }.getOrDefault(CategoryMemory.EMPTY)
+    }
+    LaunchedEffect(description, isExpense, memory) {
+        if (transactionId != null || categoryTouched) return@LaunchedEffect
+        // A bank message draft already chose its category (learned first); keep it until the text changes.
+        if (prefill != null && description == prefill.description) return@LaunchedEffect
+        val learned = memory.lookup(description, isExpense)?.takeIf { it in currentCategories }
+        if (learned != null) categorySelected = learned
+        categoryFromMemory = learned != null
+    }
+
     val paymentMethods by viewModel.activePaymentMethods.collectAsStateWithLifecycle()
     val currencySymbol = viewModel.getCurrencySymbol()
 
@@ -147,22 +168,99 @@ fun AddTransactionScreen(
         if (transactionId == null && prefill == null) runCatching { amountFocus.requestFocus() }
     }
 
+    val scope = rememberCoroutineScope()
+    var checkingDuplicate by remember { mutableStateOf(false) }
+    var duplicate by remember { mutableStateOf<DuplicateMatch?>(null) }
+    var commitAfterCheck by remember { mutableStateOf(false) }
+
+    fun commit(amt: Double) {
+        viewModel.addTransaction(
+            amount = amt,
+            type = if (isExpense) "EXPENSE" else "INCOME",
+            category = categorySelected,
+            description = description,
+            date = dateSelected,
+            paymentMethod = paymentMethod,
+            existing = editingTransaction,
+            referenceKey = if (editingTransaction == null) prefill?.referenceKey else null
+        )
+        onSaved()
+    }
+
+    fun parsedAmount(): Double? = com.akshar.utils.MoneyUtils.parseAmount(amountStr)?.takeIf { it > 0 }
+
     fun save() {
-        val amt = com.akshar.utils.MoneyUtils.parseAmount(amountStr)
-        if (amt == null || amt <= 0) {
+        val amt = parsedAmount()
+        if (amt == null) {
             amountError = "Please enter a valid amount greater than zero."
-        } else {
-            viewModel.addTransaction(
-                amount = amt,
-                type = if (isExpense) "EXPENSE" else "INCOME",
-                category = categorySelected,
-                description = description,
-                date = dateSelected,
-                paymentMethod = paymentMethod,
-                existing = editingTransaction
-            )
-            onSaved()
+            return
         }
+        // Only imported entries are checked; hand-typed ones never nag.
+        if (prefill == null || editingTransaction != null) {
+            commit(amt)
+            return
+        }
+        if (checkingDuplicate) return
+        checkingDuplicate = true
+        scope.launch {
+            val candidate = DuplicateCandidate(
+                amount = com.akshar.utils.MoneyUtils.roundMoney(amt),
+                type = if (isExpense) "EXPENSE" else "INCOME",
+                date = dateSelected,
+                referenceKey = prefill.referenceKey
+            )
+            val match = runCatching { viewModel.findLikelyDuplicate(candidate) }.getOrNull()
+            // Only state is written here: this may resume off the main thread, and saving navigates.
+            if (match == null) commitAfterCheck = true else duplicate = match
+            checkingDuplicate = false
+        }
+    }
+
+    LaunchedEffect(commitAfterCheck) {
+        if (!commitAfterCheck) return@LaunchedEffect
+        commitAfterCheck = false
+        parsedAmount()?.let { commit(it) }
+    }
+
+    duplicate?.let { match ->
+        val existing = match.existing
+        AlertDialog(
+            onDismissRequest = { duplicate = null },
+            title = { Text(if (match.sameReference) "Already saved" else "Possible duplicate") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    Text(
+                        if (match.sameReference) {
+                            "A transaction with this bank reference number is already in your history."
+                        } else {
+                            "You already have ${if (existing.type == "EXPENSE") "an expense" else "an income"} " +
+                                "of this amount on the same day."
+                        }
+                    )
+                    GlassCard(contentPadding = PaddingValues(Spacing.md), modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            existing.description.ifBlank { existing.category },
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Text(
+                            "${viewModel.formatCurrencyValue(existing.amount)} · ${dateFormatter.format(Date(existing.date))} · ${existing.category}",
+                            style = MaterialTheme.typography.bodySmall.money(),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text("Save this one too only if it's a separate payment.")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    duplicate = null
+                    parsedAmount()?.let { commit(it) }
+                }) { Text("Save anyway") }
+            },
+            dismissButton = {
+                TextButton(onClick = { duplicate = null }) { Text("Cancel") }
+            }
+        )
     }
 
     Column(
@@ -294,7 +392,11 @@ fun AddTransactionScreen(
                                     .weight(1f)
                                     .height(Spacing.touchTarget)
                                     .glassPanel(PillShape, glass, chipColor)
-                                    .selectable(selected = selected, role = Role.RadioButton) { categorySelected = category },
+                                    .selectable(selected = selected, role = Role.RadioButton) {
+                                        categorySelected = category
+                                        categoryTouched = true
+                                        categoryFromMemory = false
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -324,6 +426,9 @@ fun AddTransactionScreen(
                 onValueChange = { description = it },
                 label = { Text("Description") },
                 placeholder = { Text("e.g. Lunch, salary, bills, fuel...") },
+                supportingText = if (categoryFromMemory) {
+                    { Text("Category set from what you picked for this before.") }
+                } else null,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -447,6 +552,7 @@ fun AddTransactionScreen(
             }
             Button(
                 onClick = { save() },
+                enabled = !checkingDuplicate,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),

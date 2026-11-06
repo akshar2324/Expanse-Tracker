@@ -95,6 +95,24 @@ class AppNavGraphTest {
     }
 
     @Test
+    fun `deleting a transfer requires confirmation and cancel preserves both legs`() {
+        val from = Transaction(amount = 25.0, type = "EXPENSE", category = "Transfer", description = "Move", date = 1L, paymentMethod = "Transfer", accountId = 1L, transferId = "audit-transfer")
+        runBlocking {
+            app.repository.insertAccount(com.akshar.data.model.Account(id = 2L, name = "Bank", type = "Bank"))
+            app.repository.saveTransfer(from, from.copy(type = "INCOME", accountId = 2L))
+        }
+        composeTestRule.runOnUiThread { navController.navigate("addTransfer/audit-transfer") }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Delete transfer").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Delete transfer?").assertExists()
+        composeTestRule.onNodeWithText("Cancel").performClick()
+        assertEquals(2, runBlocking { app.repository.getTransferLegs("audit-transfer").size })
+        composeTestRule.onNodeWithText("Delete transfer").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Delete").performClick()
+        composeTestRule.waitUntil(5_000) { runBlocking { app.repository.getTransferLegs("audit-transfer").isEmpty() } }
+    }
+
+    @Test
     fun `bank sms is read, reviewed and saved as an expense`() {
         composeTestRule.runOnUiThread { navController.navigate(SmsImportRoutes.IMPORT) }
         composeTestRule.waitForIdle()
@@ -126,6 +144,77 @@ class AppNavGraphTest {
         composeTestRule.waitForIdle()
         assertEquals(SmsImportRoutes.IMPORT, navController.currentDestination?.route)
         composeTestRule.onNodeWithText("Saved. Paste or share the next message to keep going.").assertExists()
+    }
+
+    private fun readAndReview(message: String) {
+        composeTestRule.runOnUiThread { navController.navigate(SmsImportRoutes.IMPORT) }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Bank message").performTextInput(message)
+        composeTestRule.onNodeWithText("Read message").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodes(hasText("Review and save")).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Review and save").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+    }
+
+    @Test
+    fun `saving the same bank sms twice warns, and save anyway adds it`() {
+        val sms = "Sent Rs.232.00 From HDFC Bank A/C *4821 To KUMAR STORE On 14/10/26 Ref 629100004321"
+        readAndReview(sms)
+        composeTestRule.onNodeWithText("Save expense").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) { runBlocking { app.repository.allTransactions.first().size == 1 } }
+        val first = runBlocking { app.repository.allTransactions.first() }.single()
+        assertEquals(com.akshar.utils.DuplicateCheck.referenceKey("EXPENSE", "629100004321"), first.originalCsvRowHash)
+
+        // Same message again: warned, and Cancel keeps the form without saving.
+        composeTestRule.waitForIdle()
+        readAndReview(sms)
+        composeTestRule.onNodeWithText("Save expense").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodes(hasText("Already saved")).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Cancel").performClick()
+        composeTestRule.waitForIdle()
+        assertEquals(SmsImportRoutes.REVIEW, navController.currentDestination?.route)
+        assertEquals(1, runBlocking { app.repository.allTransactions.first().size })
+
+        composeTestRule.onNodeWithText("Save expense").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodes(hasText("Save anyway")).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Save anyway").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) { runBlocking { app.repository.allTransactions.first().size == 2 } }
+    }
+
+    @Test
+    fun `hand-entered duplicates save without a warning`() {
+        val today = System.currentTimeMillis()
+        runBlocking {
+            app.repository.insertTransaction(
+                Transaction(amount = 50.0, type = "EXPENSE", category = "Food", description = "Tea", date = today, paymentMethod = "Cash")
+            )
+        }
+        composeTestRule.runOnUiThread { navController.navigate(TransactionRoutes.ADD) }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Amount").performTextInput("50")
+        composeTestRule.onNodeWithText("Save expense").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) { runBlocking { app.repository.allTransactions.first().size == 2 } }
+    }
+
+    @Test
+    fun `manual add preselects the category learned for a merchant`() {
+        runBlocking { app.repository.learnCategory("Blue Tokai", "EXPENSE", "Entertainment") }
+        composeTestRule.runOnUiThread { navController.navigate(TransactionRoutes.ADD) }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Amount").performTextInput("180")
+        composeTestRule.onNodeWithText("Description").performScrollTo().performTextInput("BLUE TOKAI")
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodes(hasText("Category set from what you picked for this before.")).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Save expense").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) { runBlocking { app.repository.allTransactions.first().isNotEmpty() } }
+        assertEquals("Entertainment", runBlocking { app.repository.allTransactions.first() }.single().category)
     }
 
     @Test

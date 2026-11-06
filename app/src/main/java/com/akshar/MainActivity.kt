@@ -327,11 +327,12 @@ fun AppNavGraph(
             val activity = androidx.activity.compose.LocalActivity.current
             val sharedText = androidx.compose.runtime.saveable.rememberSaveable {
                 activity?.intent?.takeIf { it.action == android.content.Intent.ACTION_SEND }
-                    ?.getStringExtra(android.content.Intent.EXTRA_TEXT).orEmpty()
+                    ?.getCharSequenceExtra(android.content.Intent.EXTRA_TEXT)?.toString().orEmpty()
             }.ifBlank { null }
             val savedOne by entry.savedStateHandle.getStateFlow(SmsImportRoutes.SAVED_KEY, false).collectAsStateWithLifecycle()
             SmsImportScreen(
                 currencySymbol = viewModel.getCurrencySymbol(),
+                loadCategoryMemory = viewModel::categoryMemory,
                 sharedText = sharedText,
                 onBack = { navController.popBackStack() },
                 onReview = { draft -> navController.navigate(SmsImportRoutes.review(draft)) },
@@ -355,6 +356,9 @@ fun AppNavGraph(
                     navController.popBackStack()
                 }
             )
+        }
+        composable(LearnedCategoriesRoute) {
+            LearnedCategoriesScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable(SmsImportRoutes.INBOX) { entry ->
             val inboxViewModel = viewModel<com.akshar.sms.inbox.ImportInboxViewModel>()
@@ -605,6 +609,9 @@ private fun GlassNavigationRail(
     }
 }
 
+/** More → Learned categories: view and clear merchant → category mappings. */
+const val LearnedCategoriesRoute = "learned_categories"
+
 // Routes for the add/edit transaction screen. ADD also backs the widget deep link.
 object TransactionRoutes {
     const val ADD = "add_transaction"
@@ -620,7 +627,7 @@ object SmsImportRoutes {
     const val SAVED_KEY = "sms_import_saved"
     const val REVIEWED_PENDING_KEY = "import_inbox_reviewed"
     const val REVIEW = "sms_review?amount={amount}&expense={expense}&desc={desc}&date={date}" +
-        "&category={category}&method={method}&confident={confident}&pending={pending}"
+        "&category={category}&method={method}&confident={confident}&ref={ref}&pending={pending}"
 
     val reviewArguments = listOf(
         androidx.navigation.navArgument("amount") { type = androidx.navigation.NavType.StringType; defaultValue = "" },
@@ -630,6 +637,7 @@ object SmsImportRoutes {
         androidx.navigation.navArgument("category") { type = androidx.navigation.NavType.StringType; defaultValue = "Other" },
         androidx.navigation.navArgument("method") { type = androidx.navigation.NavType.StringType; nullable = true; defaultValue = null },
         androidx.navigation.navArgument("confident") { type = androidx.navigation.NavType.BoolType; defaultValue = true },
+        androidx.navigation.navArgument("ref") { type = androidx.navigation.NavType.StringType; nullable = true; defaultValue = null },
         androidx.navigation.navArgument("pending") { type = androidx.navigation.NavType.LongType; defaultValue = 0L },
     )
 
@@ -643,6 +651,7 @@ object SmsImportRoutes {
             append("&category=").append(enc(draft.category))
             draft.paymentMethod?.let { append("&method=").append(enc(it)) }
             append("&confident=").append(draft.confident)
+            draft.referenceKey?.let { append("&ref=").append(enc(it)) }
             if (pendingId > 0) append("&pending=").append(pendingId)
         }
     }
@@ -657,6 +666,7 @@ object SmsImportRoutes {
             category = args.getString("category") ?: "Other",
             paymentMethod = args.getString("method"),
             confident = args.getBoolean("confident", true),
+            referenceKey = args.getString("ref"),
         )
     }
 }
