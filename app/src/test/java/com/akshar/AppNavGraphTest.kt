@@ -5,7 +5,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.core.app.ApplicationProvider
@@ -80,7 +80,7 @@ class AppNavGraphTest {
 
         // Switching to income resets "Food" to the first income category
         composeTestRule.onNodeWithText("Income").performClick()
-        composeTestRule.onNodeWithText("Save income").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Save income").assertIsDisplayed().performClick() // pinned: visible without scrolling
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             runBlocking { app.repository.getTransactionById(42L)?.type == "INCOME" }
         }

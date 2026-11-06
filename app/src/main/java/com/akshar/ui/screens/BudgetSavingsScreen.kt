@@ -42,6 +42,8 @@ fun BudgetSavingsScreen(
     viewModel: FinanceViewModel,
     modifier: Modifier = Modifier
 ) {
+    val confirmDelete = rememberConfirmDeleteState()
+    ConfirmDeleteDialog(confirmDelete)
     val budgets by viewModel.allBudgets.collectAsStateWithLifecycle()
     val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
     val transactions = allTransactions.filter { it.transferId == null }
@@ -118,7 +120,7 @@ fun BudgetSavingsScreen(
                         BudgetRow(
                             budget = budget,
                             spent = budgetSpent(budget),
-                            onDelete = { viewModel.deleteBudgetById(budget.id) },
+                            onDelete = { confirmDelete.request("Delete ${budget.category} budget?") { viewModel.deleteBudgetById(budget.id) } },
                             currencySymbol = currencySymbol
                         )
                     }
@@ -136,7 +138,7 @@ fun BudgetSavingsScreen(
                         SavingsGoalRow(
                             goal = goal,
                             onAddSavings = { showAddSavingsFundsDialog = goal },
-                            onDelete = { viewModel.deleteSavingsGoalById(goal.id) },
+                            onDelete = { confirmDelete.request("Delete \"${goal.name}\" goal?", "Its saved progress will be removed. This can't be undone.") { viewModel.deleteSavingsGoalById(goal.id) } },
                             currencySymbol = currencySymbol
                         )
                     }

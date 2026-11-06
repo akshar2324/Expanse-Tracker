@@ -1,5 +1,12 @@
 package com.akshar.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -50,6 +57,8 @@ fun DashboardScreen(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
+    val confirmDelete = rememberConfirmDeleteState()
+    ConfirmDeleteDialog(confirmDelete)
     val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
     val transactions = allTransactions.filter { it.transferId == null }
     val budgets by viewModel.allBudgets.collectAsStateWithLifecycle()
@@ -117,8 +126,14 @@ fun DashboardScreen(
     val entrance = rememberEntranceState(itemCount = 7)
     val bottomInset = LocalFloatingBarInset.current
 
+    val listState = rememberLazyListState()
+    // The hero card has its own Add button; the floating one appears once that card scrolls away,
+    // so it never covers content on first load.
+    val showFab by remember { derivedStateOf { listState.firstVisibleItemIndex > 1 } }
+
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 start = Spacing.gutter,
@@ -142,8 +157,8 @@ fun DashboardScreen(
                     monthExpense = monthExpense,
                     totalBudgetLimit = totalBudgetLimit,
                     currencySymbol = currencySymbol,
+                    onAddTransaction = onNavigateToAddTransaction,
                     onAddTransfer = { navController.navigate("addTransfer") },
-                    onOpenAccounts = { navController.navigate("accounts") },
                     modifier = Modifier.entrance(entrance, 1)
                 )
             }
@@ -193,25 +208,31 @@ fun DashboardScreen(
                 currencySymbol = currencySymbol,
                 onNavigateToHistory = onNavigateToHistory,
                 navController = navController,
-                onDelete = { tx -> viewModel.deleteTransaction(tx) },
+                onDelete = { tx -> confirmDelete.request("Delete this transaction?") { viewModel.deleteTransaction(tx) } },
                 entrance = entrance
             )
         }
 
-        // Primary action floats just above the tab bar, within thumb reach.
-        ExtendedFloatingActionButton(
-            onClick = onNavigateToAddTransaction,
-            icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
-            text = { Text("Add", style = MaterialTheme.typography.labelLarge) },
-            shape = PillShape,
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp, pressedElevation = 2.dp),
+        // Once scrolled, the primary action floats just above the tab bar, within thumb reach.
+        AnimatedVisibility(
+            visible = showFab,
+            enter = fadeIn(motionSpec()) + scaleIn(motionSpec(), initialScale = 0.85f),
+            exit = fadeOut(motionSpec()) + scaleOut(motionSpec(), targetScale = 0.85f),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = Spacing.gutter, bottom = bottomInset + Spacing.xs)
-                .semantics { contentDescription = "Add transaction" }
-        )
+        ) {
+            FloatingActionButton(
+                onClick = onNavigateToAddTransaction,
+                shape = PillShape,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp, pressedElevation = 2.dp),
+                modifier = Modifier.semantics { contentDescription = "Add transaction" }
+            ) {
+                Icon(Icons.Rounded.Add, contentDescription = null)
+            }
+        }
     }
 }
 
@@ -267,8 +288,8 @@ private fun BalanceHero(
     monthExpense: Double,
     totalBudgetLimit: Double,
     currencySymbol: String,
+    onAddTransaction: () -> Unit,
     onAddTransfer: () -> Unit,
-    onOpenAccounts: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val finance = AkSpendTheme.finance
@@ -337,6 +358,23 @@ private fun BalanceHero(
         }
         Spacer(modifier = Modifier.height(Spacing.lg))
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            // Adding a transaction is the main job of the app, so it gets the filled button.
+            Button(
+                onClick = onAddTransaction,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = Spacing.touchTarget)
+                    .semantics { contentDescription = "Add transaction" },
+                shape = PillShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(Spacing.xs))
+                Text("Add", style = MaterialTheme.typography.labelLarge)
+            }
             FilledTonalButton(
                 onClick = onAddTransfer,
                 modifier = Modifier.weight(1f).heightIn(min = Spacing.touchTarget),
@@ -349,19 +387,6 @@ private fun BalanceHero(
                 Icon(Icons.Rounded.SwapHoriz, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(Spacing.xs))
                 Text("Transfer", style = MaterialTheme.typography.labelLarge)
-            }
-            FilledTonalButton(
-                onClick = onOpenAccounts,
-                modifier = Modifier.weight(1f).heightIn(min = Spacing.touchTarget),
-                shape = PillShape,
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = if (AkSpendTheme.isDark) 0.18f else 0.10f),
-                    contentColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Icon(Icons.Rounded.AccountBalance, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(Spacing.xs))
-                Text("Accounts", style = MaterialTheme.typography.labelLarge)
             }
         }
     }

@@ -29,6 +29,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.akshar.data.model.Transaction
@@ -117,19 +120,44 @@ fun AddTransactionScreen(
     val onAccent = MaterialTheme.colorScheme.surface
     val glass = AkSpendTheme.glass
 
+    val amountFocus = remember { FocusRequester() }
+    // New entries start with the keyboard on the amount: it's the one field every entry needs.
+    LaunchedEffect(Unit) {
+        if (transactionId == null) runCatching { amountFocus.requestFocus() }
+    }
+
+    fun save() {
+        val amt = com.akshar.utils.MathUtils.evaluateMathExpression(amountStr)
+        if (amt == null || amt <= 0) {
+            amountError = "Please enter a valid amount greater than zero."
+        } else {
+            viewModel.addTransaction(
+                amount = amt,
+                type = if (isExpense) "EXPENSE" else "INCOME",
+                category = categorySelected,
+                description = description,
+                date = dateSelected,
+                paymentMethod = paymentMethod,
+                existing = editingTransaction
+            )
+            onNavigateBack()
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .imePadding()
             .navigationBarsPadding()
     ) {
         ScreenHeader(title = if (transactionId != null) "Edit transaction" else "Add transaction", onBack = onNavigateBack)
         Column(
             modifier = Modifier
+                .weight(1f)
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = Spacing.gutter)
-                .padding(bottom = Spacing.xxl),
+                .padding(bottom = Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
 
@@ -185,19 +213,31 @@ fun AddTransactionScreen(
                     amountStr = it
                     amountError = null
                 },
-                label = { Text("Amount ($currencySymbol)") },
-                placeholder = { Text("0.00") },
+                label = { Text("Amount") },
+                placeholder = { Text("0", style = MaterialTheme.typography.displaySmall.money()) },
+                leadingIcon = {
+                    Text(
+                        text = currencySymbol,
+                        style = MaterialTheme.typography.headlineMedium.money(),
+                        color = accent,
+                        modifier = Modifier.padding(start = Spacing.md)
+                    )
+                },
                 isError = amountError != null,
                 supportingText = {
                     if (amountError != null) {
                         Text(text = amountError!!, color = MaterialTheme.colorScheme.error)
+                    } else {
+                        Text("Tip: you can type sums like 120+45")
                     }
                 },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
                 singleLine = true,
-                textStyle = MaterialTheme.typography.headlineMedium.money(),
+                textStyle = MaterialTheme.typography.displaySmall.money().copy(color = accent),
                 shape = MaterialTheme.shapes.large,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(amountFocus)
             )
 
             // --- Main Category Selector ---
@@ -357,27 +397,16 @@ fun AddTransactionScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+        }
 
-            // --- Save Button ---
+        // --- Save button: pinned under the form so it's always reachable, even with the keyboard up ---
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.gutter, vertical = Spacing.md)
+        ) {
             Button(
-                onClick = {
-                    val amt = com.akshar.utils.MathUtils.evaluateMathExpression(amountStr)
-                    if (amt == null || amt <= 0) {
-                        amountError = "Please enter a valid amount greater than zero."
-                    } else {
-                        viewModel.addTransaction(
-                            amount = amt,
-                            type = if (isExpense) "EXPENSE" else "INCOME",
-                            category = categorySelected,
-                            description = description,
-                            date = dateSelected,
-                            paymentMethod = paymentMethod,
-                            existing = editingTransaction
-                        )
-                        onNavigateBack()
-                    }
-                },
+                onClick = { save() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -395,3 +424,4 @@ fun AddTransactionScreen(
         }
     }
 }
+
