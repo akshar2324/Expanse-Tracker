@@ -44,7 +44,7 @@ object CsvParser {
      * otherwise stops at the first character it does not understand, so "12,50" in an en_US
      * profile silently became 1250 and "1.234,56" became 1.234.
      */
-    internal fun parseNumberStrict(format: NumberFormat, text: String): Double {
+    internal fun parseNumberStrict(format: NumberFormat, text: String, indianGrouping: Boolean = false): Double {
         val normalized = text.trim().let { if (it.startsWith("+")) it.substring(1) else it }
         // DecimalFormat accepts grouping separators anywhere ("12,50" -> 1250), so require
         // proper groups of three digits whenever the locale's grouping separator appears.
@@ -53,8 +53,10 @@ object CsvParser {
             val group = Regex.escape(symbols.groupingSeparator.toString())
             val decimal = Regex.escape(symbols.decimalSeparator.toString())
             val digits = normalized.removePrefix("-")
+            val western = Regex("^\\d{1,3}($group\\d{3})+($decimal\\d+)?$")
+            val indian = Regex("^\\d{1,2}($group\\d{2})*$group\\d{3}($decimal\\d+)?$")
             if (digits.contains(symbols.groupingSeparator) &&
-                !Regex("^\\d{1,3}($group\\d{3})+($decimal\\d+)?$").matches(digits)
+                !western.matches(digits) && !(indianGrouping && indian.matches(digits))
             ) {
                 throw ParseException("Invalid amount format: $text", 0)
             }
@@ -128,7 +130,10 @@ object CsvParser {
                 if (descColIdx !in row.indices) throw IllegalArgumentException("Description column index out of bounds")
 
                 val dateStr = row[dateColIdx].trim()
-                val date = dateFormat.parse(dateStr)?.time ?: throw ParseException("Invalid date format", 0)
+                val datePosition = ParsePosition(0)
+                val date = dateFormat.parse(dateStr, datePosition)?.time
+                    ?.takeIf { datePosition.index == dateStr.length }
+                    ?: throw ParseException("Invalid date format", 0)
 
                 val desc = row[descColIdx].trim()
                 val category = if (catColIdx in row.indices) row[catColIdx].trim().takeIf { it.isNotEmpty() } ?: "Imported" else "Imported"
@@ -139,7 +144,7 @@ object CsvParser {
                 if (amountColIdx in row.indices) {
                     val amountStr = row[amountColIdx].trim().replace(Regex("[^\\d.,+-]"), "")
                     if (amountStr.isEmpty()) throw IllegalArgumentException("Empty amount")
-                    val parsedNum = parseNumberStrict(numberFormat, amountStr)
+                    val parsedNum = parseNumberStrict(numberFormat, amountStr, locale.country == "IN")
                     finalAmount = parsedNum
                     if (invertAmountSigns) finalAmount = -finalAmount
 
@@ -150,12 +155,15 @@ object CsvParser {
                         type = "INCOME"
                     }
                 } else if (debitColIdx in row.indices || creditColIdx in row.indices) {
-                    val debitStr = if (debitColIdx in row.indices) row[debitColIdx].trim().replace(Regex("[^\\d.,]"), "") else ""
-                    val creditStr = if (creditColIdx in row.indices) row[creditColIdx].trim().replace(Regex("[^\\d.,]"), "") else ""
+                    val debitStr = if (debitColIdx in row.indices) row[debitColIdx].trim().replace(Regex("[^\\d.,+-]"), "") else ""
+                    val creditStr = if (creditColIdx in row.indices) row[creditColIdx].trim().replace(Regex("[^\\d.,+-]"), "") else ""
 
-                    val debitAmt = if (debitStr.isNotEmpty()) parseNumberStrict(numberFormat, debitStr) else 0.0
-                    val creditAmt = if (creditStr.isNotEmpty()) parseNumberStrict(numberFormat, creditStr) else 0.0
+                    val debitAmt = if (debitStr.isNotEmpty()) parseNumberStrict(numberFormat, debitStr, locale.country == "IN") else 0.0
+                    val creditAmt = if (creditStr.isNotEmpty()) parseNumberStrict(numberFormat, creditStr, locale.country == "IN") else 0.0
 
+                    if (debitAmt < 0 || creditAmt < 0 || (debitAmt > 0 && creditAmt > 0)) {
+                        throw IllegalArgumentException("Expected one positive debit or credit")
+                    }
                     if (debitAmt > 0) {
                         finalAmount = debitAmt
                         type = "EXPENSE"

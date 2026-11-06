@@ -56,6 +56,13 @@ class MoneyUtilsTest {
     }
 
     @Test
+    fun `Indian integer grouping is accepted`() {
+        assertEquals(123456.0, parse("1,23,456")!!, 0.0)
+        assertEquals(12345678.0, parse("1,23,45,678")!!, 0.0)
+        assertEquals(123456.78, parse("1,23,456.78")!!, 0.0)
+    }
+
+    @Test
     fun `roundMoney uses half up on two decimals`() {
         assertEquals(1.01, MoneyUtils.roundMoney(1.005), 0.0)
         assertEquals(-1.01, MoneyUtils.roundMoney(-1.005), 0.0)

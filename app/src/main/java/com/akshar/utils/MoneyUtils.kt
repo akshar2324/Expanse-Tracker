@@ -16,7 +16,7 @@ object MoneyUtils {
     const val MONEY_SCALE = 2
 
     private val numberToken = Regex("[0-9.,]+")
-    private val groupedWithComma = Regex("^\\d{1,3}(,\\d{3})+$")
+    private val groupedWithComma = Regex("^(?:\\d{1,3}(,\\d{3})+|\\d{1,2}(,\\d{2})*,\\d{3})$")
     private val groupedWithDot = Regex("^\\d{1,3}(\\.\\d{3})+$")
     private val allowedChars = Regex("[^0-9.,+\\-*/()]")
 
