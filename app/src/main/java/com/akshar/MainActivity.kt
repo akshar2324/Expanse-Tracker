@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -85,6 +86,9 @@ import com.akshar.ui.theme.money
 import com.akshar.ui.theme.rememberGlassBlurState
 import com.akshar.ui.viewmodel.FinanceViewModel
 import com.akshar.security.BiometricCrypto
+import com.akshar.security.AppLock
+import android.os.SystemClock
+import androidx.compose.ui.semantics.clearAndSetSemantics
 
 class MainActivity : FragmentActivity() {
 
@@ -93,12 +97,33 @@ class MainActivity : FragmentActivity() {
     }
     
     private var isUnlockedState = mutableStateOf(false)
+    private lateinit var appLock: AppLock
+
+    /** elapsedRealtime when the app went to the background, or null while it is in front. */
+    private var backgroundedAt: Long? = null
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         // Rotation and other configuration changes recreate the activity; an unlocked session
-        // should stay unlocked instead of asking for the passcode or fingerprint again.
-        outState.putBoolean(KEY_UNLOCKED, isUnlockedState.value)
+        // should stay unlocked. After the process is killed in the background, it must lock again.
+        outState.putBoolean(KEY_UNLOCKED, isUnlockedState.value && isChangingConfigurations)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) backgroundedAt = SystemClock.elapsedRealtime()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val since = backgroundedAt ?: return
+        backgroundedAt = null
+        if (isUnlockedState.value && appLock.isActive &&
+            SystemClock.elapsedRealtime() - since >= AppLock.RELOCK_AFTER_MILLIS
+        ) {
+            isUnlockedState.value = false
+            if (appLock.biometricsEnabled) tryLaunchBiometric { isUnlockedState.value = true }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -113,10 +138,11 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         Appearance.load(this)
 
-        val sharedPrefs = getSharedPreferences("vault_settings", android.content.Context.MODE_PRIVATE)
+        val sharedPrefs = getSharedPreferences(AppLock.PREFS, android.content.Context.MODE_PRIVATE)
+        appLock = AppLock(sharedPrefs)
         val onboardingCompleted = sharedPrefs.getBoolean("onboarding_completed", false)
-        val vaultEnabled = sharedPrefs.getBoolean("vault_enabled", true)
-        val vaultBiometrics = sharedPrefs.getBoolean("vault_biometrics", true)
+        val vaultEnabled = appLock.isActive
+        val vaultBiometrics = appLock.biometricsEnabled
         val restoredUnlocked = savedInstanceState?.getBoolean(KEY_UNLOCKED, false) == true
 
         if (restoredUnlocked && onboardingCompleted) {
@@ -137,9 +163,12 @@ class MainActivity : FragmentActivity() {
                 val viewModel: FinanceViewModel = viewModel()
                 val isUnlocked by remember { isUnlockedState }
 
-                val dynamicPrefs = remember { getSharedPreferences("vault_settings", android.content.Context.MODE_PRIVATE) }
-                val correctPin = remember(isUnlocked) { dynamicPrefs.getString("vault_pin", "1234") ?: "1234" }
-                val useBiometrics = remember(isUnlocked) { dynamicPrefs.getBoolean("vault_biometrics", true) }
+                val dynamicPrefs = remember { getSharedPreferences(AppLock.PREFS, android.content.Context.MODE_PRIVATE) }
+                val useBiometrics = remember(isUnlocked) { appLock.biometricsEnabled }
+                // Once unlocked, the app stays composed under the lock screen, so a file picker or
+                // share sheet that outlasts the relock delay still delivers its result.
+                var hasBeenUnlocked by rememberSaveable { mutableStateOf(false) }
+                if (isUnlocked) hasBeenUnlocked = true
                 var isOnboardingCompleted by remember { mutableStateOf(dynamicPrefs.getBoolean("onboarding_completed", false)) }
 
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -152,19 +181,28 @@ class MainActivity : FragmentActivity() {
                                 isUnlockedState.value = true
                             }
                         )
-                    } else if (isUnlocked) {
-                        AppScaffold(viewModel = viewModel)
                     } else {
-                        LockScreen(
-                            correctPin = correctPin,
-                            useBiometrics = useBiometrics,
-                            onUnlockSuccess = { isUnlockedState.value = true },
-                            onTriggerBiometric = {
-                                tryLaunchBiometric {
-                                    isUnlockedState.value = true
-                                }
+                        if (hasBeenUnlocked) {
+                            Box(
+                                modifier = if (isUnlocked) Modifier.fillMaxSize()
+                                else Modifier.fillMaxSize().clearAndSetSemantics { }
+                            ) { AppScaffold(viewModel = viewModel) }
+                        }
+                        if (!isUnlocked) {
+                            // Surface is opaque and swallows touches meant for the app underneath.
+                            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                                LockScreen(
+                                    appLock = appLock,
+                                    useBiometrics = useBiometrics,
+                                    onUnlockSuccess = { isUnlockedState.value = true },
+                                    onTriggerBiometric = {
+                                        tryLaunchBiometric {
+                                            isUnlockedState.value = true
+                                        }
+                                    }
+                                )
                             }
-                        )
+                        }
                     }
                 }
             }
@@ -776,28 +814,54 @@ data class NavigationTabItem(
     val selectedIcon: androidx.compose.ui.graphics.vector.ImageVector = icon
 )
 
+private fun formatWait(seconds: Long): String =
+    if (seconds < 60) "$seconds s" else "${(seconds + 59) / 60} min"
+
 @Composable
 fun LockScreen(
-    correctPin: String,
+    appLock: AppLock,
     useBiometrics: Boolean,
     onUnlockSuccess: () -> Unit,
     onTriggerBiometric: () -> Unit
 ) {
     var pinInput by remember { mutableStateOf("") }
     var showError by remember { mutableStateOf(false) }
+    var triesLeft by remember { mutableStateOf<Int?>(null) }
+    var waitUntil by remember { mutableStateOf(appLock.waitingUntil()) }
+    var secondsLeft by remember { mutableStateOf(0L) }
+
+    // Count down a lockout once a second, then open the keypad again.
+    LaunchedEffect(waitUntil) {
+        val until = waitUntil ?: return@LaunchedEffect
+        while (true) {
+            val left = until - System.currentTimeMillis()
+            if (left <= 0) break
+            secondsLeft = (left + 999) / 1000
+            kotlinx.coroutines.delay(minOf(left, 1_000L))
+        }
+        waitUntil = null
+        showError = false
+    }
 
     fun handleNumberClick(num: String) {
-        if (pinInput.length < 4) {
+        if (waitUntil != null) return
+        if (pinInput.length < AppLock.PIN_LENGTH) {
             pinInput += num
             showError = false
         }
-        if (pinInput.length == 4) {
-            if (pinInput == correctPin) {
-                onUnlockSuccess()
-            } else {
-                showError = true
-                pinInput = ""
+        if (pinInput.length == AppLock.PIN_LENGTH) {
+            when (val result = appLock.tryUnlock(pinInput)) {
+                AppLock.Attempt.Unlocked -> onUnlockSuccess()
+                is AppLock.Attempt.Wrong -> {
+                    showError = true
+                    triesLeft = result.triesBeforeWait
+                }
+                is AppLock.Attempt.Waiting -> {
+                    showError = true
+                    waitUntil = result.untilMillis
+                }
             }
+            pinInput = ""
         }
     }
 
@@ -881,8 +945,9 @@ fun LockScreen(
                     Spacer(modifier = Modifier.height(Spacing.lg))
                     Text(
                         text = when {
+                            waitUntil != null -> "Too many wrong tries. Try again in ${formatWait(secondsLeft)}."
+                            showError && triesLeft == 1 -> "That passcode didn't match. One more wrong try locks the keypad for a while."
                             showError -> "That passcode didn't match. Try again."
-                            correctPin == "1234" -> "Default passcode is 1234. You can change it in More › Vault."
                             else -> "Enter your 4-digit passcode"
                         },
                         color = if (showError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,

@@ -27,8 +27,10 @@ class BudgetWidgetSettingsTest {
     }
 
     @Test
-    fun `widget hides amounts unless the user turned the app lock off`() {
-        assertTrue("the lock is on by default", BudgetWidgetModel.isAppLockOn(context))
+    fun `widget hides amounts while the app lock is on`() {
+        assertFalse("no passcode, no lock", BudgetWidgetModel.isAppLockOn(context))
+        com.akshar.security.AppLock.from(context).setPin("2468")
+        assertTrue(BudgetWidgetModel.isAppLockOn(context))
         lockPrefs.edit().putBoolean(BudgetWidgetModel.KEY_LOCK_ENABLED, false).commit()
         assertFalse(BudgetWidgetModel.isAppLockOn(context))
         lockPrefs.edit().putBoolean(BudgetWidgetModel.KEY_LOCK_ENABLED, true).commit()

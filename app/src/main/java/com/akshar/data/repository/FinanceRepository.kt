@@ -21,12 +21,33 @@ import com.akshar.utils.MerchantNames
 import java.util.TimeZone
 import kotlinx.coroutines.flow.Flow
 import com.akshar.data.backup.BackupSnapshot
+import com.akshar.data.activity.TransactionQuery
 import com.akshar.utils.PeriodUtils
 
 class FinanceRepository(private val financeDao: FinanceDao, private val database: AppDatabase) {
 
     // --- Transactions ---
     val allTransactions: Flow<List<Transaction>> = financeDao.getAllTransactions()
+
+    /** Filtered, sorted transactions for the Activity tab. Room runs the query off the main thread. */
+    fun searchTransactions(query: TransactionQuery): Flow<List<Transaction>> = financeDao.searchTransactions(
+        pattern = query.searchPattern,
+        kind = query.type.name,
+        // Room expands an empty list to "IN ()"; categoryCount = 0 short-circuits it either way.
+        categories = query.categories.ifEmpty { listOf("") },
+        categoryCount = query.categories.size,
+        accountId = query.accountId,
+        paymentMethod = query.paymentMethod,
+        from = query.fromMillis,
+        until = query.untilMillis,
+        minAmount = query.minAmount,
+        maxAmount = query.maxAmount,
+        sort = query.sort.name,
+    )
+
+    val hasAnyTransactions: Flow<Boolean> = financeDao.hasAnyTransactions()
+    val usedCategories: Flow<List<String>> = financeDao.getUsedCategories()
+    val usedPaymentMethods: Flow<List<String>> = financeDao.getUsedPaymentMethods()
 
     suspend fun insertTransaction(transaction: Transaction) {
         financeDao.insertTransaction(transaction)
