@@ -31,7 +31,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.akshar.data.model.Transaction
 import com.akshar.ui.viewmodel.FinanceViewModel
+import java.math.BigDecimal
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -40,9 +42,11 @@ import java.util.*
 fun AddTransactionScreen(
     viewModel: FinanceViewModel,
     onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    transactionId: Long? = null // non-null opens the screen in edit mode
 ) {
     val context = LocalContext.current
+    var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
 
     // --- State Holding ---
     var isExpense by remember { mutableStateOf(true) }
@@ -69,9 +73,29 @@ fun AddTransactionScreen(
     val currentCategories = if (isExpense) expenseCategories else incomeCategories
     var categorySelected by remember { mutableStateOf(currentCategories.first()) }
 
-    // Sync category reset if type swaps
+    // Sync category reset if type swaps (keeps a valid or originally loaded category)
     LaunchedEffect(isExpense) {
-        categorySelected = currentCategories.first()
+        val keepLoaded = editingTransaction?.let { it.category == categorySelected && (it.type == "EXPENSE") == isExpense } == true
+        if (categorySelected !in currentCategories && !keepLoaded) {
+            categorySelected = currentCategories.first()
+        }
+    }
+
+    // Edit mode: load the transaction once and prefill the form
+    LaunchedEffect(transactionId) {
+        if (transactionId == null) return@LaunchedEffect
+        val tx = viewModel.getTransactionById(transactionId)
+        if (tx == null) {
+            onNavigateBack()
+            return@LaunchedEffect
+        }
+        editingTransaction = tx
+        isExpense = tx.type == "EXPENSE"
+        amountStr = BigDecimal(tx.amount.toString()).stripTrailingZeros().toPlainString()
+        description = tx.description
+        dateSelected = tx.date
+        categorySelected = tx.category
+        paymentMethod = tx.paymentMethod
     }
 
     val paymentMethods by viewModel.activePaymentMethods.collectAsStateWithLifecycle()
@@ -100,7 +124,7 @@ fun AddTransactionScreen(
             .imePadding()
             .navigationBarsPadding()
     ) {
-        ScreenHeader(title = "Add transaction", onBack = onNavigateBack)
+        ScreenHeader(title = if (transactionId != null) "Edit transaction" else "Add transaction", onBack = onNavigateBack)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -348,7 +372,8 @@ fun AddTransactionScreen(
                             category = categorySelected,
                             description = description,
                             date = dateSelected,
-                            paymentMethod = paymentMethod
+                            paymentMethod = paymentMethod,
+                            existing = editingTransaction
                         )
                         onNavigateBack()
                     }

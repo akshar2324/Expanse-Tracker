@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.akshar.ui.components.*
 import com.akshar.ui.theme.*
+import com.akshar.TransactionRoutes
 import com.akshar.ui.viewmodel.FinanceViewModel
 import com.akshar.ui.screens.TransactionItem
 
@@ -108,7 +109,7 @@ fun AccountDetailScreen(
                                     if (tx.transferId != null) {
                                         navController.navigate("addTransfer/${tx.transferId}")
                                     } else {
-                                        navController.navigate("addTransaction/${tx.id}")
+                                        navController.navigate(TransactionRoutes.edit(tx.id))
                                     }
                                 }
                             )

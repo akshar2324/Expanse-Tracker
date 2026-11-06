@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.akshar.data.model.Transaction
+import com.akshar.TransactionRoutes
 import com.akshar.ui.viewmodel.FinanceViewModel
 import com.akshar.data.model.Account
 import java.text.SimpleDateFormat
@@ -305,7 +306,7 @@ fun HistoryScreen(
                                     if (transaction.transferId != null) {
                                         navController.navigate("addTransfer/${transaction.transferId}")
                                     } else {
-                                        navController.navigate("addTransaction/${transaction.id}")
+                                        navController.navigate(TransactionRoutes.edit(transaction.id))
                                     }
                                 }
                             )
