@@ -47,7 +47,9 @@ fun AddTransactionScreen(
     viewModel: FinanceViewModel,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    transactionId: Long? = null // non-null opens the screen in edit mode
+    transactionId: Long? = null, // non-null opens the screen in edit mode
+    prefill: com.akshar.sms.SmsDraft? = null, // a transaction read from a bank message, to review
+    onSaved: () -> Unit = onNavigateBack
 ) {
     val context = LocalContext.current
     var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
@@ -108,6 +110,18 @@ fun AddTransactionScreen(
         paymentMethod = tx.paymentMethod
     }
 
+    // Bank message import: fill the form once; after a configuration change keep the user's edits.
+    LaunchedEffect(prefill) {
+        if (prefill == null || prefilledFromTransaction) return@LaunchedEffect
+        prefilledFromTransaction = true
+        isExpense = prefill.isExpense
+        amountStr = prefill.amount
+        description = prefill.description
+        dateSelected = prefill.dateMillis
+        categorySelected = prefill.category
+        prefill.paymentMethod?.let { paymentMethod = it }
+    }
+
     val paymentMethods by viewModel.activePaymentMethods.collectAsStateWithLifecycle()
     val currencySymbol = viewModel.getCurrencySymbol()
 
@@ -130,7 +144,7 @@ fun AddTransactionScreen(
     val amountFocus = remember { FocusRequester() }
     // New entries start with the keyboard on the amount: it's the one field every entry needs.
     LaunchedEffect(Unit) {
-        if (transactionId == null) runCatching { amountFocus.requestFocus() }
+        if (transactionId == null && prefill == null) runCatching { amountFocus.requestFocus() }
     }
 
     fun save() {
@@ -147,7 +161,7 @@ fun AddTransactionScreen(
                 paymentMethod = paymentMethod,
                 existing = editingTransaction
             )
-            onNavigateBack()
+            onSaved()
         }
     }
 
@@ -157,7 +171,15 @@ fun AddTransactionScreen(
             .imePadding()
             .navigationBarsPadding()
     ) {
-        ScreenHeader(title = if (transactionId != null) "Edit transaction" else "Add transaction", onBack = onNavigateBack)
+        ScreenHeader(
+            title = if (transactionId != null) "Edit transaction" else "Add transaction",
+            subtitle = when {
+                prefill == null -> null
+                prefill.confident -> "From a bank message. Check it, then save."
+                else -> "From a bank message. This one is a best guess, so check each field."
+            },
+            onBack = onNavigateBack
+        )
         Column(
             modifier = Modifier
                 .weight(1f)

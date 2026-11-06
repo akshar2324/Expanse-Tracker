@@ -19,6 +19,12 @@ dependencyResolutionManagement {
   repositories {
     google()
     mavenCentral()
+    // JitPack only serves txnparse (bank SMS parsing). Restricting it to that group keeps
+    // every other dependency resolving from Google and Maven Central.
+    exclusiveContent {
+      forRepository { maven("https://jitpack.io") }
+      filter { includeModule("com.github.akshar2324", "txnparse") }
+    }
   }
 }
 
