@@ -243,10 +243,10 @@ fun ToolsScreen(
 
                 // --- security settings (Finance Vault) ---
                 "VAULT" -> {
-                    val sharedPrefs = remember { context.getSharedPreferences("vault_settings", android.content.Context.MODE_PRIVATE) }
-                    var vaultEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("vault_enabled", true)) }
-                    var vaultBiometrics by remember { mutableStateOf(sharedPrefs.getBoolean("vault_biometrics", true)) }
-                    var actualPin by remember { mutableStateOf(sharedPrefs.getString("vault_pin", "1234") ?: "1234") }
+                    val appLock = remember { com.akshar.security.AppLock.from(context) }
+                    var hasPin by remember { mutableStateOf(appLock.hasPin) }
+                    var vaultEnabled by remember { mutableStateOf(appLock.isActive) }
+                    var vaultBiometrics by remember { mutableStateOf(context.getSharedPreferences(com.akshar.security.AppLock.PREFS, android.content.Context.MODE_PRIVATE).getBoolean(com.akshar.security.AppLock.KEY_BIOMETRICS, true)) }
 
                     var pinChangeInput by remember { mutableStateOf("") }
                     var confirmPinInput by remember { mutableStateOf("") }
@@ -302,14 +302,20 @@ fun ToolsScreen(
                                 ) {
                                     Column(modifier = Modifier.weight(1.0f)) {
                                         Text("App lock", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                                        Text("Ask for your passcode every time AkSpend opens.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(
+                                            if (hasPin) "Ask for your passcode when AkSpend opens, and again after 30 seconds away."
+                                            else "Set a passcode below to turn this on.",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
                                     Switch(
                                         checked = vaultEnabled,
+                                        enabled = hasPin,
                                         onCheckedChange = { checked ->
                                             vaultEnabled = checked
-                                            sharedPrefs.edit().putBoolean("vault_enabled", checked).apply()
-                                            Toast.makeText(context, if (checked) "Secure lock enabled!" else "Secure lock disabled!", Toast.LENGTH_SHORT).show()
+                                            appLock.setEnabled(checked)
+                                            Toast.makeText(context, if (checked) "App lock on" else "App lock off", Toast.LENGTH_SHORT).show()
                                         }
                                     )
                                 }
@@ -330,26 +336,27 @@ fun ToolsScreen(
                                         enabled = vaultEnabled,
                                         onCheckedChange = { checked ->
                                             vaultBiometrics = checked
-                                            sharedPrefs.edit().putBoolean("vault_biometrics", checked).apply()
-                                            Toast.makeText(context, if (checked) "Biometrics integrated!" else "Biometrics omitted.", Toast.LENGTH_SHORT).show()
+                                            appLock.setBiometrics(checked)
+                                            Toast.makeText(context, if (checked) "Fingerprint unlock on" else "Fingerprint unlock off", Toast.LENGTH_SHORT).show()
                                         }
                                     )
                                 }
                             }
                         }
 
-                        AnimatedVisibility(visible = vaultEnabled) {
+                        AnimatedVisibility(visible = vaultEnabled || !hasPin) {
                             Card(modifier = Modifier.fillMaxWidth(), colors = glassCardColors(), border = glassBorder()) {
                                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                     Text(
-                                        text = "Change passcode",
+                                        text = if (hasPin) "Change passcode" else "Set a passcode",
                                         fontWeight = FontWeight.Bold,
                                         style = MaterialTheme.typography.titleMedium,
                                         color = MaterialTheme.colorScheme.primary
                                     )
 
                                     Text(
-                                        text = "Current passcode: ••••",
+                                        text = if (hasPin) "Your passcode is set. Enter a new one to replace it."
+                                        else "Choose 4 digits that aren't easy to guess. Saving turns on the app lock.",
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -387,15 +394,16 @@ fun ToolsScreen(
                                     Button(
                                         onClick = {
                                             if (pinChangeInput.length != 4) {
-                                                Toast.makeText(context, "PIN must be exactly 4 digits!", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "The passcode must be 4 digits", Toast.LENGTH_SHORT).show()
                                             } else if (pinChangeInput != confirmPinInput) {
-                                                Toast.makeText(context, "PINs do not match!", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "The passcodes don't match", Toast.LENGTH_SHORT).show()
                                             } else {
-                                                actualPin = pinChangeInput
-                                                sharedPrefs.edit().putString("vault_pin", pinChangeInput).apply()
+                                                appLock.setPin(pinChangeInput)
+                                                hasPin = true
+                                                vaultEnabled = true
                                                 pinChangeInput = ""
                                                 confirmPinInput = ""
-                                                Toast.makeText(context, "Security passcode updated successfully!", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "Passcode saved. App lock is on.", Toast.LENGTH_SHORT).show()
                                             }
                                         },
                                         modifier = Modifier

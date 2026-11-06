@@ -36,7 +36,7 @@ object BudgetWidgetUpdater {
         })
         // Turning the app lock on or off, or changing the currency, changes what the widget shows.
         val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == BudgetWidgetModel.KEY_LOCK_ENABLED || key == com.akshar.utils.CurrencyUtils.KEY_COUNTRY) changes.tryEmit(Unit)
+            if (key == BudgetWidgetModel.KEY_LOCK_ENABLED || key == com.akshar.security.AppLock.KEY_HASH || key == com.akshar.utils.CurrencyUtils.KEY_COUNTRY) changes.tryEmit(Unit)
         }
         settingsListener = listener
         appContext.getSharedPreferences(BudgetWidgetModel.LOCK_PREFS, Context.MODE_PRIVATE).registerOnSharedPreferenceChangeListener(listener)

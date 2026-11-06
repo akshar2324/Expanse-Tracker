@@ -15,6 +15,16 @@ import java.util.Locale
 object MoneyUtils {
     const val MONEY_SCALE = 2
 
+    /**
+     * The largest amount AkSpend accepts, in any currency. Amounts are stored as Double, which
+     * keeps every cent exact only up to about 9e13; this limit leaves room for totals of many
+     * such amounts. It is far above any personal transaction, even in currencies like IDR.
+     */
+    const val MAX_AMOUNT = 99_999_999_999.99
+
+    /** True for a finite value no larger than [MAX_AMOUNT] either way. */
+    fun isWithinLimit(value: Double): Boolean = value.isFinite() && kotlin.math.abs(value) <= MAX_AMOUNT
+
     private val numberToken = Regex("[0-9.,]+")
     private val groupedWithComma = Regex("^(?:\\d{1,3}(,\\d{3})+|\\d{1,2}(,\\d{2})*,\\d{3})$")
     private val groupedWithDot = Regex("^\\d{1,3}(\\.\\d{3})+$")
@@ -28,7 +38,7 @@ object MoneyUtils {
 
     /**
      * Parses user input into a rounded amount. Returns null for blank, malformed, infinite or
-     * NaN results (for example "1/0"). The sign is kept, so callers decide whether negative or
+     * NaN results (for example "1/0"), and for anything beyond [MAX_AMOUNT]. The sign is kept, so callers decide whether negative or
      * zero values are acceptable.
      */
     fun parseAmount(input: String, locale: Locale = Locale.getDefault()): Double? {
@@ -39,7 +49,8 @@ object MoneyUtils {
         if (normalized.contains('\u0000')) return null
         val value = MathUtils.evaluateMathExpression(normalized) ?: return null
         if (!value.isFinite()) return null
-        return roundMoney(value)
+        val rounded = roundMoney(value)
+        return rounded.takeIf { isWithinLimit(it) }
     }
 
     /** Converts one number token to a dot-decimal string with no grouping, or null if ambiguous garbage. */

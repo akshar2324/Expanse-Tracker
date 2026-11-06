@@ -438,7 +438,12 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             BackupCodec.decode(jsonString)
         } catch (e: Exception) {
             Log.e("FinanceViewModel", "Restore failed", e)
-            _backupStatus.value = "Failed to restore backup: invalid JSON format."
+            // Validation errors name the bad row; anything else is a file that isn't a backup.
+            _backupStatus.value = if (e is org.json.JSONException && e.message?.contains("[") == true) {
+                "Backup not restored, nothing was changed: ${e.message}"
+            } else {
+                "Failed to restore backup: invalid JSON format."
+            }
             return false
         }
         viewModelScope.launch(Dispatchers.IO) {
