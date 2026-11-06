@@ -5,7 +5,8 @@ AkSpend is designed from the ground up with privacy and data ownership as its co
 ## Local Data Storage
 
 - All core financial data, including accounts, transactions, and categories, is stored exclusively on your device using a local Room (SQLite) database.
-- Sensitive user preferences, such as biometric authentication settings and PINs, are stored in encrypted or private local SharedPreferences (`vault_settings.xml`).
+- App lock settings are kept in private SharedPreferences (`vault_settings.xml`). The passcode is stored only as a salted PBKDF2 hash, never as text, and there is no default passcode.
+- Auto-import from notifications is optional and off until the user grants notification access. It keeps the parsed payment fields and a one-way fingerprint, never the message text, and drops unreviewed items after 60 days.
 - We explicitly disable Android Auto Backup for sensitive app data to ensure that your financial information does not get silently uploaded to cloud servers without your explicit consent.
 
 ## No Telemetry, Analytics, or Backend
