@@ -383,12 +383,17 @@ fun PreviewStep(viewModel: CsvImportViewModel) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(row.parsedRow.description, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                             Text(
-                                "${row.parsedRow.type.lowercase().replaceFirstChar { it.uppercase() }} · ${String.format("%,.2f", row.parsedRow.amount)}",
+                                "${row.parsedRow.type.lowercase().replaceFirstChar { it.uppercase() }} · ${String.format("%,.2f", row.parsedRow.amount)} · ${row.parsedRow.category}" +
+                                    if (row.learnedCategory) " (learned)" else "",
                                 style = MaterialTheme.typography.bodySmall.money(),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             if (row.isDuplicate) {
-                                Text("Possible duplicate: already in AkSpend", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
+                                Text(
+                                    (row.duplicateNote ?: "Possible duplicate: already saved") + ". Tick to import anyway.",
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
                             }
                         }
                     }

@@ -28,17 +28,36 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="akspend" android:host="add_transaction" />
             </intent-filter>
+
+            <!-- Share a bank SMS from a messages app to read it into a transaction. -->
+            <intent-filter android:label="@string/share_sms_label">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
 
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.akshar.fileprovider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Optional auto-import: reads payment notifications on the device once the user grants
+             notification access. Nothing leaves the phone. -->
+        <service
+            android:name=".sms.inbox.BankNotificationListener"
+            android:exported="false"
+            android:label="@string/auto_import_service_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
 
         <receiver
             android:name=".widget.QuickAddWidgetReceiver"
