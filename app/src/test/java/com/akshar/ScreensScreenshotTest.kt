@@ -12,6 +12,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.hasScrollToNodeAction
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -21,7 +23,6 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import com.akshar.ui.screens.AddTransactionScreen
@@ -148,12 +149,8 @@ class ScreensScreenshotTest {
     composeTestRule.onAllNodesWithContentDescription("Back")[0].performClick()
     settle()
     // Invoke the action directly: once scrolled into view the card can sit under the floating tab bar.
-    // At 200% font scale this lazy item is initially outside the composed viewport.
-    if (fontScale > 1f) {
-      composeTestRule.onAllNodes(androidx.compose.ui.test.hasScrollAction())[0]
-        .performScrollToNode(hasText("Your weekly digest"))
-    }
-    composeTestRule.onNodeWithText("Your weekly digest").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+    composeTestRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Your weekly digest"))
+    composeTestRule.onNodeWithText("Your weekly digest").performSemanticsAction(SemanticsActions.OnClick)
     settle()
     composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-7-weekly-digest.png")
 
