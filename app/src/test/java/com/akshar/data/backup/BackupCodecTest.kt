@@ -54,11 +54,11 @@ class BackupCodecTest {
     }
 
     @Test
-    fun `database file validator accepts sqlite of a known version and rejects other files`() {
+    fun `database file validator rejects header-only corrupt files`() {
         val dir = kotlin.io.path.createTempDirectory("akspend-validator").toFile()
         try {
             val text = File(dir, "notes.db").apply { writeText("hello ".repeat(40)) }
-            assertNotNull(DatabaseFileValidator.problemWith(text, 6))
+            assertNotNull(DatabaseFileValidator.problemWith(text, 6, androidx.test.core.app.ApplicationProvider.getApplicationContext()))
 
             fun sqliteWithVersion(v: Int) = File(dir, "v$v.db").apply {
                 val bytes = ByteArray(4096)
@@ -66,11 +66,11 @@ class BackupCodecTest {
                 bytes[63] = v.toByte()
                 writeBytes(bytes)
             }
-            assertNull(DatabaseFileValidator.problemWith(sqliteWithVersion(6), 6))
-            assertNull(DatabaseFileValidator.problemWith(sqliteWithVersion(4), 6))
-            assertNotNull(DatabaseFileValidator.problemWith(sqliteWithVersion(7), 6))
-            assertNotNull(DatabaseFileValidator.problemWith(sqliteWithVersion(0), 6))
-            assertNotNull(DatabaseFileValidator.problemWith(File(dir, "missing.db"), 6))
+            assertNotNull(DatabaseFileValidator.problemWith(sqliteWithVersion(6), 6, androidx.test.core.app.ApplicationProvider.getApplicationContext()))
+            assertNotNull(DatabaseFileValidator.problemWith(sqliteWithVersion(4), 6, androidx.test.core.app.ApplicationProvider.getApplicationContext()))
+            assertNotNull(DatabaseFileValidator.problemWith(sqliteWithVersion(7), 6, androidx.test.core.app.ApplicationProvider.getApplicationContext()))
+            assertNotNull(DatabaseFileValidator.problemWith(sqliteWithVersion(0), 6, androidx.test.core.app.ApplicationProvider.getApplicationContext()))
+            assertNotNull(DatabaseFileValidator.problemWith(File(dir, "missing.db"), 6, androidx.test.core.app.ApplicationProvider.getApplicationContext()))
         } finally {
             dir.deleteRecursively()
         }
