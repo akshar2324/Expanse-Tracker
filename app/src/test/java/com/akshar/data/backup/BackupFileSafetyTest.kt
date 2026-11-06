@@ -7,6 +7,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.akshar.data.db.AppDatabase
 import com.akshar.data.db.LegacyDatabaseFixtures
+import com.akshar.data.db.ALL_MIGRATIONS
 import com.akshar.data.db.MIGRATION_4_5
 import com.akshar.data.db.MIGRATION_5_6
 import com.akshar.ui.viewmodel.DatabaseFileValidator
@@ -71,7 +72,7 @@ class BackupFileSafetyTest {
                     assertEquals(version, it.version)
                 }
                 val db = Room.databaseBuilder(context, AppDatabase::class.java, file.absolutePath)
-                    .addMigrations(MIGRATION_4_5, MIGRATION_5_6).build()
+                    .addMigrations(*ALL_MIGRATIONS).build()
                 try {
                     val tx = db.financeDao().getTransactionsList().single()
                     assertEquals(42L, tx.id)

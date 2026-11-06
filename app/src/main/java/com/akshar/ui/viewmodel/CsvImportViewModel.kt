@@ -13,6 +13,10 @@ import com.akshar.utils.CsvParseError
 import com.akshar.utils.CsvParseResult
 import com.akshar.utils.CsvParser
 import com.akshar.utils.ParsedCsvRow
+import com.akshar.utils.CategoryMemory
+import com.akshar.utils.DuplicateCandidate
+import com.akshar.utils.DuplicateCheck
+import java.util.TimeZone
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,8 +39,51 @@ enum class ImportStep {
 data class ValidationRow(
     val parsedRow: ParsedCsvRow,
     val isDuplicate: Boolean,
-    var skip: Boolean = false
+    var skip: Boolean = false,
+    /** Why the row looks like a duplicate, shown in the preview; null when it doesn't. */
+    val duplicateNote: String? = null,
+    /** True when the category came from what the user picked for this merchant before. */
+    val learnedCategory: Boolean = false
 )
+
+/**
+ * Builds the preview rows for an import. A row whose exact line was imported before is a sure
+ * duplicate; one with the same amount, type and day as a saved transaction is a likely one (for
+ * example, typed by hand or read from an SMS). Both start unticked so they are skipped unless the
+ * user ticks them. Rows with no category column value take a learned category when there is one.
+ */
+internal fun buildValidationRows(
+    rows: List<ParsedCsvRow>,
+    existingHashes: Set<String>,
+    existingLedger: List<Transaction>,
+    memory: CategoryMemory,
+    zone: TimeZone = TimeZone.getDefault(),
+): List<ValidationRow> {
+    // Earlier rows in this same file count too, not just rows already saved.
+    val seenInFile = HashSet<String>()
+    return rows.map { parsed -> validationRow(parsed, existingHashes, seenInFile, existingLedger, memory, zone) }
+}
+
+private fun validationRow(
+    parsed: ParsedCsvRow,
+    existingHashes: Set<String>,
+    seenInFile: MutableSet<String>,
+    existingLedger: List<Transaction>,
+    memory: CategoryMemory,
+    zone: TimeZone,
+): ValidationRow {
+    val learned = if (parsed.category == CsvParser.DEFAULT_CATEGORY) memory.lookup(parsed.description, parsed.type) else null
+    val row = if (learned != null) parsed.copy(category = learned) else parsed
+    val repeatedInFile = !seenInFile.add(parsed.hash)
+    val note = when {
+        parsed.hash in existingHashes -> "Already imported from a statement"
+        repeatedInFile -> "Repeated row: this file already has it"
+        DuplicateCheck.findMatch(DuplicateCandidate(parsed.amount, parsed.type, parsed.date), existingLedger, zone) != null ->
+            "Possible duplicate: same amount on the same day is already saved"
+        else -> null
+    }
+    return ValidationRow(parsedRow = row, isDuplicate = note != null, skip = note != null, duplicateNote = note, learnedCategory = learned != null)
+}
 
 class CsvImportViewModel(
     application: Application,
@@ -167,13 +214,16 @@ class CsvImportViewModel(
                     _parseErrors.value = result.errors
 
                     val hashes = result.rows.map { it.hash }
-                    val seenHashes = repository.getExistingCsvHashes(hashes).toMutableSet()
+                    val existingHashes = repository.getExistingCsvHashes(hashes).toSet()
+                    val dates = result.rows.map { it.date }
+                    val ledger = if (dates.isEmpty()) emptyList() else repository.getTransactionsAcrossDays(dates.min(), dates.max())
 
-                    val validationRows = result.rows.map { row ->
-                        // Include earlier rows in this file, not just rows already in Room.
-                        val isDuplicate = !seenHashes.add(row.hash)
-                        ValidationRow(parsedRow = row, isDuplicate = isDuplicate, skip = isDuplicate)
-                    }
+                    val validationRows = buildValidationRows(
+                        rows = result.rows,
+                        existingHashes = existingHashes,
+                        existingLedger = ledger,
+                        memory = repository.categoryMemory()
+                    )
 
                     _previewRows.value = validationRows
                     _currentStep.value = ImportStep.PREVIEW

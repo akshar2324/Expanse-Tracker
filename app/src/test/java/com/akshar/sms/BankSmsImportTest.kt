@@ -98,6 +98,26 @@ class BankSmsImportTest {
     }
 
     @Test
+    fun learnedCategory_beatsKeywordHints() {
+        val memory = com.akshar.utils.CategoryMemory(
+            listOf(com.akshar.data.model.MerchantCategory("swiggy", "EXPENSE", "Swiggy", "Entertainment", 0L))
+        )
+        assertEquals("Entertainment", BankSmsImport.guessCategory("SWIGGY", isExpense = true, memory = memory))
+        assertEquals("Shopping", BankSmsImport.guessCategory("AMAZON PAY INDIA", isExpense = true, memory = memory))
+        val draft = BankSmsImport.parse(
+            "Sent Rs.99 From HDFC Bank A/C *1234 To SWIGGY On 05/01/26 Ref 401234567890",
+            receivedAtMillis = received, zone = zone, supported = true, memory = memory,
+        ) as SmsImportResult.Found
+        assertEquals("Entertainment", draft.draft.category)
+    }
+
+    @Test
+    fun reference_isCarriedAsAHashedKey() {
+        val draft = found("Sent Rs.99 From HDFC Bank A/C *1234 To SWIGGY On 05/01/26 Ref 401234567890")
+        assertEquals(com.akshar.utils.DuplicateCheck.referenceKey("EXPENSE", "401234567890"), draft.referenceKey)
+    }
+
+    @Test
     fun descriptions_fallBackToChannel() {
         assertEquals("ATM withdrawal", BankSmsImport.describe(null, io.github.txnparse.Channel.ATM, true))
         assertEquals("UPI credit", BankSmsImport.describe(null, io.github.txnparse.Channel.UPI, false))
