@@ -33,6 +33,8 @@ fun AddTransferScreen(
     navController: NavController,
     transferId: String? = null
 ) {
+    val confirmDelete = rememberConfirmDeleteState()
+    ConfirmDeleteDialog(confirmDelete)
     val context = LocalContext.current
     val accounts by viewModel.accounts.collectAsState()
     val activeAccounts = accounts.filter { !it.isArchived }
@@ -218,8 +220,10 @@ fun AddTransferScreen(
             if (transferId != null) {
                 OutlinedButton(
                     onClick = {
-                        viewModel.deleteTransfer(transferId)
-                        navController.popBackStack()
+                        confirmDelete.request("Delete transfer?", "Both sides of this transfer will be removed. This can't be undone.") {
+                            viewModel.deleteTransfer(transferId)
+                            navController.popBackStack()
+                        }
                     },
                     modifier = Modifier.fillMaxWidth().height(Spacing.touchTarget),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
