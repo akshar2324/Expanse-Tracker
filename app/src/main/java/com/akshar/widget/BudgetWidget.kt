@@ -41,6 +41,7 @@ import com.akshar.AppNavigationRequests
 import com.akshar.ExpenseTrackerApp
 import com.akshar.MainActivity
 import com.akshar.data.repository.FinanceRepository
+import com.akshar.utils.CurrencyUtils
 import com.akshar.ui.theme.DarkFinanceColors
 import com.akshar.ui.theme.DarkOnSurface
 import com.akshar.ui.theme.DarkOnSurfaceVariant
@@ -69,16 +70,21 @@ class BudgetWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(SMALL, TALL))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val repository = (context.applicationContext as ExpenseTrackerApp).repository
-        val symbol = BudgetWidgetModel.currencySymbol(
-            context.getSharedPreferences("country_settings", Context.MODE_PRIVATE).getString("selected_country", "IN")
-        )
-        val initial = withContext(Dispatchers.IO) {
-            BudgetWidgetModel.build(repository.allBudgets.first(), repository.allTransactions.first())
-        }
         val openBudgets = Intent(context, MainActivity::class.java)
             .putExtra(AppNavigationRequests.EXTRA_OPEN_TAB, AppNavigationRequests.TAB_BUDGETS)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
+        // With the app lock on, the home screen must not show what the lock protects.
+        if (BudgetWidgetModel.isAppLockOn(context)) {
+            provideContent { LockedWidgetContent(actionIntent = openBudgets) }
+            return
+        }
+
+        val repository = (context.applicationContext as ExpenseTrackerApp).repository
+        val symbol = CurrencyUtils.symbolFor(CurrencyUtils.selectedCountry(context))
+        val initial = withContext(Dispatchers.IO) {
+            BudgetWidgetModel.build(repository.allBudgets.first(), repository.allTransactions.first())
+        }
 
         provideContent {
             // Live while the widget session is open; BudgetWidgetUpdater covers later changes.
@@ -150,7 +156,7 @@ private fun BudgetWidgetContent(state: BudgetWidgetState, symbol: String, action
 
         if (!state.hasBudgets) {
             Text(
-                text = "No monthly budgets",
+                text = "No budgets yet",
                 style = TextStyle(color = WidgetColors.text, fontWeight = FontWeight.Medium, fontSize = 14.sp)
             )
             Text(text = "Tap to set one", style = TextStyle(color = WidgetColors.muted, fontSize = 12.sp))
@@ -190,7 +196,7 @@ private fun BudgetWidgetContent(state: BudgetWidgetState, symbol: String, action
                 Spacer(GlanceModifier.height(8.dp))
                 Row(modifier = GlanceModifier.fillMaxWidth()) {
                     Text(
-                        text = row.label,
+                        text = if (row.weekly) "${row.label} · week" else row.label,
                         style = TextStyle(color = WidgetColors.text, fontSize = 12.sp),
                         maxLines = 1,
                         modifier = GlanceModifier.defaultWeight()
@@ -210,6 +216,35 @@ private fun BudgetWidgetContent(state: BudgetWidgetState, symbol: String, action
                 )
             }
         }
+    }
+}
+
+/** Shown instead of any amounts while the app lock is on. */
+@Composable
+private fun LockedWidgetContent(actionIntent: Intent) {
+    Column(
+        modifier = GlanceModifier
+            .fillMaxSize()
+            .cornerRadius(24.dp)
+            .background(WidgetColors.panel)
+            .padding(14.dp)
+            .clickable(actionStartActivity(actionIntent))
+            .semantics { contentDescription = "Budgets. Locked. Open AkSpend to see them." },
+        verticalAlignment = Alignment.Vertical.CenterVertically
+    ) {
+        Text(
+            text = "Budgets",
+            style = TextStyle(color = WidgetColors.title, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+        )
+        Spacer(GlanceModifier.height(8.dp))
+        Text(
+            text = "Locked",
+            style = TextStyle(color = WidgetColors.text, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+        )
+        Text(
+            text = "Amounts are hidden while the app lock is on. Tap to open.",
+            style = TextStyle(color = WidgetColors.muted, fontSize = 12.sp)
+        )
     }
 }
 

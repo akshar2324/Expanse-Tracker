@@ -87,13 +87,18 @@ object AutoBackupScheduler {
         workManager.enqueueUniquePeriodicWork(PERIODIC_WORK, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 
-    /** A backup the user asked for. It is not held back by the battery constraint. */
+    /**
+     * A backup the user asked for. It is not held back by the battery constraint, and it
+     * replaces an earlier manual run that is still waiting to retry, so a tap always runs now.
+     * Runs can't overlap: the worker holds a lock while writing.
+     */
     fun backUpNow(context: Context) {
-        val request = OneTimeWorkRequestBuilder<AutoBackupWorker>()
-            .setInputData(workDataOf(AutoBackupWorker.KEY_MANUAL to true))
-            .build()
-        WorkManager.getInstance(context).enqueueUniqueWork(NOW_WORK, ExistingWorkPolicy.KEEP, request)
+        WorkManager.getInstance(context).enqueueUniqueWork(NOW_WORK, ExistingWorkPolicy.REPLACE, manualRequest())
     }
+
+    private fun manualRequest() = OneTimeWorkRequestBuilder<AutoBackupWorker>()
+        .setInputData(workDataOf(AutoBackupWorker.KEY_MANUAL to true))
+        .build()
 }
 
 /** A Storage Access Framework folder the user picked and granted persistent access to. */

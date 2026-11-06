@@ -3,6 +3,7 @@ package com.akshar.widget
 import com.akshar.data.model.Budget
 import com.akshar.data.model.Transaction
 import com.akshar.utils.BudgetMath
+import com.akshar.utils.CurrencyUtils
 import com.akshar.utils.PeriodUtils
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -42,16 +43,18 @@ class BudgetWidgetModelTest {
     )
 
     @Test
-    fun `totals match the shared budget math`() {
+    fun `totals match Home's budget bar`() {
         val state = BudgetWidgetModel.build(budgets, transactions, now)
         val summary = BudgetMath.summary(BudgetMath.activeBudgets(budgets, now), transactions)
         assertEquals(summary.totalLimit, state.totalLimit, 0.0)
-        assertEquals(BudgetMath.totalSpentInMonth(transactions, month), state.totalSpent, 0.0)
+        assertEquals(summary.totalSpent, state.totalSpent, 0.0)
         assertEquals(18000.0, state.totalLimit, 0.0)
-        assertEquals(27759.0, state.totalSpent, 0.0)
-        assertEquals(0.0, state.remaining, 0.0)
-        assertEquals(9759.0, state.overBy, 0.0)
-        assertEquals(1f, state.fraction, 0f)
+        // Rent has no budget, so it is not counted: 3000 + 1559 + 2000 + 1200.
+        assertEquals(7759.0, state.totalSpent, 0.0)
+        assertFalse(state.isOver)
+        assertEquals(10241.0, state.remaining, 0.0)
+        assertEquals(0.0, state.overBy, 0.0)
+        assertEquals(7759f / 18000f, state.fraction, 1e-6f)
         assertEquals(4, state.budgetCount)
     }
 
@@ -78,21 +81,22 @@ class BudgetWidgetModelTest {
     }
 
     @Test
-    fun `weekly limits are excluded from monthly totals and rows`() {
-        val weekly = BudgetWidgetModel.build(
-            listOf(Budget(id = 1, category = "Food", limitAmount = 50.0, month = week, frequency = "WEEKLY")),
-            listOf(expense("Food", 10.0)),
-            now
-        )
-        assertFalse(weekly.hasBudgets)
-        assertTrue(weekly.rows.isEmpty())
-        assertEquals(0.0, weekly.totalLimit, 0.0)
+    fun `this week's weekly budgets count, as they do on Home`() {
+        val weeklyBudgets = listOf(Budget(id = 1, category = "Food", limitAmount = 50.0, month = week, frequency = "WEEKLY"))
+        val weekly = BudgetWidgetModel.build(weeklyBudgets, listOf(expense("Food", 10.0)), now)
+        assertTrue(weekly.hasBudgets)
+        assertTrue(weekly.rows.single().weekly)
+        assertEquals(50.0, weekly.totalLimit, 0.0)
         assertEquals(10.0, weekly.totalSpent, 0.0)
+        assertEquals(
+            BudgetMath.summary(BudgetMath.activeBudgets(weeklyBudgets, now), listOf(expense("Food", 10.0))).totalSpent,
+            weekly.totalSpent, 0.0
+        )
 
         val empty = BudgetWidgetModel.build(emptyList(), transactions, now)
         assertFalse(empty.hasBudgets)
         assertEquals(0f, empty.fraction, 0f)
-        assertEquals(27759.0, empty.totalSpent, 0.0)
+        assertEquals(0.0, empty.totalSpent, 0.0)
     }
 
     @Test
@@ -107,7 +111,7 @@ class BudgetWidgetModelTest {
     }
 
     @Test
-    fun `monthly spending includes unbudgeted expenses but excludes income transfers and other months`() {
+    fun `spending counts budgeted expenses only, never income, transfers or other months`() {
         val otherMonth = Calendar.getInstance().apply {
             timeInMillis = now
             add(Calendar.MONTH, -1)
@@ -119,14 +123,15 @@ class BudgetWidgetModelTest {
             expense("Food", 100.0).copy(date = otherMonth)
         )
         val state = BudgetWidgetModel.build(budgets, rows, now)
-        assertEquals(3.03, state.totalSpent, 0.0)
+        assertEquals(1.01, state.totalSpent, 0.0)
         assertEquals(1.01, state.rows.first { it.label == "Food" }.spent, 0.0)
     }
 
     @Test
     fun `money is shown in whole units with the app currency`() {
-        assertEquals("₹1,560", BudgetWidgetModel.formatShort(1559.5, BudgetWidgetModel.currencySymbol("IN"), Locale.US))
-        assertEquals("$0", BudgetWidgetModel.formatShort(0.0, BudgetWidgetModel.currencySymbol(null), Locale.US))
-        assertEquals("€", BudgetWidgetModel.currencySymbol("EU"))
+        assertEquals("₹1,560", BudgetWidgetModel.formatShort(1559.5, CurrencyUtils.symbolFor("IN"), Locale.US))
+        assertEquals("$0", BudgetWidgetModel.formatShort(0.0, CurrencyUtils.symbolFor(null), Locale.US))
+        assertEquals("€", CurrencyUtils.symbolFor("EU"))
+        assertEquals("¥", CurrencyUtils.symbolFor("JP"))
     }
 }

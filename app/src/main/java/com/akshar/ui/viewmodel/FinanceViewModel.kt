@@ -62,25 +62,20 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // --- Country & Currency Settings ---
-    private val countryPrefs = application.getSharedPreferences("country_settings", android.content.Context.MODE_PRIVATE)
+    private val countryPrefs = application.getSharedPreferences(com.akshar.utils.CurrencyUtils.PREFS, android.content.Context.MODE_PRIVATE)
 
-    private val _selectedCountry = MutableStateFlow(countryPrefs.getString("selected_country", "IN") ?: "IN")
+    private val _selectedCountry = MutableStateFlow(
+        countryPrefs.getString(com.akshar.utils.CurrencyUtils.KEY_COUNTRY, com.akshar.utils.CurrencyUtils.DEFAULT_COUNTRY)
+            ?: com.akshar.utils.CurrencyUtils.DEFAULT_COUNTRY
+    )
     val selectedCountry: StateFlow<String> = _selectedCountry.asStateFlow()
 
     fun updateCountry(countryCode: String) {
-        countryPrefs.edit().putString("selected_country", countryCode).apply()
+        countryPrefs.edit().putString(com.akshar.utils.CurrencyUtils.KEY_COUNTRY, countryCode).apply()
         _selectedCountry.value = countryCode
     }
 
-    fun getCurrencySymbol(): String {
-        return when (selectedCountry.value) {
-            "IN" -> "₹"
-            "US" -> "$"
-            "JP" -> "¥"
-            "EU" -> "€"
-            else -> "$"
-        }
-    }
+    fun getCurrencySymbol(): String = com.akshar.utils.CurrencyUtils.symbolFor(selectedCountry.value)
 
     fun formatCurrencyValue(amount: Double): String {
         val symbol = getCurrencySymbol()
