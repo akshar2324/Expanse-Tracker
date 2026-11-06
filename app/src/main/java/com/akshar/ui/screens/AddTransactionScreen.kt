@@ -366,6 +366,18 @@ fun AddTransactionScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // The amount field may be scrolled off screen, so repeat its error beside the button.
+            if (amountError != null) {
+                Text(
+                    text = amountError!!,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = Spacing.sm)
+                )
+            }
+
             // --- Save Button ---
             Button(
                 onClick = {
@@ -398,6 +410,42 @@ fun AddTransactionScreen(
                     text = if (isExpense) "Save expense" else "Save income",
                     style = MaterialTheme.typography.titleMedium
                 )
+            }
+
+            // Edit mode: deleting lives here, behind a confirmation, instead of on every list row.
+            val existing = editingTransaction
+            if (existing != null) {
+                var confirmDelete by remember { mutableStateOf(false) }
+                Spacer(modifier = Modifier.height(Spacing.sm))
+                TextButton(
+                    onClick = { confirmDelete = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = Spacing.touchTarget),
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete transaction", style = MaterialTheme.typography.labelLarge)
+                }
+                if (confirmDelete) {
+                    AlertDialog(
+                        onDismissRequest = { confirmDelete = false },
+                        title = { Text("Delete this transaction?") },
+                        text = { Text("It will be removed from your history and totals. This can't be undone.") },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    confirmDelete = false
+                                    viewModel.deleteTransaction(existing)
+                                    onNavigateBack()
+                                },
+                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                            ) { Text("Delete") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+                        }
+                    )
+                }
             }
         }
     }

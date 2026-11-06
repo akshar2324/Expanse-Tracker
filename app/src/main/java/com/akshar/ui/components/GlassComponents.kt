@@ -119,18 +119,19 @@ fun ScreenHeader(
                 bottom = Spacing.md
             )
     ) {
-        if (onBack != null || actions != null) {
+        // Pushed screens get a toolbar row (back + actions) above the title. Tab screens have
+        // no back button, so their actions sit beside the title and every tab title lines up.
+        val actionsBesideTitle = onBack == null && actions != null
+        if (onBack != null) {
             Row(
                 modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.touchTarget),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (onBack != null) {
-                    GlassIconButton(
-                        icon = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        onClick = onBack
-                    )
-                }
+                GlassIconButton(
+                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    onClick = onBack
+                )
                 Spacer(Modifier.weight(1f))
                 if (actions != null) Row(verticalAlignment = Alignment.CenterVertically, content = actions)
             }
@@ -138,27 +139,35 @@ fun ScreenHeader(
         } else {
             Spacer(Modifier.height(Spacing.lg))
         }
-        if (eyebrow != null) {
-            Text(
-                text = eyebrow.uppercase(),
-                style = MaterialTheme.typography.labelMedium.eyebrow(),
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(Modifier.height(Spacing.xxs))
-        }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.semantics { heading() }
-        )
-        if (subtitle != null) {
-            Spacer(Modifier.height(Spacing.xs))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Row(verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f)) {
+                if (eyebrow != null) {
+                    Text(
+                        text = eyebrow.uppercase(),
+                        style = MaterialTheme.typography.labelMedium.eyebrow(),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(Spacing.xxs))
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.semantics { heading() }
+                )
+                if (subtitle != null) {
+                    Spacer(Modifier.height(Spacing.xs))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            if (actionsBesideTitle && actions != null) {
+                Spacer(Modifier.width(Spacing.md))
+                Row(verticalAlignment = Alignment.CenterVertically, content = actions)
+            }
         }
     }
 }

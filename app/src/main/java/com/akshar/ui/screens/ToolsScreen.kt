@@ -151,7 +151,7 @@ fun ToolsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp),
+                            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Button(
@@ -160,35 +160,21 @@ fun ToolsScreen(
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("New Auto-Recurring Entry")
+                            Text("Add repeating entry")
                         }
 
                         Text(
-                            text = "Active Recurring Logs",
+                            text = "Active reminders",
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleMedium
                         )
 
                         if (recurringList.isEmpty()) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().weight(1.0f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        imageVector = Icons.Default.EventRepeat,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
-                                        modifier = Modifier.size(56.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "No recurring transactions set up.",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
+                            EmptyState(
+                                icon = Icons.Default.EventRepeat,
+                                title = "No reminders yet",
+                                message = "Add rent, bills or salary once and they'll be logged for you each time they repeat."
+                            )
                         } else {
                             LazyColumn(
                                 modifier = Modifier.weight(1.0f),
@@ -260,7 +246,7 @@ fun ToolsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp)
+                            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg)
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
@@ -278,14 +264,14 @@ fun ToolsScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Advanced Security & Vault",
+                                        text = "Keep your money private",
                                         fontWeight = FontWeight.Bold,
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Maintain privacy for your transactions and bank statement records. Toggle access checks and set custom authentication PIN codes below.",
+                                    text = "Lock the app with a passcode or your fingerprint. Your data never leaves this device.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                                 )
@@ -295,7 +281,7 @@ fun ToolsScreen(
                         Card(modifier = Modifier.fillMaxWidth(), colors = glassCardColors(), border = glassBorder()) {
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text(
-                                    text = "Authentication Methods",
+                                    text = "Unlock options",
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.primary
@@ -348,14 +334,14 @@ fun ToolsScreen(
                             Card(modifier = Modifier.fillMaxWidth(), colors = glassCardColors(), border = glassBorder()) {
                                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                     Text(
-                                        text = "Reset Vault passcode",
+                                        text = "Change passcode",
                                         fontWeight = FontWeight.Bold,
                                         style = MaterialTheme.typography.titleMedium,
                                         color = MaterialTheme.colorScheme.primary
                                     )
 
                                     Text(
-                                        text = "Current PIN: ****",
+                                        text = "Current passcode: ••••",
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -368,7 +354,7 @@ fun ToolsScreen(
                                                 pinChangeInput = input
                                             }
                                         },
-                                        label = { Text("New 4-Digit Passcode") },
+                                        label = { Text("New 4-digit passcode") },
                                         placeholder = { Text("Enter 4 numbers") },
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         modifier = Modifier.fillMaxWidth(),
@@ -383,7 +369,7 @@ fun ToolsScreen(
                                                 confirmPinInput = input
                                             }
                                         },
-                                        label = { Text("Confirm New Passcode") },
+                                        label = { Text("Confirm new passcode") },
                                         placeholder = { Text("Re-enter 4 numbers") },
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         modifier = Modifier.fillMaxWidth(),
@@ -410,7 +396,7 @@ fun ToolsScreen(
                                     ) {
                                         Icon(Icons.Default.VpnKey, contentDescription = null)
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Save New passcode")
+                                        Text("Save passcode")
                                     }
                                 }
                             }
@@ -423,7 +409,7 @@ fun ToolsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp),
+                            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Card(
@@ -440,27 +426,27 @@ fun ToolsScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Generate Summary Ledger",
+                                        text = "Export a summary",
                                         fontWeight = FontWeight.Bold,
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Compile full breakdowns into clean data files to share or backup in sheets.",
+                                    text = "Build a CSV of your income and spending to copy into a spreadsheet.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                                 )
                             }
                         }
 
-                        Text("Select Compilation Scope", fontWeight = FontWeight.Bold)
+                        SectionHeader(title = "Choose a period")
 
                         listOf(
-                            "DAILY" to "Daily Financial Sheet",
-                            "WEEKLY" to "Weekly Income vs Expense Summary",
-                            "MONTHLY" to "Monthly category Breakdowns",
-                            "YEARLY" to "Yearly Audit Ledger Sheet"
+                            "DAILY" to "Today",
+                            "WEEKLY" to "This week",
+                            "MONTHLY" to "This month by category",
+                            "YEARLY" to "This year"
                         ).forEach { (typeKey, rowLabel) ->
                             Card(
                                 colors = glassCardColors(),
@@ -486,7 +472,7 @@ fun ToolsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(24.dp)
+                            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg)
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
@@ -505,15 +491,14 @@ fun ToolsScreen(
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
-                                        text = "NATIVE SQLITE BACKUPS",
+                                        text = "Your data, on your device",
                                         fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        letterSpacing = 1.sp
+                                        style = MaterialTheme.typography.titleMedium
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "Your financial records are 100% yours, stored locally on your device's protected memory. You can now perform full binary exports of the underlying Room SQLite database directly.",
+                                    text = "Everything is stored only on this phone. Save a backup file so you can restore it later or move it to a new phone.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                     lineHeight = 18.sp
@@ -529,12 +514,12 @@ fun ToolsScreen(
                         ) {
                             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text(
-                                    text = "Export Database File",
+                                    text = "Save a backup",
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.titleSmall
                                 )
                                 Text(
-                                    text = "Exporting creates a production-grade, uncompressed binary SQLite snapshot of your database (.db). You can save this file securely in Google Drive, local Folders, or send it to another device.",
+                                    text = "Creates one .db file with all your entries. Keep it somewhere safe, like your Drive or a folder on this phone.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -552,7 +537,7 @@ fun ToolsScreen(
                                 ) {
                                     Icon(Icons.Default.Share, contentDescription = null)
                                     Spacer(modifier = Modifier.width(10.dp))
-                                    Text("Export .db Backup File", fontWeight = FontWeight.Bold)
+                                    Text("Save backup file", fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -565,13 +550,13 @@ fun ToolsScreen(
                         ) {
                             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text(
-                                    text = "Restore Database File",
+                                    text = "Restore from a backup",
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Select a previously exported database .db backup. Note: Restoring overrides your existing local database file and reboots the application to securely swap the data engine.",
+                                    text = "Pick a .db file you saved before. This replaces everything currently in the app, then restarts it.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -589,7 +574,7 @@ fun ToolsScreen(
                                 ) {
                                     Icon(Icons.Default.UploadFile, contentDescription = null)
                                     Spacer(modifier = Modifier.width(10.dp))
-                                    Text("Upload & Restore .db File", fontWeight = FontWeight.Bold)
+                                    Text("Choose backup file", fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -602,29 +587,23 @@ fun ToolsScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
+                            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Text(
-                            text = "Global Preferences",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
                         Card(
                             colors = glassCardColors(AkSpendTheme.glass.fillStrong),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    text = "Select Country & Currency Region",
+                                    text = "Your region",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "This automatically adjusts payment methods, hides region-specific features (like UPI parsing in non-Indian regions), and updates formatting symbols.",
+                                    text = "Sets the currency symbol and which payment methods you see. UPI options only show for India.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -707,7 +686,7 @@ fun ToolsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp),
+                            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Card(
@@ -725,13 +704,13 @@ fun ToolsScreen(
                                 ) {
                                     Column {
                                         Text(
-                                            text = "Debts Balance",
+                                            text = "Net balance",
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer
                                         )
                                         Text(
-                                            text = "Overview of pending settlements",
+                                            text = "What is still unsettled",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                         )
@@ -740,7 +719,11 @@ fun ToolsScreen(
                                     val netScore = totalLent - totalBorrowed
                                     val netFormatted = viewModel.formatCurrencyValue(kotlin.math.abs(netScore))
                                     Text(
-                                        text = if (netScore >= 0) "+$netFormatted" else "-$netFormatted",
+                                        text = when {
+                                            kotlin.math.abs(netScore) < 0.005 -> netFormatted
+                                            netScore > 0 -> "+$netFormatted"
+                                            else -> "-$netFormatted"
+                                        },
                                         style = MaterialTheme.typography.headlineSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = if (netScore >= 0) AkSpendTheme.finance.income else AkSpendTheme.finance.expense
@@ -753,7 +736,7 @@ fun ToolsScreen(
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "Others Owe You (Lent)",
+                                            text = "Owed to you",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                         )
@@ -766,7 +749,7 @@ fun ToolsScreen(
                                     }
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "You Owe Others (Borrowed)",
+                                            text = "You owe",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                         )
@@ -787,7 +770,7 @@ fun ToolsScreen(
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("New Borrow / Lent Record")
+                            Text("Add a record")
                         }
 
                         Row(
@@ -829,25 +812,12 @@ fun ToolsScreen(
                         }
 
                         if (filteredDebts.isEmpty()) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().weight(1.0f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        imageVector = Icons.Default.Info,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.outlineVariant,
-                                        modifier = Modifier.size(64.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Text(
-                                        text = "No pending records found under this filter.",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
+                            EmptyState(
+                                icon = Icons.Default.Handshake,
+                                title = if (debtsList.isEmpty()) "Nothing owed" else "No records here",
+                                message = if (debtsList.isEmpty()) "Note money you lend or borrow so you remember who to settle with."
+                                          else "Try another filter to see your other records."
+                            )
                         } else {
                             LazyColumn(
                                 modifier = Modifier.weight(1.0f),
@@ -1011,10 +981,10 @@ fun ToolsScreen(
 
         AlertDialog(
             onDismissRequest = { showReportDetailType = null },
-            title = { Text("$sheetType Financial Sheet") },
+            title = { Text("Report ready") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Report compiled successfully:", style = MaterialTheme.typography.labelSmall)
+                    Text("Copy this CSV into a spreadsheet:", style = MaterialTheme.typography.labelSmall)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1221,7 +1191,7 @@ fun AddRecurringDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New Recurring Rule") },
+        title = { Text("New repeating entry") },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1235,12 +1205,12 @@ fun AddRecurringDialog(
                     FilterChip(
                         selected = isExpense,
                         onClick = { isExpense = true },
-                        label = { Text("Expense (Debit)") }
+                        label = { Text("Expense") }
                     )
                     FilterChip(
                         selected = !isExpense,
                         onClick = { isExpense = false },
-                        label = { Text("Income (Credit)") }
+                        label = { Text("Income") }
                     )
                 }
 
@@ -1248,7 +1218,7 @@ fun AddRecurringDialog(
                     colors = glassTextFieldColors(),
                     value = amountStr,
                     onValueChange = { amountStr = it },
-                    label = { Text("Impact Sum (₹)") },
+                    label = { Text("Amount") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -1258,13 +1228,13 @@ fun AddRecurringDialog(
                     colors = glassTextFieldColors(),
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Billing Description") },
+                    label = { Text("Description") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 // Frequency Dropdown
-                Text("Repetition Interval", style = MaterialTheme.typography.labelSmall)
+                Text("Repeats", style = MaterialTheme.typography.labelSmall)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1291,7 +1261,7 @@ fun AddRecurringDialog(
                 }
 
                 // Category Dropdown
-                Text("Log Category", style = MaterialTheme.typography.labelSmall)
+                Text("Category", style = MaterialTheme.typography.labelSmall)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1334,7 +1304,7 @@ fun AddRecurringDialog(
                     }
                 }
             ) {
-                Text("Enable Schedule")
+                Text("Save")
             }
         },
         dismissButton = {
@@ -1361,7 +1331,7 @@ fun AddDebtDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New Borrow / Lent Record", fontWeight = FontWeight.Bold) },
+        title = { Text("Add a borrow or lend record", fontWeight = FontWeight.Bold) },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1405,8 +1375,8 @@ fun AddDebtDialog(
                     colors = glassTextFieldColors(),
                     value = personName,
                     onValueChange = { personName = it },
-                    label = { Text("Person's Name") },
-                    placeholder = { Text("e.g. John Doe") },
+                    label = { Text("Person's name") },
+                    placeholder = { Text("e.g. Riya") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1427,8 +1397,8 @@ fun AddDebtDialog(
                     colors = glassTextFieldColors(),
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Description / Notes") },
-                    placeholder = { Text("e.g. For dinner bills, project, etc.") },
+                    label = { Text("Note (optional)") },
+                    placeholder = { Text("e.g. Dinner split") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -1453,7 +1423,7 @@ fun AddDebtDialog(
                     }
                 }
             ) {
-                Text("Save Record")
+                Text("Save")
             }
         },
         dismissButton = {
@@ -1475,12 +1445,10 @@ fun CalculatorsTab() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Financial Calculators", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = glassCardColors(AkSpendTheme.glass.fillStrong)
@@ -1490,7 +1458,7 @@ fun CalculatorsTab() {
                     colors = glassTextFieldColors(),
                     value = principal,
                     onValueChange = { principal = it },
-                    label = { Text("Principal Amount") },
+                    label = { Text("Loan or investment amount") },
                     keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1498,7 +1466,7 @@ fun CalculatorsTab() {
                     colors = glassTextFieldColors(),
                     value = rate,
                     onValueChange = { rate = it },
-                    label = { Text("Interest Rate (%)") },
+                    label = { Text("Interest rate (% per year)") },
                     keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1506,7 +1474,7 @@ fun CalculatorsTab() {
                     colors = glassTextFieldColors(),
                     value = time,
                     onValueChange = { time = it },
-                    label = { Text("Time (Years)") },
+                    label = { Text("Time (years)") },
                     keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1542,7 +1510,7 @@ fun CalculatorsTab() {
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Calculate CI")
+                        Text("Interest total")
                     }
                 }
 
@@ -1550,7 +1518,7 @@ fun CalculatorsTab() {
                     Text("Monthly EMI: ${String.format("%.2f", emiResult)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
                 if (ciResult != null) {
-                    Text("Total Amount (CI): ${String.format("%.2f", ciResult)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text("Total after interest: ${String.format("%.2f", ciResult)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
             }
         }

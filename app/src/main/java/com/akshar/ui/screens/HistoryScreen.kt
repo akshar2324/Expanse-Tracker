@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.FilterListOff
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Inbox
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Tune
@@ -237,7 +238,7 @@ fun HistoryScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "+$currencySymbol${String.format("%,.0f", totalIn)}  ·  -$currencySymbol${String.format("%,.0f", totalOut)}",
+                        text = "${signedMoney(totalIn, positive = true, currencySymbol = currencySymbol)}  ·  ${signedMoney(totalOut, positive = false, currencySymbol = currencySymbol)}",
                         style = MaterialTheme.typography.bodySmall.money(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -260,11 +261,33 @@ fun HistoryScreen(
 
         if (filteredTransactions.isEmpty()) {
             item(key = "empty") {
+                val nothingLogged = transactions.isEmpty()
                 EmptyState(
-                    icon = Icons.Rounded.SearchOff,
-                    title = if (transactions.isEmpty()) "Nothing here yet" else "No matches",
-                    message = if (transactions.isEmpty()) "Transactions you add will appear here, newest first."
-                    else "Try a different search or clear the filters."
+                    icon = if (nothingLogged) Icons.Rounded.Inbox else Icons.Rounded.SearchOff,
+                    title = if (nothingLogged) "Nothing here yet" else "No matches",
+                    message = if (nothingLogged) "Transactions you add will appear here, newest first."
+                    else "Try a different search or clear the filters.",
+                    action = {
+                        FilledTonalButton(
+                            onClick = {
+                                if (nothingLogged) {
+                                    navController.navigate(TransactionRoutes.ADD)
+                                } else {
+                                    searchQuery = ""
+                                    selectedTypeFilter = "ALL"
+                                    selectedPaymentFilter = "ALL"
+                                    selectedTimeFilter = "ALL"
+                                    selectedAccountFilter = null
+                                }
+                            },
+                            shape = PillShape
+                        ) {
+                            Text(
+                                if (nothingLogged) "Add transaction" else "Clear filters",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
                 )
             }
         } else {
@@ -285,7 +308,7 @@ fun HistoryScreen(
                                 modifier = Modifier.semantics { heading() }
                             )
                             Text(
-                                text = "${if (net >= 0) "+" else "-"}$currencySymbol${String.format("%,.0f", kotlin.math.abs(net))}",
+                                text = netMoney(net, currencySymbol),
                                 style = MaterialTheme.typography.labelLarge.money(),
                                 color = if (net >= 0) finance.income else MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -373,8 +396,14 @@ fun ScrollableFilterRow(
 fun List<Transaction>.sortedByByAmountDescending() = sortedByDescending { it.amount }
 
 @Composable
-fun TransactionItem(transaction: Transaction, onClick: () -> Unit, currencySymbol: String = "₹") {
-    val formatter = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
+fun TransactionItem(
+    transaction: Transaction,
+    onClick: () -> Unit,
+    currencySymbol: String = "₹",
+    // Activity groups rows by day, so it shows the time; lists without day headers show the date.
+    timePattern: String = "h:mm a",
+) {
+    val formatter = remember(timePattern) { SimpleDateFormat(timePattern, Locale.getDefault()) }
     val isExpense = transaction.type == "EXPENSE"
     val isTransfer = transaction.transferId != null
     val finance = AkSpendTheme.finance

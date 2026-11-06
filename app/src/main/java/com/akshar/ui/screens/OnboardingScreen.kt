@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Savings
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material3.*
@@ -65,8 +66,8 @@ fun OnboardingScreen(
             ),
             OnboardingSlide(
                 title = "Pick your currency",
-                description = "The app is locked with the passcode 1234 to start. You can change it, or turn on fingerprint unlock, under More › Vault.",
-                icon = Icons.Rounded.Lock,
+                description = "This sets the symbol used across the app. You can change it later under More › Region & currency.",
+                icon = Icons.Rounded.Public,
                 headerTag = "Almost done"
             )
         )
@@ -212,6 +213,26 @@ fun OnboardingScreen(
                                             )
                                         }
                                     }
+                                }
+                                Spacer(modifier = Modifier.height(Spacing.xl))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .glassPanel(MaterialTheme.shapes.medium, glass, glass.fill)
+                                        .padding(Spacing.md),
+                                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Lock,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "The app starts locked with passcode 1234. Change it, or turn on fingerprint unlock, under More › Vault & passcode.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
                         }
