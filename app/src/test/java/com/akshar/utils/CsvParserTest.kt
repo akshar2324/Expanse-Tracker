@@ -67,6 +67,33 @@ class CsvParserTest {
     }
 
     @Test
+    fun `Indian grouped amounts are accepted`() {
+        val result = parse("Date;Amount;Description;Category\n2026-01-05;-1,23,456.78;Rent;Rent\n", locale = "en_IN", delimiter = ';')
+        assertEquals(0, result.errors.size)
+        assertEquals(123456.78, result.rows.single().amount, 0.0)
+    }
+
+    @Test
+    fun `date with trailing garbage is rejected`() {
+        val result = parse("Date,Amount,Description,Category\n2026-01-05garbage,-3,Snack,Food\n")
+        assertEquals(0, result.rows.size)
+        assertEquals(1, result.errors.size)
+    }
+
+    @Test
+    fun `debit credit columns reject negative and conflicting values`() {
+        val result = CsvParser.parse(
+            "Date,Debit,Credit,Description\n2026-01-05,-12,,Refund\n2026-01-06,10,20,Ambiguous\n".byteInputStream(),
+            dateColumnName = "Date", dateFormatString = "yyyy-MM-dd",
+            amountColumnName = null, debitColumnName = "Debit", creditColumnName = "Credit",
+            descriptionColumnName = "Description", categoryColumnName = null,
+            localeString = "en_US", invertAmountSigns = false
+        )
+        assertEquals(0, result.rows.size)
+        assertEquals(2, result.errors.size)
+    }
+
+    @Test
     fun `row hash is stable for identical rows and differs otherwise`() {
         val a = parse("Date,Amount,Description,Category\n2026-01-05,-3,Snack,Food\n").rows.single().hash
         val b = parse("Date,Amount,Description,Category\n2026-01-05,-3,Snack,Food\n").rows.single().hash

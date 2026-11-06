@@ -13,8 +13,14 @@ import com.akshar.data.model.Debt
 import com.akshar.data.model.CsvImportProfile
 import com.akshar.data.model.Account
 import com.akshar.data.model.Reconciliation
+import com.akshar.data.model.MerchantCategory
+import com.akshar.utils.CategoryMemory
+import com.akshar.utils.DuplicateCandidate
+import com.akshar.utils.DuplicateMatch
 import com.akshar.data.repository.FinanceRepository
 import com.akshar.data.backup.BackupCodec
+import com.akshar.insights.SubscriptionCandidate
+import com.akshar.insights.MerchantKey
 import com.akshar.utils.MoneyUtils
 import com.akshar.utils.PeriodUtils
 import kotlinx.coroutines.Dispatchers
@@ -62,25 +68,20 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // --- Country & Currency Settings ---
-    private val countryPrefs = application.getSharedPreferences("country_settings", android.content.Context.MODE_PRIVATE)
+    private val countryPrefs = application.getSharedPreferences(com.akshar.utils.CurrencyUtils.PREFS, android.content.Context.MODE_PRIVATE)
 
-    private val _selectedCountry = MutableStateFlow(countryPrefs.getString("selected_country", "IN") ?: "IN")
+    private val _selectedCountry = MutableStateFlow(
+        countryPrefs.getString(com.akshar.utils.CurrencyUtils.KEY_COUNTRY, com.akshar.utils.CurrencyUtils.DEFAULT_COUNTRY)
+            ?: com.akshar.utils.CurrencyUtils.DEFAULT_COUNTRY
+    )
     val selectedCountry: StateFlow<String> = _selectedCountry.asStateFlow()
 
     fun updateCountry(countryCode: String) {
-        countryPrefs.edit().putString("selected_country", countryCode).apply()
+        countryPrefs.edit().putString(com.akshar.utils.CurrencyUtils.KEY_COUNTRY, countryCode).apply()
         _selectedCountry.value = countryCode
     }
 
-    fun getCurrencySymbol(): String {
-        return when (selectedCountry.value) {
-            "IN" -> "₹"
-            "US" -> "$"
-            "JP" -> "¥"
-            "EU" -> "€"
-            else -> "$"
-        }
-    }
+    fun getCurrencySymbol(): String = com.akshar.utils.CurrencyUtils.symbolFor(selectedCountry.value)
 
     fun formatCurrencyValue(amount: Double): String {
         val symbol = getCurrencySymbol()
@@ -161,7 +162,8 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         description: String,
         date: Long,
         paymentMethod: String,
-        existing: Transaction? = null // when editing, keeps id, account, and import metadata
+        existing: Transaction? = null, // when editing, keeps id, account, and import metadata
+        referenceKey: String? = null // bank reference of an imported SMS, see DuplicateCheck
     ) {
         val amount = MoneyUtils.roundMoney(amount)
         viewModelScope.launch {
@@ -178,10 +180,34 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 category = category,
                 description = description,
                 date = date,
-                paymentMethod = paymentMethod
+                paymentMethod = paymentMethod,
+                originalCsvRowHash = referenceKey
             )
             repository.insertTransaction(tx)
+            // The user chose this category for this merchant: suggest it next time.
+            runCatching { repository.learnCategory(description, type, category) }
+                .onFailure { Log.w("FinanceViewModel", "Could not remember category", it) }
         }
+    }
+
+    // --- Duplicate guard & learned categories ---
+
+    /** A saved transaction an imported entry probably repeats, or null. Reads on the IO dispatcher. */
+    suspend fun findLikelyDuplicate(candidate: DuplicateCandidate): DuplicateMatch? = withContext(Dispatchers.IO) {
+        repository.findLikelyDuplicate(candidate)
+    }
+
+    suspend fun categoryMemory(): CategoryMemory = withContext(Dispatchers.IO) { repository.categoryMemory() }
+
+    val learnedCategories: StateFlow<List<MerchantCategory>> = repository.allMerchantCategories
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun forgetLearnedCategory(mapping: MerchantCategory) {
+        viewModelScope.launch(Dispatchers.IO) { repository.forgetMerchantCategory(mapping) }
+    }
+
+    fun clearLearnedCategories() {
+        viewModelScope.launch(Dispatchers.IO) { repository.clearMerchantCategories() }
     }
 
     suspend fun getTransactionById(id: Long): Transaction? {
@@ -303,26 +329,48 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // --- CRUD: Recurring Transactions ---
+    private val subscriptionRemindersInFlight = mutableSetOf<String>()
+
+    /** Protect one-tap creation from repeated taps before Room refreshes the suggestion list. */
+    fun makeSubscriptionReminder(candidate: SubscriptionCandidate) {
+        viewModelScope.launch {
+            if (!subscriptionRemindersInFlight.add(candidate.key)) return@launch
+            try {
+                val existing = repository.allRecurringTransactions.first()
+                if (existing.none { MerchantKey.sameMerchant(MerchantKey.normalize(it.description), candidate.key) }) {
+                    addRecurringTransaction(
+                        amount = candidate.amount.toDouble(), type = "EXPENSE", category = candidate.category,
+                        description = candidate.displayName, frequency = candidate.frequency.reminderValue,
+                        paymentMethod = candidate.paymentMethod, lastTriggered = candidate.reminderAnchorMs
+                    ).join()
+                }
+            } finally {
+                subscriptionRemindersInFlight.remove(candidate.key)
+            }
+        }
+    }
+
     fun addRecurringTransaction(
         amount: Double,
         type: String,
         category: String,
         description: String,
         frequency: String,
-        paymentMethod: String
-    ) {
-        viewModelScope.launch {
-            val rec = RecurringTransaction(
-                amount = amount,
-                type = type,
-                category = category,
-                description = description,
-                frequency = frequency,
-                paymentMethod = paymentMethod,
-                lastTriggered = System.currentTimeMillis()
-            )
-            repository.insertRecurringTransaction(rec)
-        }
+        paymentMethod: String,
+        // The next due date is one period after this. Defaults to now; a reminder made from a
+        // detected subscription passes its last charge so it lines up with the real schedule.
+        lastTriggered: Long = System.currentTimeMillis()
+    ) = viewModelScope.launch {
+        val rec = RecurringTransaction(
+            amount = MoneyUtils.roundMoney(amount),
+            type = type,
+            category = category,
+            description = description,
+            frequency = frequency,
+            paymentMethod = paymentMethod,
+            lastTriggered = lastTriggered
+        )
+        repository.insertRecurringTransaction(rec)
     }
 
     fun deleteRecurringTransactionById(id: Long) {
@@ -474,7 +522,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     FileOutputStream(staged).use { output -> input.copyTo(output) }
                 } ?: throw Exception("Could not open input stream")
 
-                val problem = DatabaseFileValidator.problemWith(staged, com.akshar.data.db.DATABASE_VERSION)
+                val problem = DatabaseFileValidator.problemWith(staged, com.akshar.data.db.DATABASE_VERSION, context)
                 if (problem != null) {
                     _backupStatus.value = "Failed to restore backup file: $problem"
                     return@launch
@@ -536,7 +584,7 @@ object DatabaseFileValidator {
     private val SQLITE_HEADER = "SQLite format 3\u0000".toByteArray(Charsets.US_ASCII)
 
     /** Returns null when [file] looks restorable, otherwise a short reason. */
-    fun problemWith(file: File, currentSchemaVersion: Int): String? {
+    fun problemWith(file: File, currentSchemaVersion: Int, context: Context): String? {
         if (!file.exists() || file.length() < 100) return "the file is not a database backup."
         val header = ByteArray(100)
         FileInputStream(file).use { input ->
@@ -562,7 +610,45 @@ object DatabaseFileValidator {
         if (userVersion < MIN_RESTORABLE_VERSION) {
             return "the backup is too old to restore."
         }
-        return null
+        // A valid header is not enough: an unrelated or corrupt SQLite file would replace
+        // the live ledger and only fail when the app restarted. Check integrity and let Room
+        // validate/migrate a disposable copy before closing or replacing the live database.
+        val probeFile = File.createTempFile("restore-check-", ".db", context.cacheDir)
+        return try {
+            file.copyTo(probeFile, overwrite = true)
+            android.database.sqlite.SQLiteDatabase.openDatabase(
+                probeFile.absolutePath, null, android.database.sqlite.SQLiteDatabase.OPEN_READONLY
+            ).use { raw ->
+                raw.rawQuery("PRAGMA quick_check", null).use { cursor ->
+                    check(cursor.moveToFirst() && cursor.getString(0) == "ok")
+                }
+                // Room may initialise an empty database; an empty/corrupt backup must not
+                // become a valid fresh ledger as a side effect of validation.
+                raw.rawQuery("SELECT id, amount, type FROM transactions LIMIT 0", null).use { it.columnCount }
+            }
+            // A stale Room identity hash can survive a damaged/missing table. Removing it
+            // only on the disposable copy forces Room to compare every table and column.
+            android.database.sqlite.SQLiteDatabase.openDatabase(
+                probeFile.absolutePath, null, android.database.sqlite.SQLiteDatabase.OPEN_READWRITE
+            ).use { it.execSQL("DROP TABLE IF EXISTS room_master_table") }
+            val probe = androidx.room.Room.databaseBuilder(
+                context.applicationContext, com.akshar.data.db.AppDatabase::class.java, probeFile.absolutePath
+            ).addMigrations(*com.akshar.data.db.ALL_MIGRATIONS) // same list as the live database
+                .setJournalMode(androidx.room.RoomDatabase.JournalMode.TRUNCATE)
+                .build()
+            try {
+                probe.openHelper.writableDatabase.query("PRAGMA quick_check").use { cursor ->
+                    if (cursor.moveToFirst() && cursor.getString(0) == "ok") null
+                    else "the database backup is corrupt."
+                }
+            } finally {
+                probe.close()
+            }
+        } catch (_: Exception) {
+            "the file is corrupt or is not a compatible AkSpend database."
+        } finally {
+            android.database.sqlite.SQLiteDatabase.deleteDatabase(probeFile)
+        }
     }
 
     private const val MIN_RESTORABLE_VERSION = 4

@@ -59,16 +59,23 @@ fun DashboardScreen(
 ) {
     val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
     val transactions = allTransactions.filter { it.transferId == null }
+    val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val budgets by viewModel.allBudgets.collectAsStateWithLifecycle()
     val recurringList by viewModel.allRecurringTransactions.collectAsStateWithLifecycle()
+    val insightsViewModel = rememberInsightsViewModel()
+    val forecast by insightsViewModel.forecast.collectAsStateWithLifecycle()
+    val inboxContext = androidx.compose.ui.platform.LocalContext.current
+    val pendingImports by remember {
+        com.akshar.sms.inbox.ImportInboxDatabase.getInstance(inboxContext).pendingImportDao().observeCount()
+    }.collectAsStateWithLifecycle(initialValue = 0)
 
     val selectedCountry by viewModel.selectedCountry.collectAsStateWithLifecycle()
     val currencySymbol = viewModel.getCurrencySymbol()
 
     // --- State Calculations ---
-    val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-    val totalExpense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
-    val currentBalance = totalIncome - totalExpense
+    val currentBalance = com.akshar.insights.MonthEndForecaster.currentBalance(
+        System.currentTimeMillis(), accounts, allTransactions
+    ).toDouble()
 
     // Today boundaries
     val startOfToday = remember {
@@ -91,17 +98,24 @@ fun DashboardScreen(
         }.timeInMillis
     }
 
-    val todayIncome = transactions.filter { it.type == "INCOME" && it.date >= startOfToday }.sumOf { it.amount }
-    val todayExpense = transactions.filter { it.type == "EXPENSE" && it.date >= startOfToday }.sumOf { it.amount }
+    val startOfTomorrow = remember(startOfToday) {
+        Calendar.getInstance().apply { timeInMillis = startOfToday; add(Calendar.DAY_OF_YEAR, 1) }.timeInMillis
+    }
+    val startOfNextMonth = remember(startOfMonth) {
+        Calendar.getInstance().apply { timeInMillis = startOfMonth; add(Calendar.MONTH, 1) }.timeInMillis
+    }
 
-    val monthIncome = transactions.filter { it.type == "INCOME" && it.date >= startOfMonth }.sumOf { it.amount }
-    val monthExpense = transactions.filter { it.type == "EXPENSE" && it.date >= startOfMonth }.sumOf { it.amount }
+    val todayIncome = transactions.filter { it.type == "INCOME" && it.date >= startOfToday && it.date < startOfTomorrow }.sumOf { it.amount }
+    val todayExpense = transactions.filter { it.type == "EXPENSE" && it.date >= startOfToday && it.date < startOfTomorrow }.sumOf { it.amount }
+
+    val monthIncome = transactions.filter { it.type == "INCOME" && it.date >= startOfMonth && it.date < startOfNextMonth }.sumOf { it.amount }
+    val monthExpense = transactions.filter { it.type == "EXPENSE" && it.date >= startOfMonth && it.date < startOfNextMonth }.sumOf { it.amount }
 
     // --- Quick Stats Calculations ---
     val recentTxs = transactions.take(10)
 
     // Average spending (daily average in the current month)
-    val expensesThisMonth = transactions.filter { it.type == "EXPENSE" && it.date >= startOfMonth }
+    val expensesThisMonth = transactions.filter { it.type == "EXPENSE" && it.date >= startOfMonth && it.date < startOfNextMonth }
     val daysInMonthElapsed = remember {
         val todayDay = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
         todayDay.coerceAtLeast(1)
@@ -164,6 +178,27 @@ fun DashboardScreen(
                 )
             }
 
+            if (pendingImports > 0) {
+                item(key = "toReview") {
+                    GlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { navController.navigate(com.akshar.SmsImportRoutes.INBOX) },
+                        onClickLabel = "Open payments to review",
+                        contentPadding = PaddingValues(Spacing.lg)
+                    ) {
+                        Text(
+                            if (pendingImports == 1) "1 payment to review" else "$pendingImports payments to review",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            "Picked up from your notifications. Tap to check and save.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             item(key = "today") {
                 CashflowBanner(
                     todayIncome = todayIncome,
@@ -173,6 +208,16 @@ fun DashboardScreen(
                     currencySymbol = currencySymbol,
                     modifier = Modifier.entrance(entrance, 2)
                 )
+            }
+
+            if (forecast != com.akshar.insights.MonthEndForecast.NoData) {
+                item(key = "forecast") {
+                    MonthEndForecastCard(
+                        forecast = forecast,
+                        currencySymbol = currencySymbol,
+                        modifier = Modifier.entrance(entrance, 2)
+                    )
+                }
             }
 
             item(key = "stats") {
