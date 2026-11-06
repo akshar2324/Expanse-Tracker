@@ -35,6 +35,9 @@ fun AnalyticsScreen(
     val selectedCountry by viewModel.selectedCountry.collectAsStateWithLifecycle()
     val currencySymbol = viewModel.getCurrencySymbol()
 
+    val insightsViewModel = rememberInsightsViewModel()
+    val subscriptions by insightsViewModel.subscriptions.collectAsStateWithLifecycle()
+
     var selectedTab by rememberSaveable { mutableStateOf("EXPENSES") } // "EXPENSES", "INCOME", "CASHFLOW"
 
     val expenses = transactions.filter { it.type == "EXPENSE" }
@@ -62,6 +65,17 @@ fun AnalyticsScreen(
                 selectedIndex = analyticsTabs.indexOfFirst { it.first == selectedTab },
                 onSelect = { selectedTab = analyticsTabs[it].first }
             )
+        }
+
+        if (subscriptions.isNotEmpty()) {
+            item(key = "subscriptions") {
+                SubscriptionSuggestions(
+                    candidates = subscriptions,
+                    currencySymbol = currencySymbol,
+                    onMakeReminder = viewModel::makeSubscriptionReminder,
+                    onDismiss = insightsViewModel::dismissSubscription
+                )
+            }
         }
 
         if (transactions.isEmpty()) {

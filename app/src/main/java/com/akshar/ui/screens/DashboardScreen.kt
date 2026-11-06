@@ -59,16 +59,19 @@ fun DashboardScreen(
 ) {
     val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
     val transactions = allTransactions.filter { it.transferId == null }
+    val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val budgets by viewModel.allBudgets.collectAsStateWithLifecycle()
     val recurringList by viewModel.allRecurringTransactions.collectAsStateWithLifecycle()
+    val insightsViewModel = rememberInsightsViewModel()
+    val forecast by insightsViewModel.forecast.collectAsStateWithLifecycle()
 
     val selectedCountry by viewModel.selectedCountry.collectAsStateWithLifecycle()
     val currencySymbol = viewModel.getCurrencySymbol()
 
     // --- State Calculations ---
-    val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-    val totalExpense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
-    val currentBalance = totalIncome - totalExpense
+    val currentBalance = com.akshar.insights.MonthEndForecaster.currentBalance(
+        System.currentTimeMillis(), accounts, allTransactions
+    ).toDouble()
 
     // Today boundaries
     val startOfToday = remember {
@@ -173,6 +176,16 @@ fun DashboardScreen(
                     currencySymbol = currencySymbol,
                     modifier = Modifier.entrance(entrance, 2)
                 )
+            }
+
+            if (forecast != com.akshar.insights.MonthEndForecast.NoData) {
+                item(key = "forecast") {
+                    MonthEndForecastCard(
+                        forecast = forecast,
+                        currencySymbol = currencySymbol,
+                        modifier = Modifier.entrance(entrance, 2)
+                    )
+                }
             }
 
             item(key = "stats") {
