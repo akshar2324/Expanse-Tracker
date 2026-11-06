@@ -591,6 +591,8 @@ fun ToolsScreen(
                                 }
                             }
                         }
+
+                        AutoBackupSection(financeViewModel = viewModel)
                     }
                 }
 

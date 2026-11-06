@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">AkSpend</string>
+    <string name="budget_widget_label">AkSpend budgets</string>
+    <string name="budget_widget_description">This month\'s spending against your budgets</string>
     <string name="share_sms_label">Add to AkSpend</string>
     <string name="auto_import_service_label">AkSpend payment import</string>
 </resources>
