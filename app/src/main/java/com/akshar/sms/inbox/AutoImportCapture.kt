@@ -11,8 +11,7 @@ import java.security.MessageDigest
  *
  * Only notifications from known messaging, UPI and bank apps are looked at. Personal chats are
  * the main privacy risk, so for messaging apps a message is kept only when it matched a
- * bank-specific rule or came from a bank-style sender ID (like "JD-HDFCBK-S"); a guess from the
- * generic parser about a message from a contact is dropped.
+ * bank-style sender ID (like "JD-HDFCBK-S"); bank wording alone never authenticates a contact.
  */
 object AutoImportCapture {
 
@@ -62,11 +61,12 @@ object AutoImportCapture {
         if (body.isEmpty()) return null
         val sender = title?.trim()?.takeIf { it.isNotEmpty() }
         val isMessaging = packageName in messagingApps
+        // Filter before parsing: even a perfect bank-template match can be pasted into a chat.
+        if (isMessaging && (sender == null || !looksLikeBankSender(sender))) return null
         val parseSender = if (isMessaging) sender else null
 
         val result = BankSmsImport.parse(body, sender = parseSender, receivedAtMillis = postedAt, supported = supported)
         val draft = (result as? SmsImportResult.Found)?.draft ?: return null
-        if (isMessaging && !draft.confident && !(sender != null && looksLikeBankSender(sender))) return null
         // A message dated in the future is a parse slip (e.g. dd/MM vs MM/dd); use the post time.
         val date = if (draft.dateMillis > postedAt + DAY_MS) postedAt else draft.dateMillis
 

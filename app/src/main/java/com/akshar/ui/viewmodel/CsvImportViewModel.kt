@@ -94,7 +94,10 @@ class CsvImportViewModel(
 
     fun handleFileSelected(uri: Uri) {
         _selectedUri.value = uri
-        _fileName.value = queryName(uri)
+        _fileName.value = null
+        viewModelScope.launch(ioDispatcher) {
+            _fileName.value = runCatching { queryName(uri) }.getOrDefault("Unknown File")
+        }
         extractHeaders(uri)
         _currentStep.value = ImportStep.CONFIGURE_MAPPING
     }
@@ -164,10 +167,11 @@ class CsvImportViewModel(
                     _parseErrors.value = result.errors
 
                     val hashes = result.rows.map { it.hash }
-                    val existingHashes = repository.getExistingCsvHashes(hashes).toSet()
+                    val seenHashes = repository.getExistingCsvHashes(hashes).toMutableSet()
 
                     val validationRows = result.rows.map { row ->
-                        val isDuplicate = existingHashes.contains(row.hash)
+                        // Include earlier rows in this file, not just rows already in Room.
+                        val isDuplicate = !seenHashes.add(row.hash)
                         ValidationRow(parsedRow = row, isDuplicate = isDuplicate, skip = isDuplicate)
                     }
 

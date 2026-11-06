@@ -36,7 +36,10 @@ class BankNotificationListener : NotificationListenerService() {
                 val dao = ImportInboxDatabase.getInstance(applicationContext).pendingImportDao()
                 dao.insert(item)
                 dao.deleteOlderThan(System.currentTimeMillis() - KEEP_MS)
-            }.onFailure { Log.w(TAG, "Could not queue a payment notification", it) }
+            }.onFailure {
+                // Parser/database exceptions can include input text; never pass them to logs.
+                Log.w(TAG, "Could not queue a payment notification")
+            }
         }
     }
 

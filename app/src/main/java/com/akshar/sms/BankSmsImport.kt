@@ -78,7 +78,9 @@ object BankSmsImport {
             is ParseResult.Parsed -> {
                 val txn = result.transaction
                 val amount = txn.amount.setScale(2, RoundingMode.HALF_UP)
-                if (amount.signum() <= 0) return SmsImportResult.NotFound
+                // The review UI/ledger currently use Double. A larger decimal becomes
+                // infinity there and crashes signedMoney's BigDecimal formatter.
+                if (amount.signum() <= 0 || !amount.toDouble().isFinite()) return SmsImportResult.NotFound
                 val isExpense = txn.type == TransactionType.DEBIT
                 val merchant = txn.merchant?.trim()?.takeIf { it.isNotEmpty() }
                 SmsImportResult.Found(
