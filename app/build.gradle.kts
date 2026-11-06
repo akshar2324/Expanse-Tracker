@@ -102,6 +102,8 @@ dependencies {
   implementation(libs.androidx.datastore.preferences)
   implementation(libs.androidx.glance.appwidget)
   implementation(libs.androidx.glance.material3)
+  implementation(libs.androidx.work.runtime)
+  implementation(libs.androidx.documentfile)
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.lifecycle.viewmodel.compose)
