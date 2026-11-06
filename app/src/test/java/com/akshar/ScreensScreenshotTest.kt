@@ -117,12 +117,23 @@ class ScreensScreenshotTest {
             GlassBackdrop()
             Box(Modifier.fillMaxSize().safeDrawingPadding()) { AddTransactionScreen(viewModel = viewModel, onNavigateBack = {}) }
           }
+          "sms" -> Box(Modifier.fillMaxSize()) {
+            GlassBackdrop()
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+              com.akshar.ui.screens.SmsImportScreen(
+                currencySymbol = "₹",
+                onBack = {},
+                onReview = {},
+                sharedText = "Sent Rs.1,240.50 From HDFC Bank A/C *4821 To SWIGGY On 14/10/26 Ref 629100004321",
+              )
+            }
+          }
           "onboarding" -> OnboardingScreen(viewModel = viewModel, onFinish = {})
           else -> LockScreen(correctPin = "1234", useBiometrics = true, onUnlockSuccess = {}, onTriggerBiometric = {})
         }
       }
     }
-    listOf("add" to "8-add-transaction", "onboarding" to "9-onboarding", "lock" to "10-lock").forEach { (key, name) ->
+    listOf("add" to "8-add-transaction", "sms" to "8b-sms-import", "onboarding" to "9-onboarding", "lock" to "10-lock").forEach { (key, name) ->
       screen = key
       settle()
       composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-$name.png")

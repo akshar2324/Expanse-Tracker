@@ -5,6 +5,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -88,5 +90,39 @@ class AppNavGraphTest {
         val saved = runBlocking { app.repository.allTransactions.first() }
         assertEquals(1, saved.size)
         assertEquals(existing.copy(type = "INCOME", category = "Salary"), saved.single())
+    }
+
+    @Test
+    fun `bank sms is read, reviewed and saved as an expense`() {
+        composeTestRule.runOnUiThread { navController.navigate(SmsImportRoutes.IMPORT) }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Bank message").performTextInput(
+            "Sent Rs.1,240.50 From HDFC Bank A/C *4821 To SWIGGY On 14/10/26 Ref 629100004321"
+        )
+        composeTestRule.onNodeWithText("Read message").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodes(hasText("Review and save")).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("SWIGGY").assertExists()
+        composeTestRule.onNodeWithText("Review and save").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+
+        assertEquals(SmsImportRoutes.REVIEW, navController.currentDestination?.route)
+        composeTestRule.onNodeWithText("1240.50").assertExists()
+        composeTestRule.onNodeWithText("Save expense").assertIsDisplayed().performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { app.repository.allTransactions.first().isNotEmpty() }
+        }
+
+        val saved = runBlocking { app.repository.allTransactions.first() }.single()
+        assertEquals(1240.5, saved.amount, 0.0)
+        assertEquals("EXPENSE", saved.type)
+        assertEquals("Food", saved.category)
+        assertEquals("SWIGGY", saved.description)
+        // Back on the importer, cleared and ready for the next message.
+        composeTestRule.waitForIdle()
+        assertEquals(SmsImportRoutes.IMPORT, navController.currentDestination?.route)
+        composeTestRule.onNodeWithText("Saved. Paste or share the next message to keep going.").assertExists()
     }
 }
