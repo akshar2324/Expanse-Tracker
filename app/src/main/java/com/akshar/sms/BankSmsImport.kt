@@ -8,6 +8,8 @@ import io.github.txnparse.Confidence
 import io.github.txnparse.ParseResult
 import io.github.txnparse.TransactionParser
 import io.github.txnparse.TransactionType
+import com.akshar.utils.CategoryMemory
+import com.akshar.utils.DuplicateCheck
 import java.math.RoundingMode
 import java.time.ZoneId
 
@@ -29,6 +31,11 @@ data class SmsDraft(
     val confident: Boolean,
     val bankId: String? = null,
     val accountTail: String? = null,
+    /**
+     * [com.akshar.utils.DuplicateCheck.referenceKey] of the bank's reference number, or null when
+     * the message has none. Stored with the saved transaction so the same message can't be saved twice.
+     */
+    val referenceKey: String? = null,
 )
 
 sealed interface SmsImportResult {
@@ -60,18 +67,25 @@ object BankSmsImport {
         receivedAtMillis: Long = System.currentTimeMillis(),
         zone: ZoneId? = null, // null: the device's time zone
         supported: Boolean = isSupported,
+        memory: CategoryMemory = CategoryMemory.EMPTY, // categories the user picked before
     ): SmsImportResult {
         if (!supported) return SmsImportResult.Unsupported
         if (text.isBlank()) return SmsImportResult.NotFound
         // `supported` is false below Android 8.0 (and tests pass it explicitly), so the java.time
         // and named-group regex code in the parser never runs where it is missing.
         @SuppressLint("NewApi")
-        val result = parseSupported(text, sender, receivedAtMillis, zone ?: ZoneId.systemDefault())
+        val result = parseSupported(text, sender, receivedAtMillis, zone ?: ZoneId.systemDefault(), memory)
         return result
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    private fun parseSupported(text: String, sender: String?, receivedAtMillis: Long, zone: ZoneId): SmsImportResult {
+    private fun parseSupported(
+        text: String,
+        sender: String?,
+        receivedAtMillis: Long,
+        zone: ZoneId,
+        memory: CategoryMemory,
+    ): SmsImportResult {
         return when (val result = parser.parse(body = text, sender = sender?.takeIf { it.isNotBlank() })) {
             is ParseResult.Ignored -> SmsImportResult.Skipped(skipReason(result.reason))
             ParseResult.NotATransaction -> SmsImportResult.NotFound
@@ -81,17 +95,19 @@ object BankSmsImport {
                 if (amount.signum() <= 0) return SmsImportResult.NotFound
                 val isExpense = txn.type == TransactionType.DEBIT
                 val merchant = txn.merchant?.trim()?.takeIf { it.isNotEmpty() }
+                val type = if (isExpense) "EXPENSE" else "INCOME"
                 SmsImportResult.Found(
                     SmsDraft(
                         amount = amount.toPlainString(),
                         isExpense = isExpense,
                         description = describe(merchant, txn.channel, isExpense),
                         dateMillis = txn.date?.atStartOfDay(zone)?.toInstant()?.toEpochMilli() ?: receivedAtMillis,
-                        category = guessCategory(merchant, isExpense),
+                        category = guessCategory(merchant, isExpense, memory),
                         paymentMethod = paymentMethodFor(txn.channel),
                         confident = txn.confidence == Confidence.HIGH,
                         bankId = txn.bankId,
                         accountTail = txn.accountTail,
+                        referenceKey = DuplicateCheck.referenceKey(type, txn.reference),
                     )
                 )
             }
@@ -132,7 +148,9 @@ object BankSmsImport {
         "Refund" to listOf("refund", "reversal", "cashback"),
     )
 
-    internal fun guessCategory(merchant: String?, isExpense: Boolean): String {
+    /** What the user picked for this merchant before, else a keyword hint, else "Other". */
+    internal fun guessCategory(merchant: String?, isExpense: Boolean, memory: CategoryMemory = CategoryMemory.EMPTY): String {
+        memory.lookup(merchant, isExpense)?.let { return it }
         val name = merchant?.lowercase().orEmpty()
         val hints = if (isExpense) expenseHints else incomeHints
         return hints.firstOrNull { (_, words) -> words.any { name.contains(it) } }?.first ?: "Other"

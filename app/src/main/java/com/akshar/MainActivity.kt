@@ -324,6 +324,7 @@ fun AppNavGraph(
             val savedOne by entry.savedStateHandle.getStateFlow(SmsImportRoutes.SAVED_KEY, false).collectAsStateWithLifecycle()
             SmsImportScreen(
                 currencySymbol = viewModel.getCurrencySymbol(),
+                loadCategoryMemory = viewModel::categoryMemory,
                 sharedText = sharedText,
                 onBack = { navController.popBackStack() },
                 onReview = { draft -> navController.navigate(SmsImportRoutes.review(draft)) },
@@ -342,6 +343,9 @@ fun AppNavGraph(
                     navController.popBackStack()
                 }
             )
+        }
+        composable(LearnedCategoriesRoute) {
+            LearnedCategoriesScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
         composable("csvImport") {
             val csvViewModel = viewModel<com.akshar.ui.viewmodel.CsvImportViewModel>()
@@ -567,6 +571,9 @@ private fun GlassNavigationRail(
     }
 }
 
+/** More → Learned categories: view and clear merchant → category mappings. */
+const val LearnedCategoriesRoute = "learned_categories"
+
 // Routes for the add/edit transaction screen. ADD also backs the widget deep link.
 object TransactionRoutes {
     const val ADD = "add_transaction"
@@ -580,7 +587,7 @@ object SmsImportRoutes {
     const val IMPORT = "sms_import"
     const val SAVED_KEY = "sms_import_saved"
     const val REVIEW = "sms_review?amount={amount}&expense={expense}&desc={desc}&date={date}" +
-        "&category={category}&method={method}&confident={confident}"
+        "&category={category}&method={method}&confident={confident}&ref={ref}"
 
     val reviewArguments = listOf(
         androidx.navigation.navArgument("amount") { type = androidx.navigation.NavType.StringType; defaultValue = "" },
@@ -590,6 +597,7 @@ object SmsImportRoutes {
         androidx.navigation.navArgument("category") { type = androidx.navigation.NavType.StringType; defaultValue = "Other" },
         androidx.navigation.navArgument("method") { type = androidx.navigation.NavType.StringType; nullable = true; defaultValue = null },
         androidx.navigation.navArgument("confident") { type = androidx.navigation.NavType.BoolType; defaultValue = true },
+        androidx.navigation.navArgument("ref") { type = androidx.navigation.NavType.StringType; nullable = true; defaultValue = null },
     )
 
     fun review(draft: com.akshar.sms.SmsDraft): String {
@@ -602,6 +610,7 @@ object SmsImportRoutes {
             append("&category=").append(enc(draft.category))
             draft.paymentMethod?.let { append("&method=").append(enc(it)) }
             append("&confident=").append(draft.confident)
+            draft.referenceKey?.let { append("&ref=").append(enc(it)) }
         }
     }
 
@@ -615,6 +624,7 @@ object SmsImportRoutes {
             category = args.getString("category") ?: "Other",
             paymentMethod = args.getString("method"),
             confident = args.getBoolean("confident", true),
+            referenceKey = args.getString("ref"),
         )
     }
 }

@@ -13,6 +13,10 @@ import com.akshar.data.model.Debt
 import com.akshar.data.model.CsvImportProfile
 import com.akshar.data.model.Account
 import com.akshar.data.model.Reconciliation
+import com.akshar.data.model.MerchantCategory
+import com.akshar.utils.CategoryMemory
+import com.akshar.utils.DuplicateCandidate
+import com.akshar.utils.DuplicateMatch
 import com.akshar.data.repository.FinanceRepository
 import com.akshar.data.backup.BackupCodec
 import com.akshar.utils.MoneyUtils
@@ -161,7 +165,8 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         description: String,
         date: Long,
         paymentMethod: String,
-        existing: Transaction? = null // when editing, keeps id, account, and import metadata
+        existing: Transaction? = null, // when editing, keeps id, account, and import metadata
+        referenceKey: String? = null // bank reference of an imported SMS, see DuplicateCheck
     ) {
         val amount = MoneyUtils.roundMoney(amount)
         viewModelScope.launch {
@@ -178,10 +183,34 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 category = category,
                 description = description,
                 date = date,
-                paymentMethod = paymentMethod
+                paymentMethod = paymentMethod,
+                originalCsvRowHash = referenceKey
             )
             repository.insertTransaction(tx)
+            // The user chose this category for this merchant: suggest it next time.
+            runCatching { repository.learnCategory(description, type, category) }
+                .onFailure { Log.w("FinanceViewModel", "Could not remember category", it) }
         }
+    }
+
+    // --- Duplicate guard & learned categories ---
+
+    /** A saved transaction an imported entry probably repeats, or null. Reads on the IO dispatcher. */
+    suspend fun findLikelyDuplicate(candidate: DuplicateCandidate): DuplicateMatch? = withContext(Dispatchers.IO) {
+        repository.findLikelyDuplicate(candidate)
+    }
+
+    suspend fun categoryMemory(): CategoryMemory = withContext(Dispatchers.IO) { repository.categoryMemory() }
+
+    val learnedCategories: StateFlow<List<MerchantCategory>> = repository.allMerchantCategories
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun forgetLearnedCategory(mapping: MerchantCategory) {
+        viewModelScope.launch(Dispatchers.IO) { repository.forgetMerchantCategory(mapping) }
+    }
+
+    fun clearLearnedCategories() {
+        viewModelScope.launch(Dispatchers.IO) { repository.clearMerchantCategories() }
     }
 
     suspend fun getTransactionById(id: Long): Transaction? {

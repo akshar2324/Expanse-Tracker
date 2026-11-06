@@ -49,6 +49,7 @@ import androidx.compose.material.icons.rounded.Calculate
 import androidx.compose.material.icons.rounded.EventRepeat
 import androidx.compose.material.icons.rounded.Handshake
 import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -121,6 +122,7 @@ fun ToolsScreen(
                         toolId == "WEEKLY_DIGEST" && navController != null -> navController.navigate("weeklyDigest")
                         toolId == "CSV_IMPORT" && navController != null -> navController.navigate("csvImport")
                         toolId == "SMS_IMPORT" && navController != null -> navController.navigate(com.akshar.SmsImportRoutes.IMPORT)
+                        toolId == "LEARNED_CATEGORIES" && navController != null -> navController.navigate(com.akshar.LearnedCategoriesRoute)
                         else -> activeSubTool = toolId
                     }
                 }
@@ -1047,6 +1049,7 @@ private val moreTools = listOf(
     MoreTool("BACKUP", "Backup & restore", "Export or restore your data file", Icons.Rounded.Backup),
     MoreTool("VAULT", "Vault & passcode", "App lock and fingerprint", Icons.Rounded.Shield),
     MoreTool("SETTINGS", "Region & currency", "Currency symbol and payment methods", Icons.Rounded.Public),
+    MoreTool("LEARNED_CATEGORIES", "Learned categories", "Shops and payees you've categorised", Icons.Rounded.Psychology),
 )
 
 @Composable

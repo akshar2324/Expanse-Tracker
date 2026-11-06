@@ -45,6 +45,7 @@ import com.akshar.ui.components.signedMoney
 import com.akshar.ui.theme.AkSpendTheme
 import com.akshar.ui.theme.Spacing
 import com.akshar.ui.theme.money
+import com.akshar.utils.CategoryMemory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -60,6 +61,7 @@ fun SmsImportScreen(
     currencySymbol: String,
     onBack: () -> Unit,
     onReview: (SmsDraft) -> Unit,
+    loadCategoryMemory: suspend () -> CategoryMemory = { CategoryMemory.EMPTY },
     sharedText: String? = null,
     savedOne: Boolean = false,
     onSavedShown: () -> Unit = {},
@@ -81,7 +83,11 @@ fun SmsImportScreen(
 
     val result by produceState<SmsImportResult?>(initialValue = null, readText) {
         val text = readText
-        value = if (text == null) null else withContext(Dispatchers.Default) { BankSmsImport.parse(text) }
+        value = if (text == null) null else {
+            // Categories the user picked before beat the built-in keyword hints.
+            val memory = runCatching { loadCategoryMemory() }.getOrDefault(CategoryMemory.EMPTY)
+            withContext(Dispatchers.Default) { BankSmsImport.parse(text, memory = memory) }
+        }
     }
 
     Column(

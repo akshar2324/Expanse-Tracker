@@ -34,6 +34,9 @@ data class CsvParseError(
 
 object CsvParser {
 
+    /** Category given to rows whose file has no category value. */
+    const val DEFAULT_CATEGORY = "Imported"
+
     private fun sha256(string: String): String {
         val bytes = MessageDigest.getInstance("SHA-256").digest(string.toByteArray())
         return bytes.joinToString("") { "%02x".format(it) }
@@ -131,7 +134,7 @@ object CsvParser {
                 val date = dateFormat.parse(dateStr)?.time ?: throw ParseException("Invalid date format", 0)
 
                 val desc = row[descColIdx].trim()
-                val category = if (catColIdx in row.indices) row[catColIdx].trim().takeIf { it.isNotEmpty() } ?: "Imported" else "Imported"
+                val category = if (catColIdx in row.indices) row[catColIdx].trim().takeIf { it.isNotEmpty() } ?: DEFAULT_CATEGORY else DEFAULT_CATEGORY
 
                 var finalAmount = 0.0
                 var type = "EXPENSE"
