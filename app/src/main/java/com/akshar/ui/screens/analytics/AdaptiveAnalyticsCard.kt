@@ -1,17 +1,22 @@
 package com.akshar.ui.screens.analytics
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.automirrored.rounded.ShowChart
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.akshar.ui.components.GlassCard
+import com.akshar.ui.components.IconBadge
+import com.akshar.ui.theme.AkSpendTheme
+import com.akshar.ui.theme.Spacing
+import com.akshar.ui.theme.money
 import com.akshar.data.model.Transaction
 import java.text.SimpleDateFormat
 import java.util.*
@@ -56,91 +61,81 @@ fun AdaptiveAnalyticsCard(transactions: List<Transaction>, currencySymbol: Strin
         list
     }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)),
-        shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(width = 1.dp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ShowChart,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
+    val finance = AkSpendTheme.finance
+    GlassCard(modifier = Modifier.fillMaxWidth(), fill = AkSpendTheme.glass.fillStrong) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(icon = Icons.AutoMirrored.Rounded.ShowChart, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(Spacing.md))
+            Column {
+                Text("Spending forecast", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                Text("Projected from this month so far", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(Spacing.lg))
+
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.weight(1f)) {
+                Text("Daily burn", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
-                    text = "Adaptive AI Analysis",
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    "$currencySymbol${String.format("%,.0f", avgDailyBurn)}",
+                    style = MaterialTheme.typography.headlineSmall.money(),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+                Text("per day", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Metrics row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text("Daily Burn Rate", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("$currencySymbol${avgDailyBurn.toInt()}/day", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("Month Forecast", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("$currencySymbol${projectedSpent.toInt()}", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Forecast advice
-            val advice = when {
-                projectedSpent > 30000 -> "Projected burn rate is higher than normal. Consider capping Shopping/Entertainment."
-                projectedSpent > 15000 -> "Spend trajectory is moderate. Your savings rate is safe."
-                else -> "Excellent! Highly efficient discipline. You are set to exceed your saving goals."
-            }
-
-            Surface(
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                Text("Month forecast", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
-                    text = advice,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(10.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    "$currencySymbol${String.format("%,.0f", projectedSpent)}",
+                    style = MaterialTheme.typography.headlineSmall.money(),
+                    color = MaterialTheme.colorScheme.secondary
                 )
+                Text("by month end", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+        }
 
-            // Anomalies
-            if (anomalies.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text("Spike & Anomaly Watch", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.error)
-                Spacer(modifier = Modifier.height(4.dp))
-                anomalies.forEach { anomaly ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text("⚠️", fontSize = 12.sp)
-                        Text(
-                            text = anomaly,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
+        Spacer(modifier = Modifier.height(Spacing.md))
+
+        val advice = when {
+            projectedSpent > 30000 -> "Spending is running higher than usual. Shopping and entertainment are good places to ease off."
+            projectedSpent > 15000 -> "Spending is on a moderate path. Your savings rate looks safe."
+            else -> "Nicely done. You're on track to beat your saving goals."
+        }
+        Text(
+            text = advice,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                .padding(Spacing.md)
+        )
+
+        if (anomalies.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(Spacing.md))
+            Text("Unusual spends", style = MaterialTheme.typography.labelLarge, color = finance.expense)
+            Spacer(modifier = Modifier.height(Spacing.xs))
+            anomalies.forEach { anomaly ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = Spacing.xxs),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+                ) {
+                    Icon(
+                        Icons.Rounded.WarningAmber,
+                        contentDescription = "Warning",
+                        tint = finance.expense,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = anomaly,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
         }

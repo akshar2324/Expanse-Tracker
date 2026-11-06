@@ -101,3 +101,16 @@ data class Reconciliation(
     val date: Long,
     val timestamp: Long = System.currentTimeMillis()
 )
+
+/**
+ * A category the user picked for a merchant, learned on the device when they save a transaction.
+ * [merchantKey] is [com.akshar.utils.MerchantNames.normalise] of the description.
+ */
+@Entity(tableName = "merchant_categories", primaryKeys = ["merchantKey", "type"])
+data class MerchantCategory(
+    val merchantKey: String,
+    val type: String, // "EXPENSE" or "INCOME": a refund from a shop isn't a shopping expense
+    val displayName: String, // the description as last typed, for the settings list
+    val category: String,
+    val updatedAt: Long = System.currentTimeMillis()
+)

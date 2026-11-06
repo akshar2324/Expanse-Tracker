@@ -1,5 +1,6 @@
 package com.akshar.ui.screens.analytics
 
+import com.akshar.ui.theme.AkSpendTheme
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
@@ -9,12 +10,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.akshar.ui.theme.Spacing
 import com.akshar.data.model.Transaction
-import com.akshar.ui.theme.ExpenseRedDark
-import com.akshar.ui.theme.IncomeGreenDark
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -63,53 +66,70 @@ fun CashFlowBarChart(transactions: List<Transaction>) {
 
     val maxVal = data.maxOf { it.second.coerceAtLeast(it.third) }.toFloat()
     val axisMax = if (maxVal == 0f) 5000f else maxVal
+    val incomeColor = AkSpendTheme.finance.income
+    val expenseColor = AkSpendTheme.finance.expense
+    val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)
+    val reveal = rememberChartReveal()
+    val summary = remember(data) {
+        "Income and expenses for the last 5 days. " + data.joinToString("; ") {
+            "${it.first}: earned ${String.format("%,.0f", it.second)}, spent ${String.format("%,.0f", it.third)}"
+        }
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+            ChartLegendDot(color = incomeColor, label = "Income")
+            ChartLegendDot(color = expenseColor, label = "Expense")
+        }
+        Spacer(modifier = Modifier.height(Spacing.md))
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(180.dp)
-                .padding(horizontal = 8.dp)
+                .padding(horizontal = Spacing.xs)
+                .semantics { contentDescription = summary }
         ) {
-            val barWidth = 14.dp.toPx()
+            val barWidth = 12.dp.toPx()
+            val gap = 4.dp.toPx()
             val spacing = size.width / data.size
             val gridLines = 4
+            val radius = CornerRadius(barWidth / 2, barWidth / 2)
+            val progress = reveal()
 
-            // Background grid
             for (i in 0..gridLines) {
                 val y = size.height * i / gridLines
                 drawLine(
-                    color = Color.Gray.copy(alpha = 0.15f),
+                    color = gridColor,
                     start = Offset(0f, y),
                     end = Offset(size.width, y),
-                    strokeWidth = 1f
+                    strokeWidth = 1.dp.toPx(),
+                    pathEffect = if (i == gridLines) null else PathEffect.dashPathEffect(floatArrayOf(6f, 8f))
                 )
             }
 
-            // Columns Draw
             data.forEachIndexed { index, triple ->
                 val centerX = index * spacing + (spacing / 2)
-
-                // Income Column
-                val incPct = triple.second.toFloat() / axisMax
-                val incHeight = incPct * size.height
-                drawRect(
-                    color = IncomeGreenDark,
-                    topLeft = Offset(centerX - barWidth - 2.dp.toPx(), size.height - incHeight),
-                    size = Size(barWidth, incHeight)
-                )
-
-                // Expense Column
-                val expPct = triple.third.toFloat() / axisMax
-                val expHeight = expPct * size.height
-                drawRect(
-                    color = ExpenseRedDark,
-                    topLeft = Offset(centerX + 2.dp.toPx(), size.height - expHeight),
-                    size = Size(barWidth, expHeight)
-                )
+                val incHeight = (triple.second.toFloat() / axisMax) * size.height * progress
+                val expHeight = (triple.third.toFloat() / axisMax) * size.height * progress
+                if (incHeight > 0f) {
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(listOf(incomeColor, incomeColor.copy(alpha = 0.55f)), startY = size.height - incHeight, endY = size.height),
+                        topLeft = Offset(centerX - barWidth - gap / 2, size.height - incHeight),
+                        size = Size(barWidth, incHeight),
+                        cornerRadius = radius
+                    )
+                }
+                if (expHeight > 0f) {
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(listOf(expenseColor, expenseColor.copy(alpha = 0.55f)), startY = size.height - expHeight, endY = size.height),
+                        topLeft = Offset(centerX + gap / 2, size.height - expHeight),
+                        size = Size(barWidth, expHeight),
+                        cornerRadius = radius
+                    )
+                }
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.sm))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceAround
@@ -117,8 +137,8 @@ fun CashFlowBarChart(transactions: List<Transaction>) {
             data.forEach {
                 Text(
                     text = it.first,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

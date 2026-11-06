@@ -1,5 +1,9 @@
 package com.akshar.ui.screens
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.akshar.ui.theme.*
+import com.akshar.ui.components.*
 import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -9,6 +13,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
@@ -16,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.akshar.ui.viewmodel.FinanceViewModel
 import com.akshar.data.model.Account
+import com.akshar.utils.MoneyUtils
+import java.math.BigDecimal
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -26,16 +33,40 @@ fun AddTransferScreen(
     navController: NavController,
     transferId: String? = null
 ) {
+    val confirmDelete = rememberConfirmDeleteState()
+    ConfirmDeleteDialog(confirmDelete)
     val context = LocalContext.current
     val accounts by viewModel.accounts.collectAsState()
     val activeAccounts = accounts.filter { !it.isArchived }
 
     // Default or existing state
-    var amount by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var fromAccountId by remember { mutableStateOf(activeAccounts.firstOrNull()?.id ?: 1L) }
-    var toAccountId by remember { mutableStateOf(activeAccounts.getOrNull(1)?.id ?: activeAccounts.firstOrNull()?.id ?: 1L) }
-    var selectedDate by remember { mutableStateOf(System.currentTimeMillis()) }
+    var amount by rememberSaveable { mutableStateOf("") }
+    var description by rememberSaveable { mutableStateOf("") }
+    var fromAccountId by rememberSaveable { mutableStateOf(activeAccounts.firstOrNull()?.id ?: 1L) }
+    var toAccountId by rememberSaveable { mutableStateOf(activeAccounts.getOrNull(1)?.id ?: activeAccounts.firstOrNull()?.id ?: 1L) }
+    var selectedDate by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
+    var accountsChosen by rememberSaveable { mutableStateOf(false) }
+
+    // New transfer: accounts may still be loading on first composition, so pick sensible
+    // defaults once they arrive. Edit: load both legs once and prefill the form.
+    LaunchedEffect(transferId, activeAccounts.isNotEmpty()) {
+        if (accountsChosen) return@LaunchedEffect
+        if (transferId != null) {
+            val legs = viewModel.getTransferLegs(transferId)
+            val from = legs.firstOrNull { it.type == "EXPENSE" } ?: return@LaunchedEffect
+            val to = legs.firstOrNull { it.type == "INCOME" }
+            amount = BigDecimal(from.amount.toString()).stripTrailingZeros().toPlainString()
+            description = from.description
+            selectedDate = from.date
+            fromAccountId = from.accountId
+            toAccountId = to?.accountId ?: from.accountId
+            accountsChosen = true
+        } else if (activeAccounts.isNotEmpty()) {
+            fromAccountId = activeAccounts.first().id
+            toAccountId = activeAccounts.getOrNull(1)?.id ?: activeAccounts.first().id
+            accountsChosen = true
+        }
+    }
 
     val formatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
 
@@ -55,34 +86,35 @@ fun AddTransferScreen(
     var fromExpanded by remember { mutableStateOf(false) }
     var toExpanded by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (transferId == null) "New Transfer" else "Edit Transfer") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .imePadding()
+            .navigationBarsPadding()
+    ) {
+        ScreenHeader(
+            title = if (transferId == null) "New transfer" else "Edit transfer",
+            subtitle = "Move money between your own accounts",
+            onBack = { navController.popBackStack() }
+        )
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.gutter)
+                .padding(bottom = Spacing.xxl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
             ExposedDropdownMenuBox(
                 expanded = fromExpanded,
                 onExpandedChange = { fromExpanded = !fromExpanded }
             ) {
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = activeAccounts.find { it.id == fromAccountId }?.name ?: "",
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("From Account") },
+                    label = { Text("From account") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fromExpanded) },
                     modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).fillMaxWidth()
                 )
@@ -107,10 +139,11 @@ fun AddTransferScreen(
                 onExpandedChange = { toExpanded = !toExpanded }
             ) {
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = activeAccounts.find { it.id == toAccountId }?.name ?: "",
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("To Account") },
+                    label = { Text("To account") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toExpanded) },
                     modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).fillMaxWidth()
                 )
@@ -131,28 +164,32 @@ fun AddTransferScreen(
             }
 
             OutlinedTextField(
+                colors = glassTextFieldColors(),
                 value = amount,
                 onValueChange = { amount = it },
-                label = { Text("Amount") },
+                label = { Text("Amount (${viewModel.getCurrencySymbol()})") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                textStyle = MaterialTheme.typography.headlineSmall.money(),
                 modifier = Modifier.fillMaxWidth()
             )
 
             OutlinedTextField(
+                colors = glassTextFieldColors(),
                 value = description,
                 onValueChange = { description = it },
-                label = { Text("Description (Optional)") },
+                label = { Text("Note (optional)") },
                 modifier = Modifier.fillMaxWidth()
             )
 
             OutlinedTextField(
+                colors = glassTextFieldColors(),
                 value = formatter.format(Date(selectedDate)),
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Date") },
                 trailingIcon = {
                     IconButton(onClick = { datePickerDialog.show() }) {
-                        Icon(Icons.Default.CalendarMonth, contentDescription = "Select Date")
+                        Icon(Icons.Default.CalendarMonth, contentDescription = "Choose transfer date")
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
@@ -160,11 +197,9 @@ fun AddTransferScreen(
 
             Button(
                 onClick = {
-                    val parsedAmount = amount.toDoubleOrNull() ?: 0.0
+                    val parsedAmount = MoneyUtils.parseAmount(amount) ?: 0.0
                     if (parsedAmount > 0 && fromAccountId != toAccountId) {
-                        if (transferId != null) {
-                            viewModel.deleteTransfer(transferId)
-                        }
+                        // saveTransfer replaces the existing legs atomically when editing.
                         viewModel.saveTransfer(
                             fromAccountId = fromAccountId,
                             toAccountId = toAccountId,
@@ -176,22 +211,24 @@ fun AddTransferScreen(
                         navController.popBackStack()
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
                 enabled = amount.isNotBlank() && fromAccountId != toAccountId
             ) {
-                Text("Save Transfer")
+                Text("Save transfer", style = MaterialTheme.typography.titleMedium)
             }
 
             if (transferId != null) {
                 OutlinedButton(
                     onClick = {
-                        viewModel.deleteTransfer(transferId)
-                        navController.popBackStack()
+                        confirmDelete.request("Delete transfer?", "Both sides of this transfer will be removed. This can't be undone.") {
+                            viewModel.deleteTransfer(transferId)
+                            navController.popBackStack()
+                        }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(Spacing.touchTarget),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Delete Transfer")
+                    Text("Delete transfer", style = MaterialTheme.typography.labelLarge)
                 }
             }
         }

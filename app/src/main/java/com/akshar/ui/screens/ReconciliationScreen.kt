@@ -1,5 +1,9 @@
 package com.akshar.ui.screens
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.akshar.ui.components.*
+import com.akshar.ui.theme.*
 import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -40,13 +44,16 @@ fun ReconciliationScreen(
     var statementBalance by remember { mutableStateOf("") }
     var selectedDate by remember { mutableStateOf(System.currentTimeMillis()) }
 
-    val formatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+    val formatter = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+    val currencySymbol = viewModel.getCurrencySymbol()
 
     val datePickerDialog = DatePickerDialog(
         context,
         { _, year, month, dayOfMonth ->
+            // Statement balances are as of the end of the chosen day.
             val cal = Calendar.getInstance().apply {
-                set(year, month, dayOfMonth)
+                set(year, month, dayOfMonth, 23, 59, 59)
+                set(Calendar.MILLISECOND, 999)
             }
             selectedDate = cal.timeInMillis
         },
@@ -57,64 +64,69 @@ fun ReconciliationScreen(
 
     // Calculate balance up to the selected date
     val accountTransactions = transactions.filter { it.accountId == accountId && it.date <= selectedDate }
-    val calculatedBalance = account.openingBalance + accountTransactions.sumOf { tx ->
+    val calculatedBalance = com.akshar.utils.MoneyUtils.roundMoney(account.openingBalance + accountTransactions.sumOf { tx ->
         if (tx.type == "INCOME") tx.amount else -tx.amount
-    }
+    })
 
-    val parsedStatementBalance = statementBalance.toDoubleOrNull() ?: 0.0
+    val parsedStatementBalance = com.akshar.utils.MoneyUtils.parseAmount(statementBalance) ?: 0.0
     val difference = parsedStatementBalance - calculatedBalance
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Reconcile ${account.name}") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .imePadding()
+            .navigationBarsPadding()
+    ) {
+        ScreenHeader(title = "Reconcile ${account.name}", onBack = { navController.popBackStack() })
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.gutter)
+                .padding(bottom = Spacing.xxl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
             OutlinedTextField(
+                colors = glassTextFieldColors(),
                 value = formatter.format(Date(selectedDate)),
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Statement Date") },
+                label = { Text("Statement date") },
                 trailingIcon = {
                     IconButton(onClick = { datePickerDialog.show() }) {
-                        Icon(Icons.Default.CalendarMonth, contentDescription = "Select Date")
+                        Icon(Icons.Default.CalendarMonth, contentDescription = "Choose statement date")
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
             )
 
             OutlinedTextField(
+                colors = glassTextFieldColors(),
                 value = statementBalance,
                 onValueChange = { statementBalance = it },
-                label = { Text("Statement Balance") },
+                label = { Text("Statement balance") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Calculated Balance: ₹${"%.2f".format(calculatedBalance)}")
-                    Text("Statement Balance: ₹${"%.2f".format(parsedStatementBalance)}")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Difference: ₹${"%.2f".format(abs(difference))}",
-                        color = if (abs(difference) < 0.01) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
+            GlassCard(modifier = Modifier.fillMaxWidth(), fill = AkSpendTheme.glass.fillStrong) {
+                val matched = abs(difference) < 0.01
+                ReconcileLine("Calculated balance", "$currencySymbol${String.format("%,.2f", calculatedBalance)}")
+                Spacer(modifier = Modifier.height(Spacing.sm))
+                ReconcileLine("Statement balance", "$currencySymbol${String.format("%,.2f", parsedStatementBalance)}")
+                Spacer(modifier = Modifier.height(Spacing.md))
+                GlassDivider(Modifier.padding(horizontal = 0.dp))
+                Spacer(modifier = Modifier.height(Spacing.md))
+                Text(
+                    text = if (matched) "Balances match" else "Difference",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "$currencySymbol${String.format("%,.2f", abs(difference))}",
+                    color = if (matched) AkSpendTheme.finance.income else MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.headlineSmall.money()
+                )
             }
 
             Button(
@@ -130,11 +142,19 @@ fun ReconciliationScreen(
                     // For now, just save the reconciliation checkpoint and pop.
                     navController.popBackStack()
                 },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = statementBalance.isNotBlank()
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                enabled = com.akshar.utils.MoneyUtils.parseAmount(statementBalance) != null
             ) {
-                Text("Confirm Reconciliation")
+                Text("Confirm reconciliation", style = MaterialTheme.typography.labelLarge)
             }
         }
+    }
+}
+
+@Composable
+private fun ReconcileLine(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.titleSmall.money(), color = MaterialTheme.colorScheme.onSurface)
     }
 }
