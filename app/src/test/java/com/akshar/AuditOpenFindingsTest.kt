@@ -11,10 +11,9 @@ import org.robolectric.annotation.Config
 import java.math.BigDecimal
 import java.util.Locale
 
-/** Intended safety expectations requiring broader validation, money, or hash-migration work. */
+/** Safety expectations from the audit. F23 (CSV hash input) is still open. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
-@org.junit.Ignore("Open audit findings: restore validation, exact money, and CSV hash migration require broader changes; see AUDIT_REPORT.md")
 class AuditOpenFindingsTest {
     @Test(expected = JSONException::class)
     fun negativeTransactionBackupIsRejected() {
@@ -26,6 +25,7 @@ class AuditOpenFindingsTest {
         BackupCodec.decode("""{"transactions":[{"amount":5,"type":"EXPENSE","category":"Food","date":1,"accountId":99}]}""")
     }
 
+    @org.junit.Ignore("Open audit finding F23: changing the hash input needs a migration for stored hashes; see AUDIT_REPORT.md")
     @Test fun csvHashMustDistinguishDifferentFieldBoundaries() {
         fun hash(description: String, category: String) = com.akshar.utils.CsvParser.parse(
             "Date;Amount;Description;Category\n2026-01-05;-3;$description;$category\n".byteInputStream(),
@@ -38,8 +38,12 @@ class AuditOpenFindingsTest {
     }
 
     @Test fun veryLargeAmountsKeepEveryCent() {
-        val parsed = MoneyUtils.parseAmount("100000000000000.01", Locale.US)!!
-        assertEquals(BigDecimal("100000000000000.01"), BigDecimal.valueOf(parsed).setScale(2))
+        // F18: amounts are capped where Double still holds every cent; larger input is refused.
+        assertNull(MoneyUtils.parseAmount("100000000000000.01", Locale.US))
+        val parsed = MoneyUtils.parseAmount("99999999999.99", Locale.US)!!
+        assertEquals(BigDecimal("99999999999.99"), BigDecimal.valueOf(parsed).setScale(2))
+        val cents = MoneyUtils.parseAmount("12345678901.23", Locale.US)!!
+        assertEquals(BigDecimal("12345678901.23"), BigDecimal.valueOf(cents).setScale(2))
     }
 
 }

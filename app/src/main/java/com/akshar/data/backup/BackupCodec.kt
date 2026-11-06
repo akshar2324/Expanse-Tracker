@@ -8,6 +8,7 @@ import com.akshar.data.model.Reconciliation
 import com.akshar.data.model.RecurringTransaction
 import com.akshar.data.model.SavingsGoal
 import com.akshar.data.model.Transaction
+import com.akshar.utils.MoneyUtils
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -184,7 +185,7 @@ object BackupCodec {
             listOf(Account(id = 1L, name = "Cash", type = "Cash", openingBalance = 0.0))
         }
 
-        return BackupSnapshot(
+        val snapshot = BackupSnapshot(
             transactions = root.objects("transactions").map {
                 Transaction(
                     id = it.optLong("id", 0L),
@@ -274,7 +275,78 @@ object BackupCodec {
                 )
             }
         )
+        validate(snapshot)
+        return snapshot
     }
+
+    /**
+     * Rejects a backup that would restore impossible data, before anything is replaced: amounts
+     * that are negative, zero where that means nothing, or too large; unknown types and
+     * frequencies; bad budget periods; and transactions or reconciliations pointing at an account
+     * the backup doesn't have. The message names the first bad row, for example
+     * "transactions[3]: amount must be above zero".
+     */
+    private fun validate(s: BackupSnapshot) {
+        fun fail(message: String): Nothing = throw org.json.JSONException(message)
+        fun positive(where: String, value: Double) {
+            if (!(value > 0) || !MoneyUtils.isWithinLimit(value)) fail("$where must be above zero and within the supported limit")
+        }
+        fun notNegative(where: String, value: Double) {
+            if (!(value >= 0) || !MoneyUtils.isWithinLimit(value)) fail("$where must not be negative")
+        }
+        fun finite(where: String, value: Double) {
+            if (!MoneyUtils.isWithinLimit(value)) fail("$where is not a supported amount")
+        }
+        fun oneOf(where: String, value: String, allowed: Set<String>) {
+            if (value !in allowed) fail("$where must be one of ${allowed.joinToString()}")
+        }
+
+        val known = HashSet<Long>()
+        s.accounts.forEachIndexed { i, a -> if (!known.add(a.id)) fail("accounts[$i]: id ${a.id} is used twice") }
+        s.accounts.forEachIndexed { i, a ->
+            if (a.name.isBlank()) fail("accounts[$i]: name is empty")
+            finite("accounts[$i]: openingBalance", a.openingBalance)
+        }
+        s.transactions.forEachIndexed { i, t ->
+            positive("transactions[$i]: amount", t.amount)
+            oneOf("transactions[$i]: type", t.type, TRANSACTION_TYPES)
+            if (t.date <= 0) fail("transactions[$i]: date is missing")
+            if (t.accountId !in known) fail("transactions[$i]: account ${t.accountId} is not in the backup")
+        }
+        s.budgets.forEachIndexed { i, b ->
+            positive("budgets[$i]: limitAmount", b.limitAmount)
+            oneOf("budgets[$i]: frequency", b.frequency, BUDGET_FREQUENCIES)
+            val period = if (b.frequency == "WEEKLY") WEEK else MONTH
+            if (!period.matches(b.month)) fail("budgets[$i]: period \"${b.month}\" doesn't match ${b.frequency}")
+            if (b.reminderThreshold !in 1..100) fail("budgets[$i]: reminderThreshold must be 1 to 100")
+        }
+        s.savingsGoals.forEachIndexed { i, g ->
+            positive("savings_goals[$i]: targetAmount", g.targetAmount)
+            notNegative("savings_goals[$i]: currentAmount", g.currentAmount)
+        }
+        s.recurringTransactions.forEachIndexed { i, r ->
+            positive("recurring_transactions[$i]: amount", r.amount)
+            oneOf("recurring_transactions[$i]: type", r.type, TRANSACTION_TYPES)
+            oneOf("recurring_transactions[$i]: frequency", r.frequency, RECURRING_FREQUENCIES)
+        }
+        s.debts.forEachIndexed { i, d ->
+            positive("debts[$i]: amount", d.amount)
+            oneOf("debts[$i]: type", d.type, DEBT_TYPES)
+        }
+        s.reconciliations.forEachIndexed { i, r ->
+            finite("reconciliations[$i]: statementBalance", r.statementBalance)
+            finite("reconciliations[$i]: calculatedBalance", r.calculatedBalance)
+            if (r.accountId !in known) fail("reconciliations[$i]: account ${r.accountId} is not in the backup")
+        }
+    }
+
+    private val TRANSACTION_TYPES = setOf("EXPENSE", "INCOME")
+    private val BUDGET_FREQUENCIES = setOf("MONTHLY", "WEEKLY")
+    private val RECURRING_FREQUENCIES = setOf("DAILY", "WEEKLY", "MONTHLY", "YEARLY")
+    private val DEBT_TYPES = setOf("BORROWED", "LENT")
+    private val MONTH = Regex("^\\d{4}-(0[1-9]|1[0-2])$")
+    // Week numbers are stored without zero padding ("2026-W5"), see PeriodUtils.weekKey.
+    private val WEEK = Regex("^\\d{4}-W0?([1-9]|[1-4]\\d|5[0-3])$")
 
     private fun JSONObject.objects(key: String): List<JSONObject> {
         if (!has(key)) return emptyList()

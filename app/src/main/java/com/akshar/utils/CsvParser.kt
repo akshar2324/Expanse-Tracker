@@ -184,6 +184,9 @@ object CsvParser {
                 if (finalAmount == 0.0) {
                     throw IllegalArgumentException("Amount cannot be zero")
                 }
+                if (!MoneyUtils.isWithinLimit(finalAmount)) {
+                    throw IllegalArgumentException("Amount is larger than AkSpend supports")
+                }
 
                 val rowHash = sha256(row.joinToString(","))
 

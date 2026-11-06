@@ -246,7 +246,7 @@ class ScreensScreenshotTest {
             }
           }
           "onboarding" -> OnboardingScreen(viewModel = viewModel, onFinish = {})
-          else -> LockScreen(correctPin = "1234", useBiometrics = true, onUnlockSuccess = {}, onTriggerBiometric = {})
+          else -> LockScreen(appLock = com.akshar.security.AppLock.from(app), useBiometrics = true, onUnlockSuccess = {}, onTriggerBiometric = {})
         }
         }
       }

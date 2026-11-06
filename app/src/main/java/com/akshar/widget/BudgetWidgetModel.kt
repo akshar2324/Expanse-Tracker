@@ -32,8 +32,8 @@ object BudgetWidgetModel {
     const val LOCK_PREFS = "vault_settings"
     const val KEY_LOCK_ENABLED = "vault_enabled"
 
-    fun isAppLockOn(context: android.content.Context): Boolean =
-        context.getSharedPreferences(LOCK_PREFS, android.content.Context.MODE_PRIVATE).getBoolean(KEY_LOCK_ENABLED, true)
+    /** True when the app asks for a passcode, the same rule the lock screen uses. */
+    fun isAppLockOn(context: android.content.Context): Boolean = com.akshar.security.AppLock.from(context).isActive
 
     const val MAX_ROWS = 3
 
