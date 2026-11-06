@@ -85,7 +85,9 @@ private fun validationRow(
     return ValidationRow(parsedRow = row, isDuplicate = note != null, skip = note != null, duplicateNote = note, learnedCategory = learned != null)
 }
 
-class CsvImportViewModel(
+// @JvmOverloads emits a constructor that takes only Application. The default ViewModel factory
+// looks for exactly that signature; without it, opening Import CSV crashes the app.
+class CsvImportViewModel @JvmOverloads constructor(
     application: Application,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : AndroidViewModel(application) {
