@@ -63,6 +63,12 @@ class MoneyUtilsTest {
     }
 
     @Test
+    fun `malformed mixed grouping cannot silently change the amount`() {
+        assertNull(parse("1,2.34"))
+        assertNull(parse("1.2,34", Locale.GERMANY))
+    }
+
+    @Test
     fun `roundMoney uses half up on two decimals`() {
         assertEquals(1.01, MoneyUtils.roundMoney(1.005), 0.0)
         assertEquals(-1.01, MoneyUtils.roundMoney(-1.005), 0.0)
