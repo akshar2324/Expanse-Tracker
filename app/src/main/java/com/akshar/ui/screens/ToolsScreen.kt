@@ -1571,8 +1571,11 @@ private fun AppearancePicker() {
                     .fillMaxWidth()
                     .selectable(selected = selected, role = androidx.compose.ui.semantics.Role.RadioButton) {
                         Appearance.select(context, style)
-                        // Redraw the home-screen widget in the new style.
-                        scope.launch { runCatching { com.akshar.widget.QuickAddWidget().updateAll(context) } }
+                        // Redraw the home-screen widgets in the new style.
+                        scope.launch {
+                            runCatching { com.akshar.widget.QuickAddWidget().updateAll(context) }
+                            runCatching { com.akshar.widget.BudgetWidget().updateAll(context) }
+                        }
                     },
                 contentPadding = PaddingValues(horizontal = Spacing.xl, vertical = Spacing.lg)
             ) {
