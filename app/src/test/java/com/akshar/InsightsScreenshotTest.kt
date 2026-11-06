@@ -127,7 +127,12 @@ class InsightsScreenshotTest {
         // "Not a subscription" is remembered on the device.
         composeTestRule.onNodeWithContentDescription("Cloud storage is not a subscription").performScrollTo().performClick()
         settle()
-        assertTrue(composeTestRule.onAllNodesWithText("Possible subscriptions", substring = true).fetchSemanticsNodes().isEmpty())
+        // The dismissal is saved and the list recomputed on background threads; on a slow CI
+        // machine that can land after settle(), so wait for the outcome instead of asserting at once.
+        composeTestRule.waitUntil(timeoutMillis = 10_000) {
+            Thread.sleep(20)
+            composeTestRule.onAllNodesWithText("Possible subscriptions", substring = true).fetchSemanticsNodes().isEmpty()
+        }
         assertTrue("cloud storage" in runBlocking { SubscriptionDismissals(app).keys.first() })
     }
 
