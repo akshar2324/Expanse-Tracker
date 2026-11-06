@@ -82,7 +82,6 @@ fun TrendLineChart(transactions: List<Transaction>, lineColor: Color) {
                 .padding(horizontal = Spacing.sm, vertical = Spacing.xs)
                 .semantics { contentDescription = summary }
         ) {
-            val stepX = size.width / (points.size - 1).coerceAtLeast(1)
             val progress = reveal()
 
             val gridLines = 4
@@ -98,8 +97,13 @@ fun TrendLineChart(transactions: List<Transaction>, lineColor: Color) {
             }
 
             // Smooth the series with horizontal cubic tangents so it reads like a calm curve.
+            // Keep the line inside the canvas: inset by the dot radius so dots at zero or at the
+            // peak aren't cut in half by the canvas edge.
+            val inset = 6.dp.toPx()
+            val plotHeight = size.height - 2 * inset
+            val plotStepX = (size.width - 2 * inset) / (points.size - 1).coerceAtLeast(1)
             val coords = points.mapIndexed { index, pair ->
-                Offset(index * stepX, size.height - (pair.second.toFloat() / displayMax) * size.height * progress)
+                Offset(inset + index * plotStepX, inset + plotHeight - (pair.second.toFloat() / displayMax) * plotHeight * progress)
             }
             val path = Path()
             coords.forEachIndexed { index, point ->
@@ -114,8 +118,8 @@ fun TrendLineChart(transactions: List<Transaction>, lineColor: Color) {
 
             val fillPath = Path()
             fillPath.addPath(path)
-            fillPath.lineTo(size.width, size.height)
-            fillPath.lineTo(0f, size.height)
+            fillPath.lineTo(coords.last().x, size.height)
+            fillPath.lineTo(coords.first().x, size.height)
             fillPath.close()
             drawPath(
                 path = fillPath,

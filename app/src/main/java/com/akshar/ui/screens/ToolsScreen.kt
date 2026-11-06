@@ -70,6 +70,8 @@ fun ToolsScreen(
     modifier: Modifier = Modifier,
     navController: NavController? = null
 ) {
+    val confirmDelete = rememberConfirmDeleteState()
+    ConfirmDeleteDialog(confirmDelete)
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
 
@@ -215,7 +217,7 @@ fun ToolsScreen(
                                                     style = MaterialTheme.typography.titleMedium.money()
                                                 )
                                                 Spacer(modifier = Modifier.width(12.dp))
-                                                IconButton(onClick = { viewModel.deleteRecurringTransactionById(recurring.id) }) {
+                                                IconButton(onClick = { confirmDelete.request("Delete \"${recurring.description.ifBlank { recurring.category }}\" reminder?") { viewModel.deleteRecurringTransactionById(recurring.id) } }) {
                                                     Icon(
                                                         imageVector = Icons.Default.DeleteOutline,
                                                         contentDescription = "Delete",
@@ -926,7 +928,7 @@ fun ToolsScreen(
                                                     }
 
                                                     IconButton(
-                                                        onClick = { viewModel.deleteDebt(debt) },
+                                                        onClick = { confirmDelete.request("Delete record for ${debt.personName}?") { viewModel.deleteDebt(debt) } },
                                                         modifier = Modifier.size(36.dp)
                                                     ) {
                                                         Icon(

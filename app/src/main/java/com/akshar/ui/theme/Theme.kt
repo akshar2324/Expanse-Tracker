@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -122,12 +123,17 @@ fun AkSpendTheme(
         LocalIsDarkTheme provides darkTheme,
         LocalReducedMotion provides reducedMotion,
     ) {
+        val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
         MaterialTheme(
-            colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
+            colorScheme = colorScheme,
             typography = Typography,
             shapes = Shapes,
-            content = content
-        )
+        ) {
+            // Glass panels are drawn with modifiers, not Material Surfaces, so nothing else sets
+            // the content color. Without this, Text with no explicit color falls back to black,
+            // which is unreadable in dark mode.
+            CompositionLocalProvider(LocalContentColor provides colorScheme.onSurface, content = content)
+        }
     }
 }
 
