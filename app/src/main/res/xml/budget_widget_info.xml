@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Refreshes hourly for day and month roll-over; data changes refresh it straight away. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/budget_widget_description"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:minWidth="160dp"
+    android:minHeight="160dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="3600000"
+    android:widgetCategory="home_screen" />

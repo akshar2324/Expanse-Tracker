@@ -19,6 +19,62 @@ interface FinanceDao {
     @Query("SELECT * FROM transactions ORDER BY date DESC, id DESC")
     fun getAllTransactions(): Flow<List<Transaction>>
 
+    /**
+     * Activity tab search. Every argument is optional (null, or an empty list via
+     * [categoryCount] = 0). [pattern] is a LIKE pattern escaped with '\'; SQLite LIKE ignores case
+     * for ASCII letters only. [kind] is ALL, EXPENSE, INCOME or TRANSFER, where EXPENSE and INCOME
+     * exclude transfer legs. The date range is [from, until). Amount bounds are inclusive and compare the same rounded
+     * two-decimal values produced by MoneyUtils.parseAmount when entries are saved.
+     */
+    @Query(
+        """
+        SELECT * FROM transactions
+        WHERE (:pattern IS NULL
+               OR description LIKE :pattern ESCAPE '\'
+               OR category LIKE :pattern ESCAPE '\'
+               OR paymentMethod LIKE :pattern ESCAPE '\')
+          AND (:kind = 'ALL'
+               OR (:kind = 'TRANSFER' AND transferId IS NOT NULL)
+               OR (transferId IS NULL AND type = :kind))
+          AND (:categoryCount = 0 OR category IN (:categories))
+          AND (:accountId IS NULL OR accountId = :accountId)
+          AND (:paymentMethod IS NULL OR paymentMethod = :paymentMethod)
+          AND (:from IS NULL OR date >= :from)
+          AND (:until IS NULL OR date < :until)
+          AND (:minAmount IS NULL OR amount >= :minAmount)
+          AND (:maxAmount IS NULL OR amount <= :maxAmount)
+        ORDER BY
+          CASE WHEN :sort = 'HIGHEST' THEN amount END DESC,
+          CASE WHEN :sort = 'LOWEST' THEN amount END ASC,
+          CASE WHEN :sort = 'OLDEST' THEN date END ASC,
+          CASE WHEN :sort = 'OLDEST' THEN id END ASC,
+          date DESC,
+          id DESC
+        """
+    )
+    fun searchTransactions(
+        pattern: String?,
+        kind: String,
+        categories: List<String>,
+        categoryCount: Int,
+        accountId: Long?,
+        paymentMethod: String?,
+        from: Long?,
+        until: Long?,
+        minAmount: Double?,
+        maxAmount: Double?,
+        sort: String,
+    ): Flow<List<Transaction>>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM transactions)")
+    fun hasAnyTransactions(): Flow<Boolean>
+
+    @Query("SELECT DISTINCT category FROM transactions WHERE transferId IS NULL AND category != '' ORDER BY category COLLATE NOCASE")
+    fun getUsedCategories(): Flow<List<String>>
+
+    @Query("SELECT DISTINCT paymentMethod FROM transactions WHERE transferId IS NULL AND paymentMethod != '' ORDER BY paymentMethod COLLATE NOCASE")
+    fun getUsedPaymentMethods(): Flow<List<String>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransaction(transaction: Transaction)
 

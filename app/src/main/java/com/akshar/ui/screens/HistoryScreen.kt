@@ -2,10 +2,18 @@ package com.akshar.ui.screens
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BookmarkAdd
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.FilterListOff
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Inbox
@@ -13,20 +21,35 @@ import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import com.akshar.ui.components.*
 import com.akshar.ui.theme.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.navigation.NavController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.akshar.data.activity.ActivityFilter
+import com.akshar.data.activity.ActivitySort
+import com.akshar.data.activity.ActivityTotals
+import com.akshar.data.activity.ActivityType
+import com.akshar.data.activity.DatePreset
+import com.akshar.data.activity.SavedActivityFilter
 import com.akshar.data.model.Transaction
 import com.akshar.TransactionRoutes
+import com.akshar.ui.viewmodel.ActivityViewModel
 import com.akshar.ui.viewmodel.FinanceViewModel
-import com.akshar.data.model.Account
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -35,97 +58,38 @@ import java.util.*
 fun HistoryScreen(
     viewModel: FinanceViewModel,
     navController: NavController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    activityViewModel: ActivityViewModel = viewModel(factory = ActivityViewModel.Factory),
 ) {
-    val transactions by viewModel.allTransactions.collectAsStateWithLifecycle()
+    val filter by activityViewModel.filter.collectAsStateWithLifecycle()
+    val results by activityViewModel.results.collectAsStateWithLifecycle()
+    val amountRange by activityViewModel.amountRange.collectAsStateWithLifecycle()
+    val hasAnyTransactions by activityViewModel.hasAnyTransactions.collectAsStateWithLifecycle()
+    val categories by activityViewModel.categories.collectAsStateWithLifecycle()
+    val paymentMethods by activityViewModel.paymentMethods.collectAsStateWithLifecycle()
+    val accounts by activityViewModel.accounts.collectAsStateWithLifecycle()
+    val savedFilters by activityViewModel.savedFilters.collectAsStateWithLifecycle()
 
-    // --- Search & Filter States ---
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedTypeFilter by remember { mutableStateOf("ALL") } // "ALL", "EXPENSE", "INCOME"
-    var selectedPaymentFilter by remember { mutableStateOf("ALL") } // "ALL", "Cash", "UPI", "Credit Card", "Debit Card", "Bank Transfer", "Wallet"
-    var selectedTimeFilter by remember { mutableStateOf("ALL") } // "ALL", "WEEK", "MONTH", "YEAR"
-    var selectedAccountFilter by remember { mutableStateOf<Long?>(null) } // null means "ALL"
-    val accounts by viewModel.accounts.collectAsStateWithLifecycle()
-    var sortBy by remember { mutableStateOf("NEWEST") } // "NEWEST", "OLDEST", "HIGHEST", "LOWEST"
+    var showFilters by rememberSaveable { mutableStateOf(false) }
+    var showSaveDialog by rememberSaveable { mutableStateOf(false) }
+    var showDateRangePicker by rememberSaveable { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val confirmDelete = rememberConfirmDeleteState()
+    ConfirmDeleteDialog(confirmDelete)
 
-    var showFilters by remember { mutableStateOf(false) }
-
-    // Constants
-    val paymentMethods = remember { listOf("ALL", "Cash", "UPI", "Credit Card", "Debit Card", "Bank Transfer", "Wallet") }
-    val timeFilters = remember { listOf("ALL", "WEEK", "MONTH", "YEAR") }
-
-    // --- Filter logic ---
-    val filteredTransactions = remember(
-        transactions, searchQuery, selectedTypeFilter, selectedPaymentFilter, selectedTimeFilter, selectedAccountFilter, sortBy
-    ) {
-        val now = System.currentTimeMillis()
-        val calendar = Calendar.getInstance()
-
-        val weekAgo = calendar.run {
-            timeInMillis = now
-            add(Calendar.DAY_OF_YEAR, -7)
-            timeInMillis
-        }
-        val monthAgo = calendar.run {
-            timeInMillis = now
-            set(Calendar.DAY_OF_MONTH, 1) // start of currently loaded month
-            timeInMillis
-        }
-        val yearAgo = calendar.run {
-            timeInMillis = now
-            set(Calendar.DAY_OF_YEAR, 1) // start of currently loaded year
-            timeInMillis
-        }
-
-        var list = transactions.filter {
-            // Search query match
-            val matchesQuery = it.description.contains(searchQuery, ignoreCase = true) ||
-                    it.category.contains(searchQuery, ignoreCase = true)
-
-            // Type filter match
-            val matchesType = selectedTypeFilter == "ALL" || it.type == selectedTypeFilter
-
-            // Payment method match
-            val matchesPayment = selectedPaymentFilter == "ALL" || it.paymentMethod == selectedPaymentFilter
-
-            // Account filter match
-            val matchesAccount = if (selectedAccountFilter == null) true else it.accountId == selectedAccountFilter || (it.transferId != null && (it.accountId == selectedAccountFilter || transactions.any { relatedTx -> relatedTx.transferId == it.transferId && relatedTx.accountId == selectedAccountFilter }))
-
-            // Time filter match
-            val matchesTime = when (selectedTimeFilter) {
-                "WEEK" -> it.date >= weekAgo
-                "MONTH" -> it.date >= monthAgo
-                "YEAR" -> it.date >= yearAgo
-                else -> true
-            }
-
-            matchesQuery && matchesType && matchesPayment && matchesTime && matchesAccount
-        }
-
-        // Sorting
-        list = when (sortBy) {
-            "OLDEST" -> list.sortedBy { it.date }
-            "HIGHEST" -> list.sortedByDescending { it.amount }
-            "LOWEST" -> list.sortedBy { it.amount }
-            else -> list.sortedByDescending { it.date } // "NEWEST" Default
-        }
-
-        list
-    }
-
+    val transactions = results.transactions
+    val totals = results.totals
     val currencySymbol = viewModel.getCurrencySymbol()
-    val filtersActive = selectedTypeFilter != "ALL" || selectedPaymentFilter != "ALL" || selectedTimeFilter != "ALL" || searchQuery.isNotEmpty()
-    val groupByDay = sortBy == "NEWEST" || sortBy == "OLDEST"
-    val groups = remember(filteredTransactions, groupByDay) {
-        if (groupByDay) filteredTransactions.groupBy { dayKey(it.date) }.toList()
-        else listOf("" to filteredTransactions)
+    val groupByDay = filter.sort == ActivitySort.NEWEST || filter.sort == ActivitySort.OLDEST
+    val groups = remember(transactions, groupByDay) {
+        if (groupByDay) transactions.groupBy { dayKey(it.date) }.toList()
+        else listOf("" to transactions)
     }
+    val activeSaved = savedFilters.firstOrNull { it.filter == filter }
     val finance = AkSpendTheme.finance
-    val totalIn = filteredTransactions.filter { it.type == "INCOME" && it.transferId == null }.sumOf { it.amount }
-    val totalOut = filteredTransactions.filter { it.type == "EXPENSE" && it.transferId == null }.sumOf { it.amount }
 
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().testTag("activity-list"),
         contentPadding = PaddingValues(
             start = Spacing.gutter,
             end = Spacing.gutter,
@@ -134,6 +98,7 @@ fun HistoryScreen(
         verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         item(key = "header") {
+            val activeCount = filter.activeCount
             ScreenHeader(
                 title = "Activity",
                 subtitle = "Every expense, income and transfer",
@@ -141,9 +106,12 @@ fun HistoryScreen(
                 actions = {
                     GlassIconButton(
                         icon = if (showFilters) Icons.Rounded.FilterListOff else Icons.Rounded.Tune,
-                        contentDescription = if (showFilters) "Hide filters" else "Show filters",
+                        contentDescription = buildString {
+                            append(if (showFilters) "Hide filters" else "Show filters")
+                            if (activeCount > 0) append(", $activeCount active")
+                        },
                         onClick = { showFilters = !showFilters },
-                        tint = if (filtersActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        tint = if (activeCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                     )
                 }
             )
@@ -151,22 +119,41 @@ fun HistoryScreen(
 
         item(key = "search") {
             OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Search by description or category") },
+                value = filter.query,
+                onValueChange = activityViewModel::setQuery,
+                placeholder = { Text("Search description, category or payment") },
                 leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                 trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
+                    if (filter.query.isNotEmpty()) {
+                        IconButton(onClick = { activityViewModel.setQuery("") }) {
                             Icon(Icons.Rounded.Close, contentDescription = "Clear search")
                         }
                     }
                 },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 modifier = Modifier.fillMaxWidth(),
                 shape = PillShape,
                 colors = glassTextFieldColors()
             )
+        }
+
+        if (savedFilters.isNotEmpty()) {
+            item(key = "saved") {
+                SavedFiltersRow(
+                    saved = savedFilters,
+                    active = activeSaved,
+                    onApply = { saved ->
+                        if (saved == activeSaved) activityViewModel.clearFilters() else activityViewModel.applySaved(saved)
+                    },
+                    onDelete = { saved ->
+                        confirmDelete.request(
+                            title = "Delete “${saved.name}”?",
+                            message = "The saved filter is removed. Your transactions are not affected."
+                        ) { activityViewModel.deleteSaved(saved.name) }
+                    }
+                )
+            }
         }
 
         item(key = "filters") {
@@ -175,112 +162,53 @@ fun HistoryScreen(
                 enter = expandVertically(motionSpec()) + fadeIn(motionSpec()),
                 exit = shrinkVertically(motionSpec(Durations.quick)) + fadeOut(motionSpec(Durations.quick))
             ) {
-                GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(Spacing.lg)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        FilterGroupLabel("Type")
-                        ScrollableFilterRow(
-                            items = listOf("ALL", "EXPENSE", "INCOME"),
-                            selectedItem = selectedTypeFilter,
-                            onSelect = { selectedTypeFilter = it },
-                            labelFor = { if (it == "ALL") "All" else it.lowercase().replaceFirstChar { c -> c.uppercase() } }
-                        )
-                        FilterGroupLabel("Sort by")
-                        ScrollableFilterRow(
-                            items = listOf("NEWEST", "OLDEST", "HIGHEST", "LOWEST"),
-                            selectedItem = sortBy,
-                            onSelect = { sortBy = it },
-                            labelFor = {
-                                when (it) {
-                                    "NEWEST" -> "Newest"
-                                    "OLDEST" -> "Oldest"
-                                    "HIGHEST" -> "Highest amount"
-                                    else -> "Lowest amount"
-                                }
-                            }
-                        )
-                        FilterGroupLabel("Payment method")
-                        ScrollableFilterRow(
-                            items = paymentMethods,
-                            selectedItem = selectedPaymentFilter,
-                            onSelect = { selectedPaymentFilter = it }
-                        )
-                        FilterGroupLabel("Date range")
-                        ScrollableFilterRow(
-                            items = timeFilters,
-                            selectedItem = selectedTimeFilter,
-                            onSelect = { selectedTimeFilter = it },
-                            labelFor = {
-                                when (it) {
-                                    "WEEK" -> "Last 7 days"
-                                    "MONTH" -> "This month"
-                                    "YEAR" -> "This year"
-                                    else -> "All time"
-                                }
-                            }
-                        )
+                FiltersPanel(
+                    filter = filter,
+                    amountError = amountRange.error,
+                    categories = categories,
+                    paymentMethods = paymentMethods,
+                    accounts = accounts.map { it.id to it.name },
+                    activityViewModel = activityViewModel,
+                    onCustomRange = {
+                        focusManager.clearFocus()
+                        showDateRangePicker = true
+                    },
+                    onSave = {
+                        focusManager.clearFocus()
+                        showSaveDialog = true
                     }
-                }
+                )
             }
         }
 
-        item(key = "summary") {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = Spacing.touchTarget),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = "${filteredTransactions.size} ${if (filteredTransactions.size == 1) "entry" else "entries"}",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "${signedMoney(totalIn, positive = true, currencySymbol = currencySymbol)}  ·  ${signedMoney(totalOut, positive = false, currencySymbol = currencySymbol)}",
-                        style = MaterialTheme.typography.bodySmall.money(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                if (filtersActive) {
-                    TextButton(
-                        onClick = {
-                            selectedTypeFilter = "ALL"
-                            selectedPaymentFilter = "ALL"
-                            selectedTimeFilter = "ALL"
-                            searchQuery = ""
-                            sortBy = "NEWEST"
-                        }
-                    ) {
-                        Text("Reset filters", style = MaterialTheme.typography.labelLarge)
-                    }
-                }
+        if (hasAnyTransactions == true) {
+            item(key = "summary") {
+                ResultsSummary(
+                    count = totals.count,
+                    spent = signedMoney(totals.spent.toDouble(), positive = false, currencySymbol = currencySymbol, decimals = 2),
+                    received = signedMoney(totals.received.toDouble(), positive = true, currencySymbol = currencySymbol, decimals = 2),
+                    filtering = filter.isFiltering,
+                    onClear = activityViewModel::clearFilters
+                )
             }
         }
 
-        if (filteredTransactions.isEmpty()) {
+        if (results.loaded && transactions.isEmpty() && hasAnyTransactions != null) {
             item(key = "empty") {
-                val nothingLogged = transactions.isEmpty()
+                val nothingLogged = hasAnyTransactions == false
                 EmptyState(
                     icon = if (nothingLogged) Icons.Rounded.Inbox else Icons.Rounded.SearchOff,
                     title = if (nothingLogged) "Nothing here yet" else "No matches",
                     message = if (nothingLogged) "Transactions you add will appear here, newest first."
-                    else "Try a different search or clear the filters.",
+                    else "Nothing matches your search and filters. Clear them to see everything again.",
                     action = {
                         FilledTonalButton(
                             onClick = {
-                                if (nothingLogged) {
-                                    navController.navigate(TransactionRoutes.ADD)
-                                } else {
-                                    searchQuery = ""
-                                    selectedTypeFilter = "ALL"
-                                    selectedPaymentFilter = "ALL"
-                                    selectedTimeFilter = "ALL"
-                                    selectedAccountFilter = null
-                                }
+                                if (nothingLogged) navController.navigate(TransactionRoutes.ADD)
+                                else activityViewModel.clearFilters()
                             },
-                            shape = PillShape
+                            shape = PillShape,
+                            modifier = Modifier.heightIn(min = Spacing.touchTarget)
                         ) {
                             Text(
                                 if (nothingLogged) "Add transaction" else "Clear filters",
@@ -292,9 +220,11 @@ fun HistoryScreen(
             }
         } else {
             groups.forEach { (day, dayTransactions) ->
+                if (dayTransactions.isEmpty()) return@forEach
                 if (day.isNotEmpty()) {
                     item(key = "day-$day") {
-                        val net = dayTransactions.filter { it.transferId == null }.sumOf { if (it.type == "EXPENSE") -it.amount else it.amount }
+                        val dayTotals = remember(dayTransactions) { ActivityTotals.of(dayTransactions) }
+                        val net = (dayTotals.received - dayTotals.spent).toDouble()
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -305,7 +235,7 @@ fun HistoryScreen(
                                 text = day,
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.semantics { heading() }
+                                modifier = Modifier.weight(1f, fill = false).semantics { heading() }
                             )
                             Text(
                                 text = netMoney(net, currencySymbol),
@@ -325,6 +255,7 @@ fun HistoryScreen(
                             TransactionItem(
                                 transaction = transaction,
                                 currencySymbol = currencySymbol,
+                                timePattern = if (groupByDay) "h:mm a" else "d MMM yyyy",
                                 onClick = {
                                     if (transaction.transferId != null) {
                                         navController.navigate("addTransfer/${transaction.transferId}")
@@ -339,6 +270,439 @@ fun HistoryScreen(
             }
         }
     }
+
+    if (showSaveDialog) {
+        SaveFilterDialog(
+            existingNames = savedFilters.map { it.name },
+            onDismiss = { showSaveDialog = false },
+            onSave = { name ->
+                if (activityViewModel.saveCurrent(name)) showSaveDialog = false
+            }
+        )
+    }
+
+    if (showDateRangePicker) {
+        CustomRangeDialog(
+            filter = filter,
+            onDismiss = { showDateRangePicker = false },
+            onConfirm = { start, end ->
+                activityViewModel.setCustomRange(start, end)
+                showDateRangePicker = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun FiltersPanel(
+    filter: ActivityFilter,
+    amountError: String?,
+    categories: List<String>,
+    paymentMethods: List<String>,
+    accounts: List<Pair<Long, String>>,
+    activityViewModel: ActivityViewModel,
+    onCustomRange: () -> Unit,
+    onSave: () -> Unit,
+) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(Spacing.lg)) {
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            FilterGroupLabel("Type")
+            ChipFlow {
+                ActivityType.entries.forEach { type ->
+                    GlassFilterChip(
+                        label = when (type) {
+                            ActivityType.ALL -> "All"
+                            ActivityType.EXPENSE -> "Expenses"
+                            ActivityType.INCOME -> "Income"
+                            ActivityType.TRANSFER -> "Transfers"
+                        },
+                        selected = filter.type == type,
+                        onClick = { activityViewModel.setType(type) }
+                    )
+                }
+            }
+
+            FilterGroupLabel("Date range")
+            ChipFlow {
+                listOf(DatePreset.ALL_TIME, DatePreset.THIS_MONTH, DatePreset.LAST_MONTH, DatePreset.LAST_30_DAYS, DatePreset.LAST_7_DAYS, DatePreset.THIS_YEAR).forEach { preset ->
+                    GlassFilterChip(
+                        label = when (preset) {
+                            DatePreset.THIS_MONTH -> "This month"
+                            DatePreset.LAST_MONTH -> "Last month"
+                            DatePreset.LAST_30_DAYS -> "Last 30 days"
+                            DatePreset.LAST_7_DAYS -> "Last 7 days"
+                            DatePreset.THIS_YEAR -> "This year"
+                            else -> "All time"
+                        },
+                        selected = filter.datePreset == preset,
+                        onClick = { activityViewModel.setDatePreset(preset) }
+                    )
+                }
+                GlassFilterChip(
+                    label = if (filter.datePreset == DatePreset.CUSTOM) customRangeLabel(filter) else "Custom…",
+                    selected = filter.datePreset == DatePreset.CUSTOM,
+                    onClick = onCustomRange
+                )
+            }
+
+            if (categories.isNotEmpty() || filter.categories.isNotEmpty()) {
+                FilterGroupLabel(if (filter.categories.isEmpty()) "Categories" else "Categories (${filter.categories.size} selected)")
+                ChipFlow {
+                    GlassFilterChip(label = "Any", selected = filter.categories.isEmpty(), onClick = activityViewModel::clearCategories)
+                    // Keep a category chosen in a saved filter visible even if no entry uses it any more.
+                    (categories + filter.categories.filterNot { it in categories }).forEach { category ->
+                        GlassFilterChip(
+                            label = category,
+                            selected = category in filter.categories,
+                            onClick = { activityViewModel.toggleCategory(category) }
+                        )
+                    }
+                }
+            }
+
+            if (accounts.size > 1 || filter.accountId != null) {
+                FilterGroupLabel("Account")
+                ChipFlow {
+                    GlassFilterChip(label = "All accounts", selected = filter.accountId == null, onClick = { activityViewModel.setAccount(null) })
+                    accounts.forEach { (id, name) ->
+                        GlassFilterChip(label = name, selected = filter.accountId == id, onClick = { activityViewModel.setAccount(id) })
+                    }
+                }
+            }
+
+            if (paymentMethods.isNotEmpty() || filter.paymentMethod != null) {
+                FilterGroupLabel("Payment method")
+                ScrollableFilterRow(
+                    items = listOf("ALL") + (paymentMethods + listOfNotNull(filter.paymentMethod)).distinct(),
+                    selectedItem = filter.paymentMethod ?: "ALL",
+                    onSelect = { activityViewModel.setPaymentMethod(it.takeUnless { m -> m == "ALL" }) }
+                )
+            }
+
+            FilterGroupLabel("Amount")
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                AmountField(
+                    label = "Min",
+                    value = filter.minAmountText,
+                    onValueChange = activityViewModel::setMinAmount,
+                    isError = amountError != null,
+                    modifier = Modifier.weight(1f)
+                )
+                AmountField(
+                    label = "Max",
+                    value = filter.maxAmountText,
+                    onValueChange = activityViewModel::setMaxAmount,
+                    isError = amountError != null,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            if (amountError != null) {
+                Text(
+                    text = "$amountError. The amount filter is off until this is fixed.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                )
+            }
+
+            FilterGroupLabel("Sort by")
+            ChipFlow {
+                ActivitySort.entries.forEach { sort ->
+                    GlassFilterChip(
+                        label = when (sort) {
+                            ActivitySort.NEWEST -> "Newest"
+                            ActivitySort.OLDEST -> "Oldest"
+                            ActivitySort.HIGHEST -> "Highest amount"
+                            ActivitySort.LOWEST -> "Lowest amount"
+                        },
+                        selected = filter.sort == sort,
+                        onClick = { activityViewModel.setSort(sort) }
+                    )
+                }
+            }
+
+            WrapRow(modifier = Modifier.padding(top = Spacing.xs), verticalSpacing = Spacing.sm) {
+                FilledTonalButton(
+                    onClick = onSave,
+                    enabled = filter.isFiltering,
+                    shape = PillShape,
+                    modifier = Modifier.heightIn(min = Spacing.touchTarget)
+                ) {
+                    Icon(Icons.Rounded.BookmarkAdd, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(Spacing.sm))
+                    Text("Save filter", style = MaterialTheme.typography.labelLarge)
+                }
+                TextButton(
+                    onClick = activityViewModel::clearFilters,
+                    enabled = filter.isFiltering,
+                    modifier = Modifier.heightIn(min = Spacing.touchTarget)
+                ) {
+                    Text("Clear filters", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResultsSummary(
+    count: Int,
+    spent: String,
+    received: String,
+    filtering: Boolean,
+    onClear: () -> Unit,
+) {
+    val entries = "$count ${if (count == 1) "entry" else "entries"}"
+    val largeText = LocalDensity.current.fontScale >= 1.3f
+    GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(Spacing.lg)) {
+        if (largeText) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                Text(
+                    if (filtering) "$entries match" else entries,
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
+                if (filtering) TextButton(onClick = onClear) { Text("Clear filters") }
+                SummaryFigure(label = "Spent", value = spent, color = AkSpendTheme.finance.expense)
+                SummaryFigure(label = "Received", value = received, color = AkSpendTheme.finance.income)
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.touchTarget),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (filtering) "$entries match" else entries,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite }
+                )
+                if (filtering) {
+                    TextButton(onClick = onClear, modifier = Modifier.heightIn(min = Spacing.touchTarget)) {
+                        Text("Clear filters", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+                SummaryFigure(label = "Spent", value = spent, color = AkSpendTheme.finance.expense, modifier = Modifier.weight(1f))
+                SummaryFigure(label = "Received", value = received, color = AkSpendTheme.finance.income, modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryFigure(label: String, value: String, color: androidx.compose.ui.graphics.Color, modifier: Modifier = Modifier) {
+    Column(modifier.semantics(mergeDescendants = true) {}) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.titleMedium.money(), color = color)
+    }
+}
+
+@Composable
+private fun SavedFiltersRow(
+    saved: List<SavedActivityFilter>,
+    active: SavedActivityFilter?,
+    onApply: (SavedActivityFilter) -> Unit,
+    onDelete: (SavedActivityFilter) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        FilterGroupLabel("Saved filters")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            LazyRow(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+            ) {
+                items(saved, key = { it.name }) { item ->
+                    GlassFilterChip(label = item.name, selected = item == active, onClick = { onApply(item) })
+                }
+            }
+            if (active != null) {
+                IconButton(onClick = { onDelete(active) }, modifier = Modifier.size(Spacing.touchTarget)) {
+                    Icon(
+                        Icons.Rounded.DeleteOutline,
+                        contentDescription = "Delete saved filter ${active.name}",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SaveFilterDialog(
+    existingNames: List<String>,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf("") }
+    val trimmed = name.trim()
+    val replaces = existingNames.any { it.equals(trimmed, ignoreCase = true) }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        GlassCard(
+            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().padding(horizontal = Spacing.gutter).heightIn(max = 560.dp),
+            fill = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                Text("Save filter", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(SavedActivityFilter.MAX_NAME_LENGTH) },
+                    label = { Text("Name") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    colors = glassTextFieldColors(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    if (replaces) "Replaces the saved filter with this name"
+                    else "${name.length}/${SavedActivityFilter.MAX_NAME_LENGTH}",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                WrapRow {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(onClick = { onSave(trimmed) }, enabled = trimmed.isNotEmpty()) {
+                        Text(if (replaces) "Replace" else "Save")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CustomRangeDialog(
+    filter: ActivityFilter,
+    onDismiss: () -> Unit,
+    onConfirm: (startDay: Int, endDay: Int) -> Unit,
+) {
+    // The picker works in UTC midnights; saved days are calendar days, so convert through UTC.
+    val utc = remember { TimeZone.getTimeZone("UTC") }
+    val state = rememberDateRangePickerState(
+        initialSelectedStartDateMillis = filter.customStartDay?.let { ActivityFilter.dayStart(it, utc) },
+        initialSelectedEndDateMillis = filter.customEndDay?.let { ActivityFilter.dayStart(it, utc) },
+    )
+    val start = state.selectedStartDateMillis
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                enabled = start != null,
+                onClick = {
+                    if (start != null) {
+                        val end = state.selectedEndDateMillis ?: start
+                        onConfirm(ActivityFilter.dayKey(start, utc), ActivityFilter.dayKey(end, utc))
+                    }
+                }
+            ) { Text("Apply") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    ) {
+        DateRangePicker(
+            state = state,
+            title = { Text("Custom date range", modifier = Modifier.padding(start = Spacing.xxl, top = Spacing.lg)) },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+private fun customRangeLabel(filter: ActivityFilter): String {
+    val start = filter.customStartDay ?: return "Custom…"
+    val end = filter.customEndDay ?: start
+    val format = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+    val first = format.format(Date(ActivityFilter.dayStart(start)))
+    return if (start == end) first else "$first – ${format.format(Date(ActivityFilter.dayStart(end)))}"
+}
+
+@Composable
+private fun AmountField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    isError: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        singleLine = true,
+        isError = isError,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
+        colors = glassTextFieldColors(),
+        modifier = modifier
+    )
+}
+
+/** Chips that wrap onto new lines instead of scrolling, so large fonts never hide options. */
+@Composable
+private fun ChipFlow(content: @Composable () -> Unit) = WrapRow(content = content)
+
+/**
+ * Places children left to right and wraps to a new line when the next one does not fit.
+ * Hand-rolled because the app compiles against foundation-layout 1.7 but runs with 1.9, where
+ * the 1.7 FlowRow signature no longer exists (NoSuchMethodError at runtime).
+ */
+@Composable
+private fun WrapRow(
+    modifier: Modifier = Modifier,
+    horizontalSpacing: androidx.compose.ui.unit.Dp = Spacing.sm,
+    verticalSpacing: androidx.compose.ui.unit.Dp = 0.dp,
+    content: @Composable () -> Unit,
+) {
+    androidx.compose.ui.layout.Layout(content = content, modifier = modifier) { measurables, constraints ->
+        val maxWidth = if (constraints.hasBoundedWidth) constraints.maxWidth else Int.MAX_VALUE
+        val hGap = horizontalSpacing.roundToPx()
+        val vGap = verticalSpacing.roundToPx()
+        val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
+        val positions = ArrayList<androidx.compose.ui.unit.IntOffset>(placeables.size)
+        var x = 0
+        var y = 0
+        var rowHeight = 0
+        var width = 0
+        placeables.forEach { placeable ->
+            if (x > 0 && x + placeable.width > maxWidth) {
+                x = 0
+                y += rowHeight + vGap
+                rowHeight = 0
+            }
+            positions += androidx.compose.ui.unit.IntOffset(x, y)
+            width = maxOf(width, x + placeable.width)
+            x += placeable.width + hGap
+            rowHeight = maxOf(rowHeight, placeable.height)
+        }
+        val height = if (placeables.isEmpty()) 0 else y + rowHeight
+        layout(
+            width.coerceAtMost(maxWidth).coerceAtLeast(constraints.minWidth),
+            height.coerceIn(constraints.minHeight, constraints.maxHeight)
+        ) {
+            placeables.forEachIndexed { index, placeable -> placeable.placeRelative(positions[index]) }
+        }
+    }
+}
+
+@Composable
+private fun GlassFilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label, style = MaterialTheme.typography.labelLarge) },
+        shape = PillShape,
+        modifier = Modifier.heightIn(min = Spacing.touchTarget),
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = AkSpendTheme.glass.fill,
+            selectedContainerColor = MaterialTheme.colorScheme.primary,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+        )
+    )
 }
 
 private fun dayKey(timestamp: Long): String {

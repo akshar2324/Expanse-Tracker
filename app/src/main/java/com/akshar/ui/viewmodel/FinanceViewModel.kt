@@ -19,6 +19,8 @@ import com.akshar.utils.DuplicateCandidate
 import com.akshar.utils.DuplicateMatch
 import com.akshar.data.repository.FinanceRepository
 import com.akshar.data.backup.BackupCodec
+import com.akshar.insights.SubscriptionCandidate
+import com.akshar.insights.MerchantKey
 import com.akshar.utils.MoneyUtils
 import com.akshar.utils.PeriodUtils
 import kotlinx.coroutines.Dispatchers
@@ -66,25 +68,20 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // --- Country & Currency Settings ---
-    private val countryPrefs = application.getSharedPreferences("country_settings", android.content.Context.MODE_PRIVATE)
+    private val countryPrefs = application.getSharedPreferences(com.akshar.utils.CurrencyUtils.PREFS, android.content.Context.MODE_PRIVATE)
 
-    private val _selectedCountry = MutableStateFlow(countryPrefs.getString("selected_country", "IN") ?: "IN")
+    private val _selectedCountry = MutableStateFlow(
+        countryPrefs.getString(com.akshar.utils.CurrencyUtils.KEY_COUNTRY, com.akshar.utils.CurrencyUtils.DEFAULT_COUNTRY)
+            ?: com.akshar.utils.CurrencyUtils.DEFAULT_COUNTRY
+    )
     val selectedCountry: StateFlow<String> = _selectedCountry.asStateFlow()
 
     fun updateCountry(countryCode: String) {
-        countryPrefs.edit().putString("selected_country", countryCode).apply()
+        countryPrefs.edit().putString(com.akshar.utils.CurrencyUtils.KEY_COUNTRY, countryCode).apply()
         _selectedCountry.value = countryCode
     }
 
-    fun getCurrencySymbol(): String {
-        return when (selectedCountry.value) {
-            "IN" -> "₹"
-            "US" -> "$"
-            "JP" -> "¥"
-            "EU" -> "€"
-            else -> "$"
-        }
-    }
+    fun getCurrencySymbol(): String = com.akshar.utils.CurrencyUtils.symbolFor(selectedCountry.value)
 
     fun formatCurrencyValue(amount: Double): String {
         val symbol = getCurrencySymbol()
@@ -332,26 +329,48 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // --- CRUD: Recurring Transactions ---
+    private val subscriptionRemindersInFlight = mutableSetOf<String>()
+
+    /** Protect one-tap creation from repeated taps before Room refreshes the suggestion list. */
+    fun makeSubscriptionReminder(candidate: SubscriptionCandidate) {
+        viewModelScope.launch {
+            if (!subscriptionRemindersInFlight.add(candidate.key)) return@launch
+            try {
+                val existing = repository.allRecurringTransactions.first()
+                if (existing.none { MerchantKey.sameMerchant(MerchantKey.normalize(it.description), candidate.key) }) {
+                    addRecurringTransaction(
+                        amount = candidate.amount.toDouble(), type = "EXPENSE", category = candidate.category,
+                        description = candidate.displayName, frequency = candidate.frequency.reminderValue,
+                        paymentMethod = candidate.paymentMethod, lastTriggered = candidate.reminderAnchorMs
+                    ).join()
+                }
+            } finally {
+                subscriptionRemindersInFlight.remove(candidate.key)
+            }
+        }
+    }
+
     fun addRecurringTransaction(
         amount: Double,
         type: String,
         category: String,
         description: String,
         frequency: String,
-        paymentMethod: String
-    ) {
-        viewModelScope.launch {
-            val rec = RecurringTransaction(
-                amount = amount,
-                type = type,
-                category = category,
-                description = description,
-                frequency = frequency,
-                paymentMethod = paymentMethod,
-                lastTriggered = System.currentTimeMillis()
-            )
-            repository.insertRecurringTransaction(rec)
-        }
+        paymentMethod: String,
+        // The next due date is one period after this. Defaults to now; a reminder made from a
+        // detected subscription passes its last charge so it lines up with the real schedule.
+        lastTriggered: Long = System.currentTimeMillis()
+    ) = viewModelScope.launch {
+        val rec = RecurringTransaction(
+            amount = MoneyUtils.roundMoney(amount),
+            type = type,
+            category = category,
+            description = description,
+            frequency = frequency,
+            paymentMethod = paymentMethod,
+            lastTriggered = lastTriggered
+        )
+        repository.insertRecurringTransaction(rec)
     }
 
     fun deleteRecurringTransactionById(id: Long) {
