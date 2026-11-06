@@ -39,6 +39,31 @@ interface FinanceDao {
     @Query("SELECT originalCsvRowHash FROM transactions WHERE originalCsvRowHash IN (:hashes)")
     suspend fun getExistingCsvHashes(hashes: List<String>): List<String>
 
+    @Query("SELECT * FROM transactions WHERE transferId = :transferId ORDER BY type ASC")
+    suspend fun getTransactionsByTransferId(transferId: String): List<Transaction>
+
+    @Query("DELETE FROM transactions WHERE transferId = :transferId")
+    suspend fun deleteTransactionsByTransferId(transferId: String)
+
+    // One-shot reads used by backup export, so it never depends on a UI collector being active.
+    @Query("SELECT * FROM transactions ORDER BY date DESC, id DESC")
+    suspend fun getTransactionsList(): List<Transaction>
+    @Query("SELECT * FROM budgets") suspend fun getBudgetsList(): List<Budget>
+    @Query("SELECT * FROM savings_goals") suspend fun getSavingsGoalsList(): List<SavingsGoal>
+    @Query("SELECT * FROM debts ORDER BY date DESC") suspend fun getDebtsList(): List<Debt>
+    @Query("SELECT * FROM accounts ORDER BY id ASC") suspend fun getAccountsList(): List<Account>
+    @Query("SELECT * FROM reconciliations ORDER BY date DESC, id DESC") suspend fun getReconciliationsList(): List<Reconciliation>
+
+    // Used by a full JSON restore, which replaces the ledger inside one database transaction.
+    @Query("DELETE FROM transactions") suspend fun clearTransactions()
+    @Query("DELETE FROM budgets") suspend fun clearBudgets()
+    @Query("DELETE FROM savings_goals") suspend fun clearSavingsGoals()
+    @Query("DELETE FROM recurring_transactions") suspend fun clearRecurringTransactions()
+    @Query("DELETE FROM debts") suspend fun clearDebts()
+    @Query("DELETE FROM csv_import_profiles") suspend fun clearCsvImportProfiles()
+    @Query("DELETE FROM accounts") suspend fun clearAccounts()
+    @Query("DELETE FROM reconciliations") suspend fun clearReconciliations()
+
 
     // --- Budgets ---
     @Query("SELECT * FROM budgets WHERE month = :month")

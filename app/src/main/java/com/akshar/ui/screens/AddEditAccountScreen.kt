@@ -110,8 +110,8 @@ fun AddEditAccountScreen(
 
             Button(
                 onClick = {
-                    if (name.isNotBlank()) {
-                        val amount = openingBalance.toDoubleOrNull() ?: 0.0
+                    val amount = if (openingBalance.isBlank()) 0.0 else com.akshar.utils.MoneyUtils.parseAmount(openingBalance)
+                    if (name.isNotBlank() && amount != null) {
                         val account = Account(
                             id = existingAccount?.id ?: 0L,
                             name = name,

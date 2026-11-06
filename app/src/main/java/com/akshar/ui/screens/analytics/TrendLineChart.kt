@@ -23,26 +23,38 @@ import com.akshar.data.model.Transaction
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * Daily totals for the last 7 days (today included), oldest first. Days are keyed by their
+ * real start-of-day, so entries from other months never land in the window and a window that
+ * crosses a month boundary stays in date order. Labels are the day of month ("dd").
+ */
 internal fun calculateTrendPoints(
     transactions: List<Transaction>,
     calendar: Calendar = Calendar.getInstance()
 ): List<Pair<String, Double>> {
-    val formatter = SimpleDateFormat("dd", Locale.getDefault())
-    val totals = TreeMap<String, Double>()
+    val cal = calendar.clone() as Calendar
+    cal.set(Calendar.HOUR_OF_DAY, 0)
+    cal.set(Calendar.MINUTE, 0)
+    cal.set(Calendar.SECOND, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    cal.add(Calendar.DAY_OF_YEAR, -6)
 
-    repeat(7) {
-        totals[formatter.format(calendar.time)] = 0.0
-        calendar.add(Calendar.DAY_OF_YEAR, -1)
+    val dayStarts = LongArray(8)
+    for (i in 0..7) {
+        dayStarts[i] = cal.timeInMillis
+        cal.add(Calendar.DAY_OF_YEAR, 1)
     }
-
-    val date = Date()
+    val totals = DoubleArray(7)
     transactions.forEach { transaction ->
-        date.time = transaction.date
-        val key = formatter.format(date)
-        totals[key] = (totals[key] ?: 0.0) + transaction.amount
+        if (transaction.date < dayStarts[0] || transaction.date >= dayStarts[7]) return@forEach
+        var day = 6
+        while (transaction.date < dayStarts[day]) day--
+        totals[day] += transaction.amount
     }
 
-    return totals.toList().takeLast(10)
+    val formatter = SimpleDateFormat("dd", Locale.getDefault())
+    formatter.timeZone = calendar.timeZone
+    return (0 until 7).map { formatter.format(Date(dayStarts[it])) to totals[it] }
 }
 
 // --- Custom Animated Line Trend Chart ---

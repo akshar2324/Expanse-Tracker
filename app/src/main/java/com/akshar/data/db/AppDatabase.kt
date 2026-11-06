@@ -69,6 +69,22 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+const val DATABASE_VERSION = 6
+
+/**
+ * Transactions default to accountId = 1 (manual entries, CSV imports, recurring entries).
+ * Upgraded installs get that account from MIGRATION_5_6; fresh installs need it too, or every
+ * entry points at an account that does not exist and the Accounts screen shows no balance.
+ */
+object SeedDefaultAccountCallback : RoomDatabase.Callback() {
+    override fun onCreate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "INSERT OR IGNORE INTO `accounts` (`id`, `name`, `type`, `openingBalance`, `isArchived`, `timestamp`) " +
+                "VALUES (1, 'Cash', 'Cash', 0.0, 0, ${System.currentTimeMillis()})"
+        )
+    }
+}
+
 @Database(
     entities = [
         Transaction::class,
@@ -80,7 +96,7 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         Account::class,
         Reconciliation::class
     ],
-    version = 6,
+    version = DATABASE_VERSION,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -99,6 +115,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "expense_tracker_pro_db"
                 )
                 .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
+                .addCallback(SeedDefaultAccountCallback)
                 .build()
                 INSTANCE = instance
                 instance
