@@ -47,6 +47,8 @@ class AppNavGraphTest {
 
     @After
     fun tearDown() {
+        runBlocking { com.akshar.sms.inbox.ImportInboxDatabase.getInstance(app).pendingImportDao().clear() }
+        com.akshar.sms.inbox.ImportInboxDatabase.closeAndResetInstance()
         AppDatabase.closeAndResetInstance()
     }
 
@@ -90,6 +92,24 @@ class AppNavGraphTest {
         val saved = runBlocking { app.repository.allTransactions.first() }
         assertEquals(1, saved.size)
         assertEquals(existing.copy(type = "INCOME", category = "Salary"), saved.single())
+    }
+
+    @Test
+    fun `deleting a transfer requires confirmation and cancel preserves both legs`() {
+        val from = Transaction(amount = 25.0, type = "EXPENSE", category = "Transfer", description = "Move", date = 1L, paymentMethod = "Transfer", accountId = 1L, transferId = "audit-transfer")
+        runBlocking {
+            app.repository.insertAccount(com.akshar.data.model.Account(id = 2L, name = "Bank", type = "Bank"))
+            app.repository.saveTransfer(from, from.copy(type = "INCOME", accountId = 2L))
+        }
+        composeTestRule.runOnUiThread { navController.navigate("addTransfer/audit-transfer") }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Delete transfer").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Delete transfer?").assertExists()
+        composeTestRule.onNodeWithText("Cancel").performClick()
+        assertEquals(2, runBlocking { app.repository.getTransferLegs("audit-transfer").size })
+        composeTestRule.onNodeWithText("Delete transfer").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Delete").performClick()
+        composeTestRule.waitUntil(5_000) { runBlocking { app.repository.getTransferLegs("audit-transfer").isEmpty() } }
     }
 
     @Test
@@ -195,5 +215,33 @@ class AppNavGraphTest {
         composeTestRule.onNodeWithText("Save expense").performClick()
         composeTestRule.waitUntil(timeoutMillis = 5_000) { runBlocking { app.repository.allTransactions.first().isNotEmpty() } }
         assertEquals("Entertainment", runBlocking { app.repository.allTransactions.first() }.single().category)
+    }
+
+    @Test
+    fun `queued notification payment is reviewed, saved and removed from the inbox`() {
+        val dao = com.akshar.sms.inbox.ImportInboxDatabase.getInstance(app).pendingImportDao()
+        val queued = com.akshar.sms.inbox.AutoImportCapture.capture(
+            "com.google.android.apps.messaging", "JD-HDFCBK-S",
+            "Sent Rs.799.00 From HDFC Bank A/C *4821 To NETFLIX On 14/10/26 Ref 629100004321",
+            postedAt = System.currentTimeMillis(), supported = true
+        )!!
+        runBlocking { dao.insert(queued) }
+
+        composeTestRule.runOnUiThread { navController.navigate(SmsImportRoutes.INBOX) }
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodes(hasText("NETFLIX")).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Review").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+        assertEquals(SmsImportRoutes.REVIEW, navController.currentDestination?.route)
+
+        composeTestRule.onNodeWithText("Save expense").assertIsDisplayed().performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { app.repository.allTransactions.first().isNotEmpty() && dao.observeCount().first() == 0 }
+        }
+        val saved = runBlocking { app.repository.allTransactions.first() }.single()
+        assertEquals(799.0, saved.amount, 0.0)
+        assertEquals("Subscription", saved.category)
+        assertEquals(SmsImportRoutes.INBOX, navController.currentDestination?.route)
     }
 }

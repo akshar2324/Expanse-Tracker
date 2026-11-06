@@ -503,7 +503,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     FileOutputStream(staged).use { output -> input.copyTo(output) }
                 } ?: throw Exception("Could not open input stream")
 
-                val problem = DatabaseFileValidator.problemWith(staged, com.akshar.data.db.DATABASE_VERSION)
+                val problem = DatabaseFileValidator.problemWith(staged, com.akshar.data.db.DATABASE_VERSION, context)
                 if (problem != null) {
                     _backupStatus.value = "Failed to restore backup file: $problem"
                     return@launch
@@ -565,7 +565,7 @@ object DatabaseFileValidator {
     private val SQLITE_HEADER = "SQLite format 3\u0000".toByteArray(Charsets.US_ASCII)
 
     /** Returns null when [file] looks restorable, otherwise a short reason. */
-    fun problemWith(file: File, currentSchemaVersion: Int): String? {
+    fun problemWith(file: File, currentSchemaVersion: Int, context: Context): String? {
         if (!file.exists() || file.length() < 100) return "the file is not a database backup."
         val header = ByteArray(100)
         FileInputStream(file).use { input ->
@@ -591,7 +591,45 @@ object DatabaseFileValidator {
         if (userVersion < MIN_RESTORABLE_VERSION) {
             return "the backup is too old to restore."
         }
-        return null
+        // A valid header is not enough: an unrelated or corrupt SQLite file would replace
+        // the live ledger and only fail when the app restarted. Check integrity and let Room
+        // validate/migrate a disposable copy before closing or replacing the live database.
+        val probeFile = File.createTempFile("restore-check-", ".db", context.cacheDir)
+        return try {
+            file.copyTo(probeFile, overwrite = true)
+            android.database.sqlite.SQLiteDatabase.openDatabase(
+                probeFile.absolutePath, null, android.database.sqlite.SQLiteDatabase.OPEN_READONLY
+            ).use { raw ->
+                raw.rawQuery("PRAGMA quick_check", null).use { cursor ->
+                    check(cursor.moveToFirst() && cursor.getString(0) == "ok")
+                }
+                // Room may initialise an empty database; an empty/corrupt backup must not
+                // become a valid fresh ledger as a side effect of validation.
+                raw.rawQuery("SELECT id, amount, type FROM transactions LIMIT 0", null).use { it.columnCount }
+            }
+            // A stale Room identity hash can survive a damaged/missing table. Removing it
+            // only on the disposable copy forces Room to compare every table and column.
+            android.database.sqlite.SQLiteDatabase.openDatabase(
+                probeFile.absolutePath, null, android.database.sqlite.SQLiteDatabase.OPEN_READWRITE
+            ).use { it.execSQL("DROP TABLE IF EXISTS room_master_table") }
+            val probe = androidx.room.Room.databaseBuilder(
+                context.applicationContext, com.akshar.data.db.AppDatabase::class.java, probeFile.absolutePath
+            ).addMigrations(*com.akshar.data.db.ALL_MIGRATIONS) // same list as the live database
+                .setJournalMode(androidx.room.RoomDatabase.JournalMode.TRUNCATE)
+                .build()
+            try {
+                probe.openHelper.writableDatabase.query("PRAGMA quick_check").use { cursor ->
+                    if (cursor.moveToFirst() && cursor.getString(0) == "ok") null
+                    else "the database backup is corrupt."
+                }
+            } finally {
+                probe.close()
+            }
+        } catch (_: Exception) {
+            "the file is corrupt or is not a compatible AkSpend database."
+        } finally {
+            android.database.sqlite.SQLiteDatabase.deleteDatabase(probeFile)
+        }
     }
 
     private const val MIN_RESTORABLE_VERSION = 4

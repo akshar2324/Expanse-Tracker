@@ -58,16 +58,31 @@ internal fun buildValidationRows(
     existingLedger: List<Transaction>,
     memory: CategoryMemory,
     zone: TimeZone = TimeZone.getDefault(),
-): List<ValidationRow> = rows.map { parsed ->
+): List<ValidationRow> {
+    // Earlier rows in this same file count too, not just rows already saved.
+    val seenInFile = HashSet<String>()
+    return rows.map { parsed -> validationRow(parsed, existingHashes, seenInFile, existingLedger, memory, zone) }
+}
+
+private fun validationRow(
+    parsed: ParsedCsvRow,
+    existingHashes: Set<String>,
+    seenInFile: MutableSet<String>,
+    existingLedger: List<Transaction>,
+    memory: CategoryMemory,
+    zone: TimeZone,
+): ValidationRow {
     val learned = if (parsed.category == CsvParser.DEFAULT_CATEGORY) memory.lookup(parsed.description, parsed.type) else null
     val row = if (learned != null) parsed.copy(category = learned) else parsed
+    val repeatedInFile = !seenInFile.add(parsed.hash)
     val note = when {
         parsed.hash in existingHashes -> "Already imported from a statement"
+        repeatedInFile -> "Repeated row: this file already has it"
         DuplicateCheck.findMatch(DuplicateCandidate(parsed.amount, parsed.type, parsed.date), existingLedger, zone) != null ->
             "Possible duplicate: same amount on the same day is already saved"
         else -> null
     }
-    ValidationRow(parsedRow = row, isDuplicate = note != null, skip = note != null, duplicateNote = note, learnedCategory = learned != null)
+    return ValidationRow(parsedRow = row, isDuplicate = note != null, skip = note != null, duplicateNote = note, learnedCategory = learned != null)
 }
 
 class CsvImportViewModel(
@@ -126,7 +141,10 @@ class CsvImportViewModel(
 
     fun handleFileSelected(uri: Uri) {
         _selectedUri.value = uri
-        _fileName.value = queryName(uri)
+        _fileName.value = null
+        viewModelScope.launch(ioDispatcher) {
+            _fileName.value = runCatching { queryName(uri) }.getOrDefault("Unknown File")
+        }
         extractHeaders(uri)
         _currentStep.value = ImportStep.CONFIGURE_MAPPING
     }
