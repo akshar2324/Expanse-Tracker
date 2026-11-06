@@ -319,7 +319,7 @@ fun AppNavGraph(
             val activity = androidx.activity.compose.LocalActivity.current
             val sharedText = androidx.compose.runtime.saveable.rememberSaveable {
                 activity?.intent?.takeIf { it.action == android.content.Intent.ACTION_SEND }
-                    ?.getStringExtra(android.content.Intent.EXTRA_TEXT).orEmpty()
+                    ?.getCharSequenceExtra(android.content.Intent.EXTRA_TEXT)?.toString().orEmpty()
             }.ifBlank { null }
             val savedOne by entry.savedStateHandle.getStateFlow(SmsImportRoutes.SAVED_KEY, false).collectAsStateWithLifecycle()
             SmsImportScreen(
