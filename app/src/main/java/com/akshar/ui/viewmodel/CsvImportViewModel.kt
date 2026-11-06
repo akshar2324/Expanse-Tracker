@@ -38,7 +38,9 @@ data class ValidationRow(
     var skip: Boolean = false
 )
 
-class CsvImportViewModel(
+// @JvmOverloads emits a constructor that takes only Application. The default ViewModel factory
+// looks for exactly that signature; without it, opening Import CSV crashes the app.
+class CsvImportViewModel @JvmOverloads constructor(
     application: Application,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : AndroidViewModel(application) {
