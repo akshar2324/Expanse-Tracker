@@ -1,5 +1,9 @@
 package com.akshar.ui.screens
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.akshar.ui.theme.*
+import com.akshar.ui.components.*
 import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -55,34 +59,35 @@ fun AddTransferScreen(
     var fromExpanded by remember { mutableStateOf(false) }
     var toExpanded by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (transferId == null) "New Transfer" else "Edit Transfer") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .imePadding()
+            .navigationBarsPadding()
+    ) {
+        ScreenHeader(
+            title = if (transferId == null) "New transfer" else "Edit transfer",
+            subtitle = "Move money between your own accounts",
+            onBack = { navController.popBackStack() }
+        )
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.gutter)
+                .padding(bottom = Spacing.xxl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
             ExposedDropdownMenuBox(
                 expanded = fromExpanded,
                 onExpandedChange = { fromExpanded = !fromExpanded }
             ) {
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = activeAccounts.find { it.id == fromAccountId }?.name ?: "",
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("From Account") },
+                    label = { Text("From account") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = fromExpanded) },
                     modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).fillMaxWidth()
                 )
@@ -107,10 +112,11 @@ fun AddTransferScreen(
                 onExpandedChange = { toExpanded = !toExpanded }
             ) {
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = activeAccounts.find { it.id == toAccountId }?.name ?: "",
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("To Account") },
+                    label = { Text("To account") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = toExpanded) },
                     modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryEditable).fillMaxWidth()
                 )
@@ -131,28 +137,32 @@ fun AddTransferScreen(
             }
 
             OutlinedTextField(
+                colors = glassTextFieldColors(),
                 value = amount,
                 onValueChange = { amount = it },
-                label = { Text("Amount") },
+                label = { Text("Amount (${viewModel.getCurrencySymbol()})") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                textStyle = MaterialTheme.typography.headlineSmall.money(),
                 modifier = Modifier.fillMaxWidth()
             )
 
             OutlinedTextField(
+                colors = glassTextFieldColors(),
                 value = description,
                 onValueChange = { description = it },
-                label = { Text("Description (Optional)") },
+                label = { Text("Note (optional)") },
                 modifier = Modifier.fillMaxWidth()
             )
 
             OutlinedTextField(
+                colors = glassTextFieldColors(),
                 value = formatter.format(Date(selectedDate)),
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Date") },
                 trailingIcon = {
                     IconButton(onClick = { datePickerDialog.show() }) {
-                        Icon(Icons.Default.CalendarMonth, contentDescription = "Select Date")
+                        Icon(Icons.Default.CalendarMonth, contentDescription = "Choose transfer date")
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
@@ -176,10 +186,10 @@ fun AddTransferScreen(
                         navController.popBackStack()
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
                 enabled = amount.isNotBlank() && fromAccountId != toAccountId
             ) {
-                Text("Save Transfer")
+                Text("Save transfer", style = MaterialTheme.typography.titleMedium)
             }
 
             if (transferId != null) {
@@ -188,10 +198,10 @@ fun AddTransferScreen(
                         viewModel.deleteTransfer(transferId)
                         navController.popBackStack()
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(Spacing.touchTarget),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Delete Transfer")
+                    Text("Delete transfer", style = MaterialTheme.typography.labelLarge)
                 }
             }
         }

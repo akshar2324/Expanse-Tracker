@@ -1,5 +1,7 @@
 package com.akshar.ui.screens
 
+import com.akshar.ui.theme.*
+import com.akshar.ui.components.*
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -39,22 +41,26 @@ fun CsvImportScreen(
     val currentStep by viewModel.currentStep.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Import CSV", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .navigationBarsPadding()
+            .imePadding()
+    ) {
+        ScreenHeader(
+            title = "Import CSV",
+            subtitle = when (currentStep) {
+                ImportStep.SELECT_FILE -> "Step 1 of 3 · Choose a file"
+                ImportStep.CONFIGURE_MAPPING -> "Step 2 of 3 · Match the columns"
+                ImportStep.PREVIEW -> "Step 3 of 3 · Review and import"
+                ImportStep.SUMMARY -> "All done"
+            },
+            onBack = onBack
+        )
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+                .fillMaxWidth()
+                .weight(1f)
         ) {
             when (currentStep) {
                 ImportStep.SELECT_FILE -> SelectFileStep(viewModel)
@@ -86,23 +92,19 @@ fun SelectFileStep(viewModel: CsvImportViewModel) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            imageVector = Icons.Default.FileUpload,
-            contentDescription = null,
-            modifier = Modifier.size(72.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
+        IconBadge(icon = Icons.Default.FileUpload, tint = MaterialTheme.colorScheme.primary, size = 96.dp)
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            "Import Bank Statements (CSV)",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
+            "Bring in a bank statement",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            "Select a CSV file from your device to import transactions. Your data stays completely offline.",
+            "Choose a CSV export from your bank. It's read on this device and never uploaded.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             modifier = Modifier.padding(horizontal = 24.dp)
         )
         Spacer(modifier = Modifier.height(32.dp))
@@ -112,26 +114,28 @@ fun SelectFileStep(viewModel: CsvImportViewModel) {
                 .fillMaxWidth()
                 .height(56.dp)
         ) {
-            Text("Select CSV File")
+            Text("Choose CSV file", style = MaterialTheme.typography.titleMedium)
         }
 
         Spacer(modifier = Modifier.height(32.dp))
         val profiles by viewModel.savedProfiles.collectAsStateWithLifecycle()
         if (profiles.isNotEmpty()) {
-            Text("Or start with a saved profile:", fontWeight = FontWeight.Bold)
+            Text("Or reuse a saved column setup", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(8.dp))
             LazyColumn {
                 items(profiles) { profile ->
-                    Card(
+                    GlassCard(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .clickable {
-                                viewModel.loadProfile(profile)
-                                launcher.launch("text/*")
-                            }
+                            .padding(vertical = 4.dp),
+                        onClick = {
+                            viewModel.loadProfile(profile)
+                            launcher.launch("text/*")
+                        },
+                        onClickLabel = "Use ${profile.name} and choose a file",
+                        contentPadding = PaddingValues(Spacing.lg)
                     ) {
-                        Text(profile.name, modifier = Modifier.padding(16.dp))
+                        Text(profile.name, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
             }
@@ -176,6 +180,7 @@ fun ConfigureMappingStep(viewModel: CsvImportViewModel) {
                 Text("File Format", fontWeight = FontWeight.Bold)
 
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = delimiter,
                     onValueChange = { if (it.length <= 1) viewModel.delimiter.value = it },
                     label = { Text("Delimiter (e.g. , or ;)") },
@@ -188,6 +193,7 @@ fun ConfigureMappingStep(viewModel: CsvImportViewModel) {
                 }
 
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = localeStr,
                     onValueChange = { viewModel.localeStr.value = it },
                     label = { Text("Number Locale (e.g. en_US, de_DE)") },
@@ -199,27 +205,31 @@ fun ConfigureMappingStep(viewModel: CsvImportViewModel) {
         Card {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Column Mapping", fontWeight = FontWeight.Bold)
-                Text("Use exact column name (if header exists) or 0-based index.", fontSize = 12.sp)
+                Text("Use the exact column name (if the file has a header row) or a 0-based column number.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = dateColumn,
                     onValueChange = { viewModel.dateColumn.value = it },
                     label = { Text("Date Column") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = dateFormat,
                     onValueChange = { viewModel.dateFormat.value = it },
                     label = { Text("Date Format (e.g. yyyy-MM-dd)") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = descriptionColumn,
                     onValueChange = { viewModel.descriptionColumn.value = it },
                     label = { Text("Description Column") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = categoryColumn,
                     onValueChange = { viewModel.categoryColumn.value = it },
                     label = { Text("Category Column (Optional)") },
@@ -233,12 +243,14 @@ fun ConfigureMappingStep(viewModel: CsvImportViewModel) {
 
                 if (useDebitCredit) {
                     OutlinedTextField(
+                        colors = glassTextFieldColors(),
                         value = debitColumn,
                         onValueChange = { viewModel.debitColumn.value = it },
                         label = { Text("Debit Column") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
+                        colors = glassTextFieldColors(),
                         value = creditColumn,
                         onValueChange = { viewModel.creditColumn.value = it },
                         label = { Text("Credit Column") },
@@ -246,6 +258,7 @@ fun ConfigureMappingStep(viewModel: CsvImportViewModel) {
                     )
                 } else {
                     OutlinedTextField(
+                        colors = glassTextFieldColors(),
                         value = amountColumn,
                         onValueChange = { viewModel.amountColumn.value = it },
                         label = { Text("Amount Column") },
@@ -281,6 +294,7 @@ fun ConfigureMappingStep(viewModel: CsvImportViewModel) {
             title = { Text("Save Import Profile") },
             text = {
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = profileName,
                     onValueChange = { profileName = it },
                     label = { Text("Profile Name") },
@@ -313,15 +327,16 @@ fun PreviewStep(viewModel: CsvImportViewModel) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(16.dp),
+                shape = MaterialTheme.shapes.large
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("${parseErrors.size} Parsing Errors", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onErrorContainer)
+                    Text("${parseErrors.size} rows couldn't be read", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
                     parseErrors.take(3).forEach { err ->
-                        Text("Row ${err.rowIndex}: ${err.errorMessage}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onErrorContainer)
+                        Text("Row ${err.rowIndex}: ${err.errorMessage}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
                     }
                     if (parseErrors.size > 3) {
-                        Text("...and ${parseErrors.size - 3} more", fontSize = 12.sp)
+                        Text("…and ${parseErrors.size - 3} more", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
                     }
                 }
             }
@@ -334,9 +349,13 @@ fun PreviewStep(viewModel: CsvImportViewModel) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Preview (${previewRows.size} valid rows)", fontWeight = FontWeight.Bold)
-            Button(onClick = { viewModel.executeImport() }, enabled = previewRows.any { !it.skip }) {
-                Text("Import")
+            Text("${previewRows.size} rows ready", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+            Button(
+                onClick = { viewModel.executeImport() },
+                enabled = previewRows.any { !it.skip },
+                modifier = Modifier.heightIn(min = Spacing.touchTarget)
+            ) {
+                Text("Import selected", style = MaterialTheme.typography.labelLarge)
             }
         }
 
@@ -346,10 +365,10 @@ fun PreviewStep(viewModel: CsvImportViewModel) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             itemsIndexed(previewRows) { index, row ->
-                val cardColor = if (row.skip) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceVariant
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = cardColor),
-                    modifier = Modifier.fillMaxWidth()
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    fill = if (row.skip) AkSpendTheme.glass.fill.copy(alpha = AkSpendTheme.glass.fill.alpha * 0.5f) else AkSpendTheme.glass.fill,
+                    contentPadding = PaddingValues(0.dp)
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
@@ -361,10 +380,14 @@ fun PreviewStep(viewModel: CsvImportViewModel) {
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(row.parsedRow.description, fontWeight = FontWeight.Bold)
-                            Text("Amt: ${row.parsedRow.amount} | Type: ${row.parsedRow.type}", fontSize = 12.sp)
+                            Text(row.parsedRow.description, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                            Text(
+                                "${row.parsedRow.type.lowercase().replaceFirstChar { it.uppercase() }} · ${String.format("%,.2f", row.parsedRow.amount)}",
+                                style = MaterialTheme.typography.bodySmall.money(),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                             if (row.isDuplicate) {
-                                Text("DUPLICATE (Already in database)", color = MaterialTheme.colorScheme.error, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text("Possible duplicate: already in AkSpend", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
                             }
                         }
                     }
@@ -390,10 +413,10 @@ fun SummaryStep(viewModel: CsvImportViewModel) {
             imageVector = Icons.Default.CheckCircle,
             contentDescription = null,
             modifier = Modifier.size(72.dp),
-            tint = Color(0xFF4CAF50)
+            tint = AkSpendTheme.finance.income
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Import Complete", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Import complete", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
         Spacer(modifier = Modifier.height(8.dp))
         Text(summary, style = MaterialTheme.typography.bodyMedium)
 

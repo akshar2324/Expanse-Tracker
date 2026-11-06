@@ -1,7 +1,16 @@
 package com.akshar.ui.screens
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AddCircleOutline
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Flag
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.Savings
+import androidx.compose.ui.graphics.StrokeCap
+import com.akshar.ui.components.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -52,115 +61,78 @@ fun BudgetSavingsScreen(
     val currentMonthStr = remember { SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date()) }
     val currentWeekStr = remember { getCurrentWeekKey() }
 
-    Scaffold(
-        contentWindowInsets = WindowInsets(0.dp),
-        topBar = {
-            Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
-                CenterAlignedTopAppBar(
-                    title = { Text("Financial Goals & Budgets", fontWeight = FontWeight.Bold) },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent),
-                    windowInsets = WindowInsets(0.dp)
-                )
+    val activeBudgets = budgets.filter {
+        (it.frequency == "WEEKLY" && it.month == currentWeekStr) ||
+        (it.frequency == "MONTHLY" && it.month == currentMonthStr) ||
+        (it.frequency.isBlank() && it.month == currentMonthStr)
+    }
+    val budgetSpent: (Budget) -> Double = { budget ->
+        transactions.filter {
+            it.type == "EXPENSE" &&
+                    it.category.equals(budget.category, ignoreCase = true) &&
+                    (if (budget.frequency == "WEEKLY") isSameWeek(it.date, budget.month) else isSameMonth(it.date, budget.month))
+        }.sumOf { it.amount }
+    }
+    val bottomInset = LocalFloatingBarInset.current
 
-                // Sub-tab selectors
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .clip(MaterialTheme.shapes.medium)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    listOf("BUDGETS", "SAVINGS").forEach { tab ->
-                        val active = activeTab == tab
-                        val textCol = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                        val bg = if (active) MaterialTheme.colorScheme.primary else Color.Transparent
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { activeTab = tab }
-                                .padding(2.dp)
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(bg)
-                                .padding(vertical = 12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = if (tab == "BUDGETS") "Monthly Budgets" else "Savings Goals",
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = textCol
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    if (activeTab == "BUDGETS") showAddBudgetDialog = true else showAddGoalDialog = true
-                },
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Goal or Budget")
-            }
-        }
-    ) { innerPadding ->
+    Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = Spacing.gutter,
+                end = Spacing.gutter,
+                bottom = bottomInset + 88.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
+            item {
+                ScreenHeader(
+                    title = "Budgets",
+                    subtitle = "Spending limits and the goals you're saving for",
+                    insetHorizontally = false
+                )
+            }
+            item {
+                GlassSegmentedControl(
+                    options = listOf("Budgets", "Savings goals"),
+                    selectedIndex = if (activeTab == "BUDGETS") 0 else 1,
+                    onSelect = { activeTab = if (it == 0) "BUDGETS" else "SAVINGS" }
+                )
+            }
 
             if (activeTab == "BUDGETS") {
-                // --- CATEGORY BUDGETS LIST ---
-                val activeBudgets = budgets.filter {
-                    (it.frequency == "WEEKLY" && it.month == currentWeekStr) ||
-                    (it.frequency == "MONTHLY" && it.month == currentMonthStr) ||
-                    (it.frequency.isBlank() && it.month == currentMonthStr)
-                }
-
                 if (activeBudgets.isEmpty()) {
                     item {
                         EmptyVisualState(
-                            message = "No active budgets found.",
-                            subtext = "Tap + to allocate category limits and control expenses!"
+                            message = "No budgets yet",
+                            subtext = "Set a monthly or weekly limit for a category and we'll show how much is left."
                         )
                     }
                 } else {
-                    items(activeBudgets) { budget ->
-                        // Calculate total spent for this category in the current period
-                        val spent = transactions.filter {
-                            it.type == "EXPENSE" &&
-                                    it.category.equals(budget.category, ignoreCase = true) &&
-                                    (if (budget.frequency == "WEEKLY") isSameWeek(it.date, budget.month) else isSameMonth(it.date, budget.month))
-                        }.sumOf { it.amount }
-
+                    item {
+                        val totalLimit = activeBudgets.sumOf { it.limitAmount }
+                        val totalSpent = activeBudgets.sumOf { budgetSpent(it) }
+                        BudgetSummaryCard(totalSpent = totalSpent, totalLimit = totalLimit, currencySymbol = currencySymbol)
+                    }
+                    items(activeBudgets, key = { it.id }) { budget ->
                         BudgetRow(
                             budget = budget,
-                            spent = spent,
+                            spent = budgetSpent(budget),
                             onDelete = { viewModel.deleteBudgetById(budget.id) },
                             currencySymbol = currencySymbol
                         )
                     }
                 }
             } else {
-                // --- SAVINGS GOALS LIST ---
                 if (savingsGoals.isEmpty()) {
                     item {
                         EmptyVisualState(
-                            message = "No savings tracking goals yet.",
-                            subtext = "Start saving! Map a target like 'MacBook Fund' to stay driven."
+                            message = "No savings goals yet",
+                            subtext = "Name something you're saving for, like a trip or a new laptop, and watch it fill up."
                         )
                     }
                 } else {
-                    items(savingsGoals) { goal ->
+                    items(savingsGoals, key = { it.id }) { goal ->
                         SavingsGoalRow(
                             goal = goal,
                             onAddSavings = { showAddSavingsFundsDialog = goal },
@@ -171,6 +143,20 @@ fun BudgetSavingsScreen(
                 }
             }
         }
+
+        ExtendedFloatingActionButton(
+            onClick = {
+                if (activeTab == "BUDGETS") showAddBudgetDialog = true else showAddGoalDialog = true
+            },
+            icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
+            text = { Text(if (activeTab == "BUDGETS") "New budget" else "New goal", style = MaterialTheme.typography.labelLarge) },
+            shape = PillShape,
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = Spacing.gutter, bottom = bottomInset + Spacing.xs)
+        )
     }
 
     // --- DIALOG: New Budget Entry ---
@@ -224,6 +210,49 @@ fun BudgetSavingsScreen(
 // --- Dynamic Row Components ---
 
 @Composable
+private fun BudgetSummaryCard(totalSpent: Double, totalLimit: Double, currencySymbol: String) {
+    val finance = AkSpendTheme.finance
+    val used = if (totalLimit > 0) (totalSpent / totalLimit).toFloat().coerceIn(0f, 1f) else 0f
+    val left = (totalLimit - totalSpent).coerceAtLeast(0.0)
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        fill = AkSpendTheme.glass.fillStrong
+    ) {
+        Text("LEFT TO SPEND", style = MaterialTheme.typography.labelMedium.eyebrow(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(Spacing.xs))
+        Text(
+            "$currencySymbol${String.format("%,.0f", left)}",
+            style = MaterialTheme.typography.displaySmall.money(),
+            color = if (used >= 1f) finance.expense else MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            "of $currencySymbol${String.format("%,.0f", totalLimit)} across all active budgets",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(Spacing.md))
+        GlassProgressBar(fraction = used, color = if (used >= 0.9f) finance.expense else MaterialTheme.colorScheme.primary)
+    }
+}
+
+@Composable
+private fun GlassProgressBar(fraction: Float, color: Color, modifier: Modifier = Modifier) {
+    val animated by animateFloatAsState(fraction, motionSpec(Durations.emphasized * 2), label = "progress")
+    LinearProgressIndicator(
+        progress = { animated },
+        modifier = modifier
+            .fillMaxWidth()
+            .height(10.dp)
+            .clip(PillShape),
+        color = color,
+        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+        strokeCap = StrokeCap.Round,
+        drawStopIndicator = {}
+    )
+}
+
+@Composable
 fun BudgetRow(
     budget: Budget,
     spent: Double,
@@ -235,118 +264,92 @@ fun BudgetRow(
 
     // Threshold coloring
     val barColor = when {
-        pct >= 1.0 -> ExpenseRedDark
-        pct >= (budget.reminderThreshold / 100.0) -> AlertOrangeDark
-        else -> IncomeGreenDark
+        pct >= 1.0 -> AkSpendTheme.finance.expense
+        pct >= (budget.reminderThreshold / 100.0) -> AkSpendTheme.finance.warning
+        else -> AkSpendTheme.finance.income
     }
 
-    val warningLabel = when {
-        pct >= 1.0 -> "LIMIT EXCEEDED ALERT! ⚠️"
-        budget.remindersEnabled && (pct >= (budget.reminderThreshold / 100.0)) -> "Alert: ${budget.reminderThreshold}% boundary crossed! 🔔"
-        pct >= 0.8 -> "Warning! 80% threshold exceeded"
-        else -> "Remaining Budget is stable"
+    val statusLabel = when {
+        pct >= 1.0 -> "Over budget by $currencySymbol${String.format("%,.0f", spent - budget.limitAmount)}"
+        budget.remindersEnabled && (pct >= (budget.reminderThreshold / 100.0)) -> "Passed your ${budget.reminderThreshold}% alert"
+        pct >= 0.8 -> "Getting close: ${(pct * 100).toInt()}% used"
+        else -> "$currencySymbol${String.format("%,.0f", budget.limitAmount - spent)} left"
     }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = budget.category.uppercase(),
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        
-                        // Frequency Badge
-                        val freqText = budget.frequency.uppercase().ifEmpty { "MONTHLY" }
-                        Box(
-                            modifier = Modifier
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.primaryContainer)
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = freqText,
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(2.dp))
+    GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(start = Spacing.lg, top = Spacing.md, end = Spacing.xs, bottom = Spacing.lg)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconBadge(icon = categoryIcon(budget.category), tint = categoryTint(budget.category), size = 44.dp)
+            Spacer(Modifier.width(Spacing.md))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Text(
-                        text = warningLabel,
+                        text = budget.category.replaceFirstChar { it.uppercase() },
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = budget.frequency.ifEmpty { "MONTHLY" }.lowercase().replaceFirstChar { it.uppercase() },
                         style = MaterialTheme.typography.labelSmall,
-                        color = barColor
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .clip(PillShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                            .padding(horizontal = Spacing.sm, vertical = Spacing.xxs)
                     )
                 }
-
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Default.DeleteOutline,
-                        contentDescription = "Remove Budget",
-                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
-                    )
-                }
+                Text(text = statusLabel, style = MaterialTheme.typography.bodySmall, color = barColor)
             }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Rounded.DeleteOutline,
+                    contentDescription = "Delete ${budget.category} budget",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
 
-            Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Spacing.md))
+        GlassProgressBar(fraction = progressFraction, color = barColor, modifier = Modifier.padding(end = Spacing.md))
+        Spacer(modifier = Modifier.height(Spacing.sm))
 
-            // Progress bar
-            LinearProgressIndicator(
-                progress = { progressFraction },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(10.dp)
-                    .clip(MaterialTheme.shapes.medium),
-                color = barColor,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(end = Spacing.md),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "$currencySymbol${String.format(Locale.getDefault(), "%,.2f", spent)} spent",
+                style = MaterialTheme.typography.bodySmall.money(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Text(
+                text = "Limit $currencySymbol${String.format("%,.0f", budget.limitAmount)}",
+                style = MaterialTheme.typography.labelLarge.money(),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
+        if (budget.remindersEnabled) {
+            Spacer(modifier = Modifier.height(Spacing.sm))
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
             ) {
-                Text(
-                    text = "Spent: $currencySymbol${String.format(Locale.getDefault(), "%.1f", spent)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                Icon(
+                    imageVector = Icons.Rounded.NotificationsActive,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    text = "Limit: $currencySymbol${budget.limitAmount.toInt()}",
-                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
+                    text = "Alert at ${budget.reminderThreshold}% of the limit",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-
-            if (budget.remindersEnabled) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.NotificationsActive,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        text = "Watcher Active: Multi-channel warning logs armed below ${budget.reminderThreshold}% spent limit",
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                    )
-                }
             }
         }
     }
@@ -362,114 +365,59 @@ fun SavingsGoalRow(
     val pct = if (goal.targetAmount > 0) goal.currentAmount / goal.targetAmount else 0.0
     val progressFraction = pct.coerceIn(0.0, 1.0).toFloat()
     val percentString = "${(pct * 100).toInt()}%"
+    val estimatedDate = goal.targetDate.ifEmpty { "No target date" }
 
-    // Estimated completion date rule
-    val estimatedDate = goal.targetDate.ifEmpty { "Estimated: 6 months or based on income rate" }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = goal.name,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "Estimate completion: $estimatedDate",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    )
-                }
-
-                Row {
-                    IconButton(onClick = onAddSavings) {
-                        Icon(
-                            imageVector = Icons.Default.AddCircleOutline,
-                            contentDescription = "Add Funds",
-                            tint = IncomeGreenDark
-                        )
-                    }
-                    IconButton(onClick = onDelete) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = "Delete Goal",
-                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
-                        )
-                    }
-                }
+    GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(start = Spacing.lg, top = Spacing.md, end = Spacing.xs, bottom = Spacing.lg)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconBadge(icon = Icons.Rounded.Savings, tint = AkSpendTheme.finance.info, size = 44.dp)
+            Spacer(Modifier.width(Spacing.md))
+            Column(Modifier.weight(1f)) {
+                Text(text = goal.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                Text(text = "Target: $estimatedDate", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Progress Bar
-            LinearProgressIndicator(
-                progress = { progressFraction },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(10.dp)
-                    .clip(MaterialTheme.shapes.medium),
-                color = AnalyticsBlueDark,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Saved: $currencySymbol${goal.currentAmount.toInt()} ($percentString)",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            IconButton(onClick = onAddSavings) {
+                Icon(
+                    imageVector = Icons.Rounded.AddCircleOutline,
+                    contentDescription = "Add money to ${goal.name}",
+                    tint = AkSpendTheme.finance.income
                 )
-                Text(
-                    text = "Goal Target: $currencySymbol${goal.targetAmount.toInt()}",
-                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold)
+            }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Rounded.DeleteOutline,
+                    contentDescription = "Delete ${goal.name} goal",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(Spacing.md))
+        Row(Modifier.fillMaxWidth().padding(end = Spacing.md), verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = "$currencySymbol${String.format("%,.0f", goal.currentAmount)}",
+                style = MaterialTheme.typography.headlineSmall.money(),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.width(Spacing.xs))
+            Text(
+                text = "of $currencySymbol${String.format("%,.0f", goal.targetAmount)}",
+                style = MaterialTheme.typography.bodyMedium.money(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f).padding(bottom = 2.dp)
+            )
+            Text(percentString, style = MaterialTheme.typography.labelLarge.money(), color = AkSpendTheme.finance.info)
+        }
+        Spacer(modifier = Modifier.height(Spacing.sm))
+        GlassProgressBar(fraction = progressFraction, color = AkSpendTheme.finance.info, modifier = Modifier.padding(end = Spacing.md))
     }
 }
 
 @Composable
 fun EmptyVisualState(message: String, subtext: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 80.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            imageVector = Icons.Default.GolfCourse,
-            contentDescription = "Goal Target",
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
-            modifier = Modifier.size(64.dp)
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
-        )
-        Text(
-            text = subtext,
-            style = MaterialTheme.typography.bodySmall.copy(
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-            )
-        )
-    }
+    EmptyState(icon = Icons.Rounded.Flag, title = message, message = subtext)
 }
 
 // --- Inner Dialog Implementations ---
@@ -548,7 +496,7 @@ fun AddBudgetDialog(
                         .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)
                         .padding(horizontal = 16.dp)
                 ) {
-                    Text(text = category, fontSize = 16.sp)
+                    Text(text = category, style = MaterialTheme.typography.bodyLarge)
                     DropdownMenu(
                         expanded = isDropdownExpanded,
                         onDismissRequest = { isDropdownExpanded = false }
@@ -568,6 +516,7 @@ fun AddBudgetDialog(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = limitStr,
                     onValueChange = { limitStr = it },
                     label = { Text("Limit Amount ($currencySymbol)") },
@@ -589,7 +538,7 @@ fun AddBudgetDialog(
                         Text(
                             "Get local notification indicators on crossing limits", 
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Switch(
@@ -655,6 +604,7 @@ fun AddGoalDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Goal Name (e.g. MacBook Study fund)") },
@@ -663,6 +613,7 @@ fun AddGoalDialog(
                 )
 
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = targetStr,
                     onValueChange = { targetStr = it },
                     label = { Text("Target Goal Amount ($currencySymbol)") },
@@ -672,6 +623,7 @@ fun AddGoalDialog(
                 )
 
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = currentStr,
                     onValueChange = { currentStr = it },
                     label = { Text("Initial Saved Amount ($currencySymbol)") },
@@ -681,6 +633,7 @@ fun AddGoalDialog(
                 )
 
                 OutlinedTextField(
+                    colors = glassTextFieldColors(),
                     value = targetDate,
                     onValueChange = { targetDate = it },
                     label = { Text("Estimated Completion Date (Dec 2026)") },
@@ -724,6 +677,7 @@ fun AddSavingsFundsDialog(
         title = { Text("Contribute to $goalName") },
         text = {
             OutlinedTextField(
+                colors = glassTextFieldColors(),
                 value = fundStr,
                 onValueChange = { fundStr = it },
                 label = { Text("Contribution Amount ($currencySymbol)") },

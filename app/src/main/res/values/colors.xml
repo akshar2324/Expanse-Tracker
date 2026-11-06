@@ -7,4 +7,6 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <!-- Window background behind the Compose glass backdrop; avoids a white flash on launch. -->
+    <color name="akspend_window">#FFF8F3ED</color>
 </resources>

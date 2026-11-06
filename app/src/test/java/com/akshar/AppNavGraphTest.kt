@@ -50,11 +50,11 @@ class AppNavGraphTest {
 
     @Test
     fun `dashboard add button opens add transaction screen`() {
-        composeTestRule.onNodeWithContentDescription("Add Transaction").performClick()
+        composeTestRule.onNodeWithContentDescription("Add transaction").performClick()
         composeTestRule.waitForIdle()
 
         assertEquals(TransactionRoutes.ADD, navController.currentDestination?.route)
-        composeTestRule.onNodeWithText("Save Transaction").assertExists()
+        composeTestRule.onNodeWithText("Save expense").assertExists()
     }
 
     @Test
@@ -76,11 +76,11 @@ class AppNavGraphTest {
         }
 
         assertEquals(TransactionRoutes.EDIT, navController.currentDestination?.route)
-        composeTestRule.onNodeWithText("Edit Transaction").assertExists()
+        composeTestRule.onNodeWithText("Edit transaction").assertExists()
 
         // Switching to income resets "Food" to the first income category
         composeTestRule.onNodeWithText("Income").performClick()
-        composeTestRule.onNodeWithText("Save Transaction").performScrollTo().performClick()
+        composeTestRule.onNodeWithText("Save income").performScrollTo().performClick()
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             runBlocking { app.repository.getTransactionById(42L)?.type == "INCOME" }
         }

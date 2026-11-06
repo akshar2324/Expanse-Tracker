@@ -1,5 +1,12 @@
 package com.akshar.ui.screens
 
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
+import com.akshar.ui.theme.*
+import com.akshar.ui.components.*
+import com.akshar.ui.theme.AkSpendTheme
 import android.app.DatePickerDialog
 import android.widget.DatePicker
 import androidx.compose.foundation.background
@@ -25,8 +32,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.akshar.data.model.Transaction
-import com.akshar.ui.theme.ExpenseRed
-import com.akshar.ui.theme.IncomeGreen
 import com.akshar.ui.viewmodel.FinanceViewModel
 import java.math.BigDecimal
 import java.text.SimpleDateFormat
@@ -108,34 +113,24 @@ fun AddTransactionScreen(
     // Error states
     var amountError by remember { mutableStateOf<String?>(null) }
 
-    Scaffold(
-        contentWindowInsets = WindowInsets(0.dp),
-        topBar = {
-            TopAppBar(
-                title = { Text(if (transactionId != null) "Edit Transaction" else "Add Transaction") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                windowInsets = WindowInsets(0.dp)
-            )
-        }
-    ) { innerPadding ->
+    val accent = if (isExpense) AkSpendTheme.finance.expense else AkSpendTheme.finance.income
+    val onAccent = MaterialTheme.colorScheme.surface
+    val glass = AkSpendTheme.glass
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .imePadding()
+            .navigationBarsPadding()
+    ) {
+        ScreenHeader(title = if (transactionId != null) "Edit transaction" else "Add transaction", onBack = onNavigateBack)
         Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.gutter)
+                .padding(bottom = Spacing.xxl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
 
             // --- Type Slider (Income vs Expense Toggle) ---
@@ -143,8 +138,8 @@ fun AddTransactionScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .glassPanel(PillShape, glass)
+                    .selectableGroup(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
@@ -152,17 +147,15 @@ fun AddTransactionScreen(
                         .weight(1f)
                         .fillMaxHeight()
                         .padding(4.dp)
-                        .clip(MaterialTheme.shapes.medium)
-                        .background(if (isExpense) ExpenseRed else Color.Transparent)
-                        .clickable { isExpense = true },
+                        .clip(PillShape)
+                        .background(if (isExpense) AkSpendTheme.finance.expense else Color.Transparent)
+                        .selectable(selected = isExpense, role = Role.Tab) { isExpense = true },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "Expense",
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = if (isExpense) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (isExpense) onAccent else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -171,23 +164,22 @@ fun AddTransactionScreen(
                         .weight(1f)
                         .fillMaxHeight()
                         .padding(4.dp)
-                        .clip(MaterialTheme.shapes.medium)
-                        .background(if (!isExpense) IncomeGreen else Color.Transparent)
-                        .clickable { isExpense = false },
+                        .clip(PillShape)
+                        .background(if (!isExpense) AkSpendTheme.finance.income else Color.Transparent)
+                        .selectable(selected = !isExpense, role = Role.Tab) { isExpense = false },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "Income",
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = if (!isExpense) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (!isExpense) onAccent else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
             // --- Amount Field (Numeric with Validation) ---
             OutlinedTextField(
+                colors = glassTextFieldColors(),
                 value = amountStr,
                 onValueChange = {
                     amountStr = it
@@ -203,13 +195,16 @@ fun AddTransactionScreen(
                 },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                 singleLine = true,
+                textStyle = MaterialTheme.typography.headlineMedium.money(),
+                shape = MaterialTheme.shapes.large,
                 modifier = Modifier.fillMaxWidth()
             )
 
             // --- Main Category Selector ---
             Text(
-                text = "Select Category",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                text = "Category",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface
             )
             
             // FlowRow equivalent or Column listing in grid
@@ -222,33 +217,23 @@ fun AddTransactionScreen(
                     ) {
                         rowList.forEach { category ->
                             val selected = category == categorySelected
-                            val chipColor = if (selected) {
-                                if (isExpense) ExpenseRed else IncomeGreen
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant
-                            }
-                            val textColor = if (selected) {
-                                MaterialTheme.colorScheme.onSecondary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
+                            val chipColor = if (selected) accent else glass.fill
+                            val textColor = if (selected) onAccent else MaterialTheme.colorScheme.onSurface
 
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(44.dp)
-                                    .clip(MaterialTheme.shapes.medium)
-                                    .background(chipColor)
-                                    .clickable { categorySelected = category },
+                                    .height(Spacing.touchTarget)
+                                    .glassPanel(PillShape, glass, chipColor)
+                                    .selectable(selected = selected, role = Role.RadioButton) { categorySelected = category },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = category,
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = textColor
-                                    ),
-                                    maxLines = 1
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = textColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -265,6 +250,7 @@ fun AddTransactionScreen(
 
             // --- Description / Note Field ---
             OutlinedTextField(
+                colors = glassTextFieldColors(),
                 value = description,
                 onValueChange = { description = it },
                 label = { Text("Description") },
@@ -274,7 +260,9 @@ fun AddTransactionScreen(
             )
 
             // --- Date Picker Dialog Access button ---
-            OutlinedCard(
+            GlassCard(
+                contentPadding = PaddingValues(0.dp),
+                onClickLabel = "Change date",
                 onClick = {
                     val cal = Calendar.getInstance().apply { timeInMillis = dateSelected }
                     DatePickerDialog(
@@ -304,16 +292,15 @@ fun AddTransactionScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.CalendarMonth,
-                            contentDescription = "Calendar",
+                            contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "Transaction Date",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                                )
+                                text = "Date",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 text = dateFormatter.format(Date(dateSelected)),
@@ -324,19 +311,18 @@ fun AddTransactionScreen(
                         }
                     }
                     Text(
-                        text = "CHANGE",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
+                        text = "Change",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
 
             // --- Payment Method Selector (Horizontal List) ---
             Text(
-                text = "Payment Method",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                text = "Paid with",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface
             )
             
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -347,26 +333,23 @@ fun AddTransactionScreen(
                     ) {
                         rowMethods.forEach { method ->
                             val isSelected = method == paymentMethod
-                            val surface = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-                            val stroke = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                            val surface = if (isSelected) MaterialTheme.colorScheme.primary else glass.fill
 
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(44.dp)
-                                    .clip(MaterialTheme.shapes.medium)
-                                    .background(surface)
-                                    .clickable { paymentMethod = method }
+                                    .height(Spacing.touchTarget)
+                                    .glassPanel(PillShape, glass, surface)
+                                    .selectable(selected = isSelected, role = Role.RadioButton) { paymentMethod = method }
                                     .padding(horizontal = 4.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = method,
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                                    ),
-                                    maxLines = 1
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -398,17 +381,15 @@ fun AddTransactionScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                shape = MaterialTheme.shapes.medium,
+                shape = PillShape,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isExpense) ExpenseRed else IncomeGreen
+                    containerColor = accent,
+                    contentColor = onAccent
                 )
             ) {
                 Text(
-                    text = "Save Transaction",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSecondary
-                    )
+                    text = if (isExpense) "Save expense" else "Save income",
+                    style = MaterialTheme.typography.titleMedium
                 )
             }
         }
