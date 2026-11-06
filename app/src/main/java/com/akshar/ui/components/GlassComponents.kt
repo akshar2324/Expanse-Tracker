@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -419,3 +420,12 @@ fun glassCardColors(container: Color = AkSpendTheme.glass.fill) =
 /** Hairline rim for Material cards so they read as glass panels. */
 @Composable
 fun glassBorder() = androidx.compose.foundation.BorderStroke(1.dp, AkSpendTheme.glass.highlight.copy(alpha = AkSpendTheme.glass.highlight.alpha * 0.6f))
+
+
+/**
+ * Text colour that stays readable on a solid [background]: near-black on light fills, white on
+ * dark ones. Use for labels on semantic colours (income/expense) that change between themes.
+ */
+fun readableOn(background: Color): Color =
+    // 0.18 is where near-black and white give equal contrast, so this always picks the higher one.
+    if (background.luminance() > 0.18f) Color(0xFF121212) else Color.White

@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import kotlinx.coroutines.launch
+import androidx.glance.appwidget.updateAll
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
@@ -170,7 +172,7 @@ fun ToolsScreen(
 
                         Text(
                             text = "Active reminders",
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = AkSpendTheme.emphasis,
                             style = MaterialTheme.typography.titleMedium
                         )
 
@@ -198,7 +200,7 @@ fun ToolsScreen(
                                             Column {
                                                 Text(
                                                     text = recurring.description,
-                                                    fontWeight = FontWeight.Bold,
+                                                    fontWeight = AkSpendTheme.emphasis,
                                                     style = MaterialTheme.typography.bodyLarge
                                                 )
                                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -270,7 +272,7 @@ fun ToolsScreen(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = "Keep your money private",
-                                        fontWeight = FontWeight.Bold,
+                                        fontWeight = AkSpendTheme.emphasis,
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                 }
@@ -287,7 +289,7 @@ fun ToolsScreen(
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text(
                                     text = "Unlock options",
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = AkSpendTheme.emphasis,
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -298,7 +300,7 @@ fun ToolsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1.0f)) {
-                                        Text("App lock", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                        Text("App lock", fontWeight = AkSpendTheme.emphasis, style = MaterialTheme.typography.bodyMedium)
                                         Text("Ask for your passcode every time AkSpend opens.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     Switch(
@@ -319,7 +321,7 @@ fun ToolsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1.0f)) {
-                                        Text("Fingerprint unlock", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                        Text("Fingerprint unlock", fontWeight = AkSpendTheme.emphasis, style = MaterialTheme.typography.bodyMedium)
                                         Text("Use your fingerprint instead of typing the passcode.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     Switch(
@@ -340,7 +342,7 @@ fun ToolsScreen(
                                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                     Text(
                                         text = "Change passcode",
-                                        fontWeight = FontWeight.Bold,
+                                        fontWeight = AkSpendTheme.emphasis,
                                         style = MaterialTheme.typography.titleMedium,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -432,7 +434,7 @@ fun ToolsScreen(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = "Export a summary",
-                                        fontWeight = FontWeight.Bold,
+                                        fontWeight = AkSpendTheme.emphasis,
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                 }
@@ -497,7 +499,7 @@ fun ToolsScreen(
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
                                         text = "Your data, on your device",
-                                        fontWeight = FontWeight.Bold,
+                                        fontWeight = AkSpendTheme.emphasis,
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                 }
@@ -520,7 +522,7 @@ fun ToolsScreen(
                             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text(
                                     text = "Save a backup",
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = AkSpendTheme.emphasis,
                                     style = MaterialTheme.typography.titleSmall
                                 )
                                 Text(
@@ -542,7 +544,7 @@ fun ToolsScreen(
                                 ) {
                                     Icon(Icons.Default.Share, contentDescription = null)
                                     Spacer(modifier = Modifier.width(10.dp))
-                                    Text("Save backup file", fontWeight = FontWeight.Bold)
+                                    Text("Save backup file", fontWeight = AkSpendTheme.emphasis)
                                 }
                             }
                         }
@@ -556,7 +558,7 @@ fun ToolsScreen(
                             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text(
                                     text = "Restore from a backup",
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = AkSpendTheme.emphasis,
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
@@ -579,7 +581,7 @@ fun ToolsScreen(
                                 ) {
                                     Icon(Icons.Default.UploadFile, contentDescription = null)
                                     Spacer(modifier = Modifier.width(10.dp))
-                                    Text("Choose backup file", fontWeight = FontWeight.Bold)
+                                    Text("Choose backup file", fontWeight = AkSpendTheme.emphasis)
                                 }
                             }
                         }
@@ -606,7 +608,7 @@ fun ToolsScreen(
                                 Text(
                                     text = "Your region",
                                     style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = AkSpendTheme.emphasis,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -647,7 +649,7 @@ fun ToolsScreen(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = "$cName ($code)",
-                                            fontWeight = FontWeight.Bold,
+                                            fontWeight = AkSpendTheme.emphasis,
                                             style = MaterialTheme.typography.bodyLarge
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
@@ -698,7 +700,9 @@ fun ToolsScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                            colors = if (AkSpendTheme.style.isFlat) glassCardColors(AkSpendTheme.glass.fillStrong)
+                                     else CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                            border = if (AkSpendTheme.style.isFlat) glassBorder() else null,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -714,7 +718,7 @@ fun ToolsScreen(
                                         Text(
                                             text = "Net balance",
                                             style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
+                                            fontWeight = AkSpendTheme.emphasis,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer
                                         )
                                         Text(
@@ -733,7 +737,7 @@ fun ToolsScreen(
                                             else -> "-$netFormatted"
                                         },
                                         style = MaterialTheme.typography.headlineSmall,
-                                        fontWeight = FontWeight.Bold,
+                                        fontWeight = AkSpendTheme.emphasis,
                                         color = if (netScore >= 0) AkSpendTheme.finance.income else AkSpendTheme.finance.expense
                                     )
                                 }
@@ -751,7 +755,7 @@ fun ToolsScreen(
                                         Text(
                                             text = viewModel.formatCurrencyValue(totalLent),
                                             style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
+                                            fontWeight = AkSpendTheme.emphasis,
                                             color = AkSpendTheme.finance.income
                                         )
                                     }
@@ -764,7 +768,7 @@ fun ToolsScreen(
                                         Text(
                                             text = viewModel.formatCurrencyValue(totalBorrowed),
                                             style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
+                                            fontWeight = AkSpendTheme.emphasis,
                                             color = AkSpendTheme.finance.expense
                                         )
                                     }
@@ -811,7 +815,7 @@ fun ToolsScreen(
                                     Text(
                                         text = fName,
                                         style = MaterialTheme.typography.bodySmall.copy(
-                                            fontWeight = FontWeight.Bold,
+                                            fontWeight = AkSpendTheme.emphasis,
                                             color = textCol
                                         )
                                     )
@@ -856,7 +860,7 @@ fun ToolsScreen(
                                                     
                                                     Text(
                                                         text = debt.personName,
-                                                        fontWeight = FontWeight.Bold,
+                                                        fontWeight = AkSpendTheme.emphasis,
                                                         style = MaterialTheme.typography.bodyLarge,
                                                         color = if (debt.isResolved) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface
                                                     )
@@ -904,7 +908,7 @@ fun ToolsScreen(
                                                 Text(
                                                     text = viewModel.formatCurrencyValue(debt.amount),
                                                     style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
+                                                    fontWeight = AkSpendTheme.emphasis,
                                                     color = if (debt.isResolved) MaterialTheme.colorScheme.outline
                                                             else if (debt.type == "LENT") AkSpendTheme.finance.income
                                                             else AkSpendTheme.finance.expense
@@ -1340,7 +1344,7 @@ fun AddDebtDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add a borrow or lend record", fontWeight = FontWeight.Bold) },
+        title = { Text("Add a borrow or lend record", fontWeight = AkSpendTheme.emphasis) },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1371,8 +1375,8 @@ fun AddDebtDialog(
                             Text(
                                 text = tLabel,
                                 style = MaterialTheme.typography.bodySmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (active) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                    fontWeight = AkSpendTheme.emphasis,
+                                    color = if (active) readableOn(activeColor) else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             )
                         }
@@ -1524,10 +1528,10 @@ fun CalculatorsTab() {
                 }
 
                 if (emiResult != null) {
-                    Text("Monthly EMI: ${String.format("%.2f", emiResult)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text("Monthly EMI: ${String.format("%.2f", emiResult)}", fontWeight = AkSpendTheme.emphasis, color = MaterialTheme.colorScheme.primary)
                 }
                 if (ciResult != null) {
-                    Text("Total after interest: ${String.format("%.2f", ciResult)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text("Total after interest: ${String.format("%.2f", ciResult)}", fontWeight = AkSpendTheme.emphasis, color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -1539,6 +1543,7 @@ fun CalculatorsTab() {
 @Composable
 private fun AppearancePicker() {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val current = Appearance.style
     Column(
         modifier = Modifier
@@ -1555,6 +1560,8 @@ private fun AppearancePicker() {
                     .fillMaxWidth()
                     .selectable(selected = selected, role = androidx.compose.ui.semantics.Role.RadioButton) {
                         Appearance.select(context, style)
+                        // Redraw the home-screen widget in the new style.
+                        scope.launch { runCatching { com.akshar.widget.QuickAddWidget().updateAll(context) } }
                     },
                 contentPadding = PaddingValues(horizontal = Spacing.xl, vertical = Spacing.lg)
             ) {

@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 
 // `background` is transparent on purpose: every screen sits on the shared GlassBackdrop
@@ -110,6 +111,10 @@ object AkSpendTheme {
         @Composable @ReadOnlyComposable get() = LocalIsDarkTheme.current
     val style: AppStyle
         @Composable @ReadOnlyComposable get() = LocalAppStyle.current
+    /** Weight for emphasised labels: bold in glass, a calmer medium in Atelier. */
+    val emphasis: FontWeight
+        @Composable @ReadOnlyComposable get() =
+            if (LocalAppStyle.current == AppStyle.ATELIER) FontWeight.Medium else FontWeight.Bold
     val reducedMotion: Boolean
         @Composable @ReadOnlyComposable get() = LocalReducedMotion.current
 }

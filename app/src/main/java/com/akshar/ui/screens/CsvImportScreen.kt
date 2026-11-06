@@ -174,11 +174,11 @@ fun ConfigureMappingStep(viewModel: CsvImportViewModel) {
             .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("File: $fileName", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Text("File: $fileName", fontWeight = AkSpendTheme.emphasis, color = MaterialTheme.colorScheme.primary)
 
         Card {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("File Format", fontWeight = FontWeight.Bold)
+                Text("File Format", fontWeight = AkSpendTheme.emphasis)
 
                 OutlinedTextField(
                     colors = glassTextFieldColors(),
@@ -205,7 +205,7 @@ fun ConfigureMappingStep(viewModel: CsvImportViewModel) {
 
         Card {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Column Mapping", fontWeight = FontWeight.Bold)
+                Text("Column Mapping", fontWeight = AkSpendTheme.emphasis)
                 Text("Use the exact column name (if the file has a header row) or a 0-based column number.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                 OutlinedTextField(

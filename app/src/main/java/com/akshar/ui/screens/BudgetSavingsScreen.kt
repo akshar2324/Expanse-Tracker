@@ -547,7 +547,7 @@ fun AddBudgetDialog(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text("Warning Threshold Limit", style = MaterialTheme.typography.labelSmall)
-                            Text("${reminderThreshold}% Spent", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                            Text("${reminderThreshold}% Spent", style = MaterialTheme.typography.labelSmall.copy(fontWeight = AkSpendTheme.emphasis))
                         }
                         Slider(
                             value = reminderThreshold.toFloat(),
