@@ -333,14 +333,35 @@ fun AppNavGraph(
         }
         composable(SmsImportRoutes.REVIEW, arguments = SmsImportRoutes.reviewArguments) { entry ->
             val draft = remember(entry) { SmsImportRoutes.draftFrom(entry.arguments) }
+            val pendingId = entry.arguments?.getLong("pending") ?: 0L
             AddTransactionScreen(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() },
                 prefill = draft,
                 onSaved = {
-                    navController.previousBackStackEntry?.savedStateHandle?.set(SmsImportRoutes.SAVED_KEY, true)
+                    // Tell the screen we came from: the importer clears itself, the inbox drops the item.
+                    navController.previousBackStackEntry?.savedStateHandle?.let { handle ->
+                        handle[SmsImportRoutes.SAVED_KEY] = true
+                        if (pendingId > 0) handle[SmsImportRoutes.REVIEWED_PENDING_KEY] = pendingId
+                    }
                     navController.popBackStack()
                 }
+            )
+        }
+        composable(SmsImportRoutes.INBOX) { entry ->
+            val inboxViewModel = viewModel<com.akshar.sms.inbox.ImportInboxViewModel>()
+            val reviewedId by entry.savedStateHandle.getStateFlow(SmsImportRoutes.REVIEWED_PENDING_KEY, 0L).collectAsStateWithLifecycle()
+            LaunchedEffect(reviewedId) {
+                if (reviewedId > 0) {
+                    inboxViewModel.dismiss(reviewedId)
+                    entry.savedStateHandle[SmsImportRoutes.REVIEWED_PENDING_KEY] = 0L
+                }
+            }
+            ImportInboxScreen(
+                viewModel = inboxViewModel,
+                currencySymbol = viewModel.getCurrencySymbol(),
+                onBack = { navController.popBackStack() },
+                onReview = { item -> navController.navigate(SmsImportRoutes.review(item.toDraft(), pendingId = item.id)) }
             )
         }
         composable("csvImport") {
@@ -578,9 +599,11 @@ object TransactionRoutes {
 /** Bank SMS import: the paste/share screen and the prefilled review form it opens. */
 object SmsImportRoutes {
     const val IMPORT = "sms_import"
+    const val INBOX = "import_inbox"
     const val SAVED_KEY = "sms_import_saved"
+    const val REVIEWED_PENDING_KEY = "import_inbox_reviewed"
     const val REVIEW = "sms_review?amount={amount}&expense={expense}&desc={desc}&date={date}" +
-        "&category={category}&method={method}&confident={confident}"
+        "&category={category}&method={method}&confident={confident}&pending={pending}"
 
     val reviewArguments = listOf(
         androidx.navigation.navArgument("amount") { type = androidx.navigation.NavType.StringType; defaultValue = "" },
@@ -590,9 +613,10 @@ object SmsImportRoutes {
         androidx.navigation.navArgument("category") { type = androidx.navigation.NavType.StringType; defaultValue = "Other" },
         androidx.navigation.navArgument("method") { type = androidx.navigation.NavType.StringType; nullable = true; defaultValue = null },
         androidx.navigation.navArgument("confident") { type = androidx.navigation.NavType.BoolType; defaultValue = true },
+        androidx.navigation.navArgument("pending") { type = androidx.navigation.NavType.LongType; defaultValue = 0L },
     )
 
-    fun review(draft: com.akshar.sms.SmsDraft): String {
+    fun review(draft: com.akshar.sms.SmsDraft, pendingId: Long = 0L): String {
         fun enc(value: String) = android.net.Uri.encode(value)
         return buildString {
             append("sms_review?amount=").append(enc(draft.amount))
@@ -602,6 +626,7 @@ object SmsImportRoutes {
             append("&category=").append(enc(draft.category))
             draft.paymentMethod?.let { append("&method=").append(enc(it)) }
             append("&confident=").append(draft.confident)
+            if (pendingId > 0) append("&pending=").append(pendingId)
         }
     }
 

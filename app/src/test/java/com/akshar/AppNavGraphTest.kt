@@ -47,6 +47,8 @@ class AppNavGraphTest {
 
     @After
     fun tearDown() {
+        runBlocking { com.akshar.sms.inbox.ImportInboxDatabase.getInstance(app).pendingImportDao().clear() }
+        com.akshar.sms.inbox.ImportInboxDatabase.closeAndResetInstance()
         AppDatabase.closeAndResetInstance()
     }
 
@@ -124,5 +126,33 @@ class AppNavGraphTest {
         composeTestRule.waitForIdle()
         assertEquals(SmsImportRoutes.IMPORT, navController.currentDestination?.route)
         composeTestRule.onNodeWithText("Saved. Paste or share the next message to keep going.").assertExists()
+    }
+
+    @Test
+    fun `queued notification payment is reviewed, saved and removed from the inbox`() {
+        val dao = com.akshar.sms.inbox.ImportInboxDatabase.getInstance(app).pendingImportDao()
+        val queued = com.akshar.sms.inbox.AutoImportCapture.capture(
+            "com.google.android.apps.messaging", "JD-HDFCBK-S",
+            "Sent Rs.799.00 From HDFC Bank A/C *4821 To NETFLIX On 14/10/26 Ref 629100004321",
+            postedAt = System.currentTimeMillis(), supported = true
+        )!!
+        runBlocking { dao.insert(queued) }
+
+        composeTestRule.runOnUiThread { navController.navigate(SmsImportRoutes.INBOX) }
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodes(hasText("NETFLIX")).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Review").performScrollTo().performClick()
+        composeTestRule.waitForIdle()
+        assertEquals(SmsImportRoutes.REVIEW, navController.currentDestination?.route)
+
+        composeTestRule.onNodeWithText("Save expense").assertIsDisplayed().performClick()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking { app.repository.allTransactions.first().isNotEmpty() && dao.observeCount().first() == 0 }
+        }
+        val saved = runBlocking { app.repository.allTransactions.first() }.single()
+        assertEquals(799.0, saved.amount, 0.0)
+        assertEquals("Subscription", saved.category)
+        assertEquals(SmsImportRoutes.INBOX, navController.currentDestination?.route)
     }
 }
