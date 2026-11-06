@@ -48,6 +48,11 @@ class BackupCodecTest {
         BackupCodec.decode("""{"transactions":[{"type":"EXPENSE","category":"Food","date":1}]}""")
     }
 
+    @Test(expected = JSONException::class)
+    fun `future JSON version cannot replace the ledger`() {
+        BackupCodec.decode("""{"version":999,"transactions":[]}""")
+    }
+
     @Test
     fun `database file validator accepts sqlite of a known version and rejects other files`() {
         val dir = kotlin.io.path.createTempDirectory("akspend-validator").toFile()

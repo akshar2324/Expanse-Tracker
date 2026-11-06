@@ -162,6 +162,11 @@ object BackupCodec {
         if (SECTIONS.none { root.has(it) }) {
             throw org.json.JSONException("Not an AkSpend backup: no known sections")
         }
+        // Missing version is the original export format. Never reinterpret a future schema
+        // as today's snapshot: replacing the ledger would silently discard unknown data.
+        if (root.has("version") && root.getInt("version") !in 1..2) {
+            throw org.json.JSONException("Unsupported backup version")
+        }
         val now = System.currentTimeMillis()
 
         // Backups written before ids were exported listed accounts in id order, which is
