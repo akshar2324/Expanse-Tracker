@@ -45,12 +45,27 @@ class BackupFileSafetyTest {
     }
 
     @Test
+    fun staleRoomIdentityCannotHideAMissingTable() {
+        val file = File(context.cacheDir, "stale-identity.db")
+        try {
+            val db = Room.databaseBuilder(context, AppDatabase::class.java, file.absolutePath).build()
+            try { db.openHelper.writableDatabase } finally { db.close() }
+            SQLiteDatabase.openDatabase(file.absolutePath, null, SQLiteDatabase.OPEN_READWRITE).use {
+                it.execSQL("DROP TABLE accounts")
+            }
+            assertNotNull(DatabaseFileValidator.problemWith(file, 6, context))
+        } finally { SQLiteDatabase.deleteDatabase(file) }
+    }
+
+    @Test
     fun realVersionsFourFiveAndSixAreValidatedAndMigrateWithoutLosingMoney() = runBlocking {
         for (version in 4..6) {
             val file = File(context.cacheDir, "legacy-$version.db")
             try {
                 LegacyDatabaseFixtures.create(file, version)
+                val original = file.readBytes()
                 assertNull("version $version", DatabaseFileValidator.problemWith(file, 6, context))
+                assertArrayEquals("Validation must preserve the backup", original, file.readBytes())
                 // Validation must not migrate or otherwise modify the selected backup.
                 SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY).use {
                     assertEquals(version, it.version)

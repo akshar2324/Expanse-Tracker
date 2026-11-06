@@ -578,6 +578,11 @@ object DatabaseFileValidator {
                 // become a valid fresh ledger as a side effect of validation.
                 raw.rawQuery("SELECT id, amount, type FROM transactions LIMIT 0", null).use { it.columnCount }
             }
+            // A stale Room identity hash can survive a damaged/missing table. Removing it
+            // only on the disposable copy forces Room to compare every table and column.
+            android.database.sqlite.SQLiteDatabase.openDatabase(
+                probeFile.absolutePath, null, android.database.sqlite.SQLiteDatabase.OPEN_READWRITE
+            ).use { it.execSQL("DROP TABLE IF EXISTS room_master_table") }
             val probe = androidx.room.Room.databaseBuilder(
                 context.applicationContext, com.akshar.data.db.AppDatabase::class.java, probeFile.absolutePath
             ).addMigrations(com.akshar.data.db.MIGRATION_4_5, com.akshar.data.db.MIGRATION_5_6)
