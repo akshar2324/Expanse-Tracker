@@ -12,7 +12,6 @@ import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Inbox
 import androidx.compose.material.icons.rounded.NorthEast
 import androidx.compose.material.icons.rounded.Savings
@@ -35,6 +34,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.akshar.TransactionRoutes
 import com.akshar.data.model.Transaction
 import com.akshar.ui.components.*
 import com.akshar.ui.theme.*
@@ -165,6 +165,7 @@ fun DashboardScreen(
                     highestExpenseDayVal = highestExpenseDayVal,
                     highestIncomeDayVal = highestIncomeDayVal,
                     remainingBudget = remainingBudget,
+                    hasBudget = totalBudgetLimit > 0.0,
                     currencySymbol = currencySymbol,
                     modifier = Modifier.entrance(entrance, 3)
                 )
@@ -192,8 +193,8 @@ fun DashboardScreen(
                 recentTxs = recentTxs,
                 currencySymbol = currencySymbol,
                 onNavigateToHistory = onNavigateToHistory,
-                navController = navController,
-                onDelete = { tx -> viewModel.deleteTransaction(tx) },
+                onNavigateToAddTransaction = onNavigateToAddTransaction,
+                onOpen = { tx -> navController.navigate(TransactionRoutes.edit(tx.id)) },
                 entrance = entrance
             )
         }
@@ -419,11 +420,11 @@ fun CashflowBanner(
         }
         Spacer(Modifier.height(Spacing.lg))
         Row(Modifier.fillMaxWidth()) {
-            SummaryFigure("Earned", "+$currencySymbol${String.format("%,.0f", todayIncome)}", finance.income, Modifier.weight(1f))
-            SummaryFigure("Spent", "-$currencySymbol${String.format("%,.0f", todayExpense)}", finance.expense, Modifier.weight(1f))
+            SummaryFigure("Earned", signedMoney(todayIncome, positive = true, currencySymbol = currencySymbol), finance.income, Modifier.weight(1f))
+            SummaryFigure("Spent", signedMoney(todayExpense, positive = false, currencySymbol = currencySymbol), finance.expense, Modifier.weight(1f))
             SummaryFigure(
                 "Month net",
-                "${if (monthIncome - monthExpense >= 0) "+" else "-"}$currencySymbol${String.format("%,.0f", kotlin.math.abs(monthIncome - monthExpense))}",
+                netMoney(monthIncome - monthExpense, currencySymbol),
                 MaterialTheme.colorScheme.onSurface,
                 Modifier.weight(1f)
             )
@@ -446,6 +447,7 @@ fun QuickStatistics(
     highestExpenseDayVal: Double,
     highestIncomeDayVal: Double,
     remainingBudget: Double,
+    hasBudget: Boolean,
     currencySymbol: String,
     modifier: Modifier = Modifier
 ) {
@@ -462,7 +464,7 @@ fun QuickStatistics(
             )
             StatTile(
                 label = "Budget left",
-                value = "$currencySymbol${String.format("%,.0f", remainingBudget)}",
+                value = if (hasBudget) "$currencySymbol${String.format("%,.0f", remainingBudget)}" else "Not set",
                 icon = Icons.Rounded.Savings,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f)
@@ -595,15 +597,16 @@ fun LazyListScope.recentTransactionsSection(
     recentTxs: List<Transaction>,
     currencySymbol: String,
     onNavigateToHistory: () -> Unit,
-    navController: NavController,
-    onDelete: (Transaction) -> Unit,
+    onNavigateToAddTransaction: () -> Unit,
+    onOpen: (Transaction) -> Unit,
     entrance: EntranceState? = null
 ) {
     item(key = "recentHeader") {
         SectionHeader(
             title = "Recent activity",
-            actionLabel = "See all",
-            onAction = onNavigateToHistory,
+            // Nothing to see yet, so don't offer "See all" on an empty list.
+            actionLabel = if (recentTxs.isEmpty()) null else "See all",
+            onAction = if (recentTxs.isEmpty()) null else onNavigateToHistory,
             modifier = if (entrance != null) Modifier.entrance(entrance, 6) else Modifier
         )
     }
@@ -613,7 +616,14 @@ fun LazyListScope.recentTransactionsSection(
             EmptyState(
                 icon = Icons.Rounded.Inbox,
                 title = "No transactions yet",
-                message = "Tap Add to log your first expense or income. Everything stays on this device."
+                message = "Log your first expense or income. Everything stays on this device.",
+                action = {
+                    FilledTonalButton(onClick = onNavigateToAddTransaction, shape = PillShape) {
+                        Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(Spacing.xs))
+                        Text("Add your first entry", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
             )
         }
     } else {
@@ -626,78 +636,15 @@ fun LazyListScope.recentTransactionsSection(
             ) {
                 recentTxs.forEachIndexed { index, transaction ->
                     if (index > 0) GlassDivider()
-                    TransactionItemRow(
+                    // Same row as Activity, with the date instead of the time. Tap to edit or delete.
+                    TransactionItem(
                         transaction = transaction,
-                        onDelete = { onDelete(transaction) },
-                        currencySymbol = currencySymbol
+                        onClick = { onOpen(transaction) },
+                        currencySymbol = currencySymbol,
+                        timePattern = "d MMM"
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun TransactionItemRow(
-    transaction: Transaction,
-    onDelete: () -> Unit,
-    currencySymbol: String = "₹"
-) {
-    val finance = AkSpendTheme.finance
-    val isExpense = transaction.type == "EXPENSE"
-    val formattedDate = remember(transaction.date) {
-        SimpleDateFormat("d MMM", Locale.getDefault()).format(Date(transaction.date))
-    }
-    val amountText = "${if (isExpense) "-" else "+"}$currencySymbol${String.format("%,.2f", transaction.amount)}"
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 68.dp)
-            .padding(start = Spacing.lg, end = Spacing.xs, top = Spacing.sm, bottom = Spacing.sm),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconBadge(
-            icon = categoryIcon(transaction.category),
-            tint = categoryTint(transaction.category),
-            size = 44.dp
-        )
-        Spacer(modifier = Modifier.width(Spacing.md))
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .semantics(mergeDescendants = true) {}
-        ) {
-            Text(
-                text = transaction.description.ifEmpty { transaction.category },
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(Spacing.xxs))
-            Text(
-                text = "${transaction.category} · $formattedDate · ${transaction.paymentMethod}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        Spacer(modifier = Modifier.width(Spacing.sm))
-        Text(
-            text = amountText,
-            style = MaterialTheme.typography.titleSmall.money(),
-            color = if (isExpense) finance.expense else finance.income,
-            maxLines = 1
-        )
-        IconButton(onClick = onDelete) {
-            Icon(
-                imageVector = Icons.Rounded.DeleteOutline,
-                contentDescription = "Delete ${transaction.description.ifEmpty { transaction.category }}",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
         }
     }
 }
