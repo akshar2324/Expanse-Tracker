@@ -22,6 +22,7 @@ class CsvImportAuditTest {
     private val file by lazy { File(app.cacheDir, "audit-import.csv") }
 
     @After fun close() {
+        io.mockk.unmockkAll()
         AppDatabase.closeAndResetInstance()
         file.delete()
     }
@@ -43,6 +44,24 @@ class CsvImportAuditTest {
             await { currentStep.value == ImportStep.PREVIEW }
             assertTrue(parseErrors.value.toString(), parseErrors.value.isEmpty())
         }
+    }
+
+    @Test fun fileMetadataIsQueriedOffTheCallingThread() {
+        val resolver = io.mockk.mockk<android.content.ContentResolver>(relaxed = true)
+        val subjectApp = io.mockk.mockk<ExpenseTrackerApp>(relaxed = true)
+        io.mockk.every { subjectApp.repository } returns app.repository
+        io.mockk.every { subjectApp.contentResolver } returns resolver
+        val queryThread = java.util.concurrent.atomic.AtomicReference<Thread>()
+        io.mockk.every { resolver.query(any(), any(), any(), any(), any()) } answers {
+            queryThread.set(Thread.currentThread())
+            null
+        }
+        io.mockk.every { resolver.openInputStream(any()) } answers { "Date,Amount,Description".byteInputStream() }
+        val caller = Thread.currentThread()
+        CsvImportViewModel(subjectApp).handleFileSelected(Uri.parse("content://audit/statement"))
+        await { queryThread.get() != null }
+        assertNotEquals("Document provider queries may block", caller, queryThread.get())
+        io.mockk.unmockkAll()
     }
 
     @Test fun duplicateRowsWithinOneFileAreSkippedByDefault() {

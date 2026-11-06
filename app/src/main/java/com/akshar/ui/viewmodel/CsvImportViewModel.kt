@@ -94,7 +94,10 @@ class CsvImportViewModel(
 
     fun handleFileSelected(uri: Uri) {
         _selectedUri.value = uri
-        _fileName.value = queryName(uri)
+        _fileName.value = null
+        viewModelScope.launch(ioDispatcher) {
+            _fileName.value = runCatching { queryName(uri) }.getOrDefault("Unknown File")
+        }
         extractHeaders(uri)
         _currentStep.value = ImportStep.CONFIGURE_MAPPING
     }
