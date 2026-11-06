@@ -1,5 +1,6 @@
 package com.akshar.ui.screens
 
+import com.akshar.utils.launchFilePicker
 import com.akshar.ui.theme.*
 import com.akshar.ui.components.*
 import android.net.Uri
@@ -109,7 +110,7 @@ fun SelectFileStep(viewModel: CsvImportViewModel) {
         )
         Spacer(modifier = Modifier.height(32.dp))
         Button(
-            onClick = { launcher.launch("text/*") },
+            onClick = { launcher.launchFilePicker(context, "text/*") },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp)
@@ -130,7 +131,7 @@ fun SelectFileStep(viewModel: CsvImportViewModel) {
                             .padding(vertical = 4.dp),
                         onClick = {
                             viewModel.loadProfile(profile)
-                            launcher.launch("text/*")
+                            launcher.launchFilePicker(context, "text/*")
                         },
                         onClickLabel = "Use ${profile.name} and choose a file",
                         contentPadding = PaddingValues(Spacing.lg)

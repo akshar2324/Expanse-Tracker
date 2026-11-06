@@ -82,8 +82,19 @@ import com.akshar.ui.viewmodel.FinanceViewModel
 import com.akshar.security.BiometricCrypto
 
 class MainActivity : FragmentActivity() {
+
+    private companion object {
+        const val KEY_UNLOCKED = "akspend_unlocked"
+    }
     
     private var isUnlockedState = mutableStateOf(false)
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        // Rotation and other configuration changes recreate the activity; an unlocked session
+        // should stay unlocked instead of asking for the passcode or fingerprint again.
+        outState.putBoolean(KEY_UNLOCKED, isUnlockedState.value)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,8 +104,11 @@ class MainActivity : FragmentActivity() {
         val onboardingCompleted = sharedPrefs.getBoolean("onboarding_completed", false)
         val vaultEnabled = sharedPrefs.getBoolean("vault_enabled", true)
         val vaultBiometrics = sharedPrefs.getBoolean("vault_biometrics", true)
+        val restoredUnlocked = savedInstanceState?.getBoolean(KEY_UNLOCKED, false) == true
 
-        if (!onboardingCompleted) {
+        if (restoredUnlocked && onboardingCompleted) {
+            isUnlockedState.value = true
+        } else if (!onboardingCompleted) {
             isUnlockedState.value = false
         } else if (!vaultEnabled) {
             isUnlockedState.value = true

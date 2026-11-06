@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
@@ -51,12 +52,13 @@ fun AddTransactionScreen(
     val context = LocalContext.current
     var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
 
-    // --- State Holding ---
-    var isExpense by remember { mutableStateOf(true) }
-    var amountStr by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var dateSelected by remember { mutableStateOf(System.currentTimeMillis()) }
-    var paymentMethod by remember { mutableStateOf("Cash") }
+    // --- State Holding (saveable so input survives rotation and process death) ---
+    var isExpense by rememberSaveable { mutableStateOf(true) }
+    var amountStr by rememberSaveable { mutableStateOf("") }
+    var description by rememberSaveable { mutableStateOf("") }
+    var dateSelected by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
+    var paymentMethod by rememberSaveable { mutableStateOf("Cash") }
+    var prefilledFromTransaction by rememberSaveable { mutableStateOf(false) }
 
     val expenseCategories = remember {
         listOf(
@@ -74,10 +76,12 @@ fun AddTransactionScreen(
     }
 
     val currentCategories = if (isExpense) expenseCategories else incomeCategories
-    var categorySelected by remember { mutableStateOf(currentCategories.first()) }
+    var categorySelected by rememberSaveable { mutableStateOf(currentCategories.first()) }
 
     // Sync category reset if type swaps (keeps a valid or originally loaded category)
     LaunchedEffect(isExpense) {
+        // While an edited transaction is (re)loading, keep the restored category as is.
+        if (transactionId != null && editingTransaction == null) return@LaunchedEffect
         val keepLoaded = editingTransaction?.let { it.category == categorySelected && (it.type == "EXPENSE") == isExpense } == true
         if (categorySelected !in currentCategories && !keepLoaded) {
             categorySelected = currentCategories.first()
@@ -93,6 +97,9 @@ fun AddTransactionScreen(
             return@LaunchedEffect
         }
         editingTransaction = tx
+        // After a configuration change keep what the user has typed; only prefill once.
+        if (prefilledFromTransaction) return@LaunchedEffect
+        prefilledFromTransaction = true
         isExpense = tx.type == "EXPENSE"
         amountStr = BigDecimal(tx.amount.toString()).stripTrailingZeros().toPlainString()
         description = tx.description
@@ -127,7 +134,7 @@ fun AddTransactionScreen(
     }
 
     fun save() {
-        val amt = com.akshar.utils.MathUtils.evaluateMathExpression(amountStr)
+        val amt = com.akshar.utils.MoneyUtils.parseAmount(amountStr)
         if (amt == null || amt <= 0) {
             amountError = "Please enter a valid amount greater than zero."
         } else {
@@ -400,11 +407,22 @@ fun AddTransactionScreen(
         }
 
         // --- Save button: pinned under the form so it's always reachable, even with the keyboard up ---
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = Spacing.gutter, vertical = Spacing.md)
         ) {
+            // The amount field may be scrolled off screen, so repeat its error beside the button.
+            if (amountError != null) {
+                Text(
+                    text = amountError!!,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = Spacing.sm)
+                )
+            }
             Button(
                 onClick = { save() },
                 modifier = Modifier
@@ -420,6 +438,42 @@ fun AddTransactionScreen(
                     text = if (isExpense) "Save expense" else "Save income",
                     style = MaterialTheme.typography.titleMedium
                 )
+            }
+
+            // Edit mode: deleting lives here, behind a confirmation, instead of on every list row.
+            val existing = editingTransaction
+            if (existing != null) {
+                var confirmDelete by remember { mutableStateOf(false) }
+                Spacer(modifier = Modifier.height(Spacing.sm))
+                TextButton(
+                    onClick = { confirmDelete = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = Spacing.touchTarget),
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete transaction", style = MaterialTheme.typography.labelLarge)
+                }
+                if (confirmDelete) {
+                    AlertDialog(
+                        onDismissRequest = { confirmDelete = false },
+                        title = { Text("Delete this transaction?") },
+                        text = { Text("It will be removed from your history and totals. This can't be undone.") },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    confirmDelete = false
+                                    viewModel.deleteTransaction(existing)
+                                    onNavigateBack()
+                                },
+                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                            ) { Text("Delete") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+                        }
+                    )
+                }
             }
         }
     }

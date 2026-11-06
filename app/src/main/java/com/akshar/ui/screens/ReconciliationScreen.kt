@@ -50,8 +50,10 @@ fun ReconciliationScreen(
     val datePickerDialog = DatePickerDialog(
         context,
         { _, year, month, dayOfMonth ->
+            // Statement balances are as of the end of the chosen day.
             val cal = Calendar.getInstance().apply {
-                set(year, month, dayOfMonth)
+                set(year, month, dayOfMonth, 23, 59, 59)
+                set(Calendar.MILLISECOND, 999)
             }
             selectedDate = cal.timeInMillis
         },
@@ -62,11 +64,11 @@ fun ReconciliationScreen(
 
     // Calculate balance up to the selected date
     val accountTransactions = transactions.filter { it.accountId == accountId && it.date <= selectedDate }
-    val calculatedBalance = account.openingBalance + accountTransactions.sumOf { tx ->
+    val calculatedBalance = com.akshar.utils.MoneyUtils.roundMoney(account.openingBalance + accountTransactions.sumOf { tx ->
         if (tx.type == "INCOME") tx.amount else -tx.amount
-    }
+    })
 
-    val parsedStatementBalance = statementBalance.toDoubleOrNull() ?: 0.0
+    val parsedStatementBalance = com.akshar.utils.MoneyUtils.parseAmount(statementBalance) ?: 0.0
     val difference = parsedStatementBalance - calculatedBalance
 
     Column(
@@ -141,7 +143,7 @@ fun ReconciliationScreen(
                     navController.popBackStack()
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
-                enabled = statementBalance.isNotBlank()
+                enabled = com.akshar.utils.MoneyUtils.parseAmount(statementBalance) != null
             ) {
                 Text("Confirm reconciliation", style = MaterialTheme.typography.labelLarge)
             }
