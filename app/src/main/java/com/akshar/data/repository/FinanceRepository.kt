@@ -12,6 +12,13 @@ import com.akshar.data.model.Reconciliation
 import com.akshar.data.model.SavingsGoal
 import com.akshar.data.model.Transaction
 import com.akshar.data.model.Debt
+import com.akshar.data.model.MerchantCategory
+import com.akshar.utils.CategoryMemory
+import com.akshar.utils.DuplicateCandidate
+import com.akshar.utils.DuplicateCheck
+import com.akshar.utils.DuplicateMatch
+import com.akshar.utils.MerchantNames
+import java.util.TimeZone
 import kotlinx.coroutines.flow.Flow
 import com.akshar.data.backup.BackupSnapshot
 import com.akshar.data.activity.TransactionQuery
@@ -216,6 +223,23 @@ class FinanceRepository(private val financeDao: FinanceDao, private val database
         return financeDao.getExistingCsvHashes(hashes)
     }
 
+    /**
+     * A saved transaction that [candidate] (an SMS or CSV import) probably repeats: same bank
+     * reference anywhere in the ledger, or same amount, type and calendar day.
+     */
+    suspend fun findLikelyDuplicate(candidate: DuplicateCandidate, zone: TimeZone = TimeZone.getDefault()): DuplicateMatch? {
+        val (start, end) = DuplicateCheck.dayBounds(candidate.date, zone)
+        val sameRef = candidate.referenceKey?.let { financeDao.getTransactionsByRowHash(it) }.orEmpty()
+        return DuplicateCheck.findMatch(candidate, sameRef + financeDao.getTransactionsBetween(start, end), zone)
+    }
+
+    /** Ledger entries from the start of [fromMillis]'s day to the end of [toMillis]'s day. */
+    suspend fun getTransactionsAcrossDays(fromMillis: Long, toMillis: Long, zone: TimeZone = TimeZone.getDefault()): List<Transaction> {
+        val start = DuplicateCheck.dayBounds(fromMillis, zone).first
+        val end = DuplicateCheck.dayBounds(toMillis, zone).second
+        return financeDao.getTransactionsBetween(start, end)
+    }
+
     suspend fun deleteTransactionsByBatchId(batchId: String) {
         financeDao.deleteTransactionsByBatchId(batchId)
     }
@@ -271,6 +295,32 @@ class FinanceRepository(private val financeDao: FinanceDao, private val database
 
     suspend fun deleteReconciliationById(id: Long) {
         financeDao.deleteReconciliationById(id)
+    }
+
+    // --- Learned merchant categories ---
+    val allMerchantCategories: Flow<List<MerchantCategory>> = financeDao.getAllMerchantCategories()
+
+    suspend fun categoryMemory(): CategoryMemory = CategoryMemory(financeDao.getMerchantCategoriesList())
+
+    /**
+     * Remembers [category] for the merchant in [description]. Generic descriptions ("UPI payment")
+     * and "not chosen" categories ("Other") are ignored. Returns true when a mapping was stored.
+     */
+    suspend fun learnCategory(description: String, type: String, category: String, now: Long = System.currentTimeMillis()): Boolean {
+        if (!MerchantNames.isLearnable(category)) return false
+        val key = MerchantNames.normalise(description) ?: return false
+        financeDao.upsertMerchantCategory(
+            MerchantCategory(merchantKey = key, type = type, displayName = description.trim(), category = category, updatedAt = now)
+        )
+        return true
+    }
+
+    suspend fun forgetMerchantCategory(mapping: MerchantCategory) {
+        financeDao.deleteMerchantCategory(mapping.merchantKey, mapping.type)
+    }
+
+    suspend fun clearMerchantCategories() {
+        financeDao.clearMerchantCategories()
     }
 
     // --- Backup & Restore ---

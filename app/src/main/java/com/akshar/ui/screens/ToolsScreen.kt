@@ -41,6 +41,8 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AccountBalance
+import androidx.compose.material.icons.rounded.Inbox
+import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.Assessment
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Backup
@@ -48,6 +50,7 @@ import androidx.compose.material.icons.rounded.Calculate
 import androidx.compose.material.icons.rounded.EventRepeat
 import androidx.compose.material.icons.rounded.Handshake
 import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -119,6 +122,9 @@ fun ToolsScreen(
                         toolId == "ACCOUNTS" && navController != null -> navController.navigate("accounts")
                         toolId == "WEEKLY_DIGEST" && navController != null -> navController.navigate("weeklyDigest")
                         toolId == "CSV_IMPORT" && navController != null -> navController.navigate("csvImport")
+                        toolId == "SMS_IMPORT" && navController != null -> navController.navigate(com.akshar.SmsImportRoutes.IMPORT)
+                        toolId == "LEARNED_CATEGORIES" && navController != null -> navController.navigate(com.akshar.LearnedCategoriesRoute)
+                        toolId == "AUTO_IMPORT" && navController != null -> navController.navigate(com.akshar.SmsImportRoutes.INBOX)
                         else -> activeSubTool = toolId
                     }
                 }
@@ -580,6 +586,8 @@ fun ToolsScreen(
                                 }
                             }
                         }
+
+                        AutoBackupSection(financeViewModel = viewModel)
                     }
                 }
 
@@ -1035,6 +1043,8 @@ private data class MoreTool(
 
 private val moreTools = listOf(
     MoreTool("WEEKLY_DIGEST", "Weekly digest", "Your week in review, computed on this device", Icons.Rounded.AutoAwesome),
+    MoreTool("AUTO_IMPORT", "Auto-import", "Payments from bank and UPI notifications", Icons.Rounded.Inbox),
+    MoreTool("SMS_IMPORT", "Import bank SMS", "Paste or share a bank message", Icons.Rounded.Sms),
     MoreTool("CSV_IMPORT", "Import CSV", "Bring in a bank statement export", Icons.Rounded.UploadFile),
     MoreTool("ACCOUNTS", "Accounts", "Balances, transfers, reconciling", Icons.Rounded.AccountBalance),
     MoreTool("RECURRING", "Reminders", "Bills and income that repeat", Icons.Rounded.EventRepeat),
@@ -1044,6 +1054,7 @@ private val moreTools = listOf(
     MoreTool("BACKUP", "Backup & restore", "Export or restore your data file", Icons.Rounded.Backup),
     MoreTool("VAULT", "Vault & passcode", "App lock and fingerprint", Icons.Rounded.Shield),
     MoreTool("SETTINGS", "Region & currency", "Currency symbol and payment methods", Icons.Rounded.Public),
+    MoreTool("LEARNED_CATEGORIES", "Learned categories", "Shops and payees you've categorised", Icons.Rounded.Psychology),
 )
 
 @Composable

@@ -9,6 +9,7 @@ import com.akshar.data.model.SavingsGoal
 import com.akshar.data.model.Transaction
 import com.akshar.data.model.Debt
 import com.akshar.data.model.CsvImportProfile
+import com.akshar.data.model.MerchantCategory
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -94,6 +95,13 @@ interface FinanceDao {
 
     @Query("SELECT originalCsvRowHash FROM transactions WHERE originalCsvRowHash IN (:hashes)")
     suspend fun getExistingCsvHashes(hashes: List<String>): List<String>
+
+    /** Ledger entries (not transfer legs) dated in [start, end), for the duplicate check. */
+    @Query("SELECT * FROM transactions WHERE date >= :start AND date < :end AND transferId IS NULL")
+    suspend fun getTransactionsBetween(start: Long, end: Long): List<Transaction>
+
+    @Query("SELECT * FROM transactions WHERE originalCsvRowHash = :hash")
+    suspend fun getTransactionsByRowHash(hash: String): List<Transaction>
 
     @Query("SELECT * FROM transactions WHERE transferId = :transferId ORDER BY type ASC")
     suspend fun getTransactionsByTransferId(transferId: String): List<Transaction>
@@ -228,4 +236,20 @@ interface FinanceDao {
 
     @Query("DELETE FROM reconciliations WHERE id = :id")
     suspend fun deleteReconciliationById(id: Long)
+
+    // --- Learned merchant categories ---
+    @Query("SELECT * FROM merchant_categories ORDER BY displayName COLLATE NOCASE ASC")
+    fun getAllMerchantCategories(): Flow<List<MerchantCategory>>
+
+    @Query("SELECT * FROM merchant_categories")
+    suspend fun getMerchantCategoriesList(): List<MerchantCategory>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertMerchantCategory(mapping: MerchantCategory)
+
+    @Query("DELETE FROM merchant_categories WHERE merchantKey = :merchantKey AND type = :type")
+    suspend fun deleteMerchantCategory(merchantKey: String, type: String)
+
+    @Query("DELETE FROM merchant_categories")
+    suspend fun clearMerchantCategories()
 }

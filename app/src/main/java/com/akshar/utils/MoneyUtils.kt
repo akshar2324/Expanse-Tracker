@@ -16,7 +16,7 @@ object MoneyUtils {
     const val MONEY_SCALE = 2
 
     private val numberToken = Regex("[0-9.,]+")
-    private val groupedWithComma = Regex("^\\d{1,3}(,\\d{3})+$")
+    private val groupedWithComma = Regex("^(?:\\d{1,3}(,\\d{3})+|\\d{1,2}(,\\d{2})*,\\d{3})$")
     private val groupedWithDot = Regex("^\\d{1,3}(\\.\\d{3})+$")
     private val allowedChars = Regex("[^0-9.,+\\-*/()]")
 
@@ -51,9 +51,10 @@ object MoneyUtils {
                 // Whichever separator comes last is the decimal one: "1,234.50" or "1.234,50".
                 val decimal = if (token.lastIndexOf('.') > token.lastIndexOf(',')) '.' else ','
                 val grouping = if (decimal == '.') ',' else '.'
-                val withoutGrouping = token.replace(grouping.toString(), "")
-                if (withoutGrouping.count { it == decimal } > 1) null
-                else withoutGrouping.replace(decimal, '.')
+                val parts = token.split(decimal)
+                val groupingRule = if (grouping == ',') groupedWithComma else groupedWithDot
+                if (parts.size != 2 || !groupingRule.matches(parts[0]) || parts[1].any { !it.isDigit() }) null
+                else parts[0].replace(grouping.toString(), "") + "." + parts[1]
             }
             hasComma -> when {
                 decimalSeparator == ',' && token.count { it == ',' } == 1 -> token.replace(',', '.')
