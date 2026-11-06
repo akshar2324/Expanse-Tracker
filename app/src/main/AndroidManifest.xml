@@ -28,6 +28,13 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="akspend" android:host="add_transaction" />
             </intent-filter>
+
+            <!-- Share a bank SMS from a messages app to read it into a transaction. -->
+            <intent-filter android:label="@string/share_sms_label">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
 
         <provider

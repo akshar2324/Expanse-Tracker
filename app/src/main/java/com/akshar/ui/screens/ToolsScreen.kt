@@ -41,6 +41,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AccountBalance
+import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.Assessment
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Backup
@@ -119,6 +120,7 @@ fun ToolsScreen(
                         toolId == "ACCOUNTS" && navController != null -> navController.navigate("accounts")
                         toolId == "WEEKLY_DIGEST" && navController != null -> navController.navigate("weeklyDigest")
                         toolId == "CSV_IMPORT" && navController != null -> navController.navigate("csvImport")
+                        toolId == "SMS_IMPORT" && navController != null -> navController.navigate(com.akshar.SmsImportRoutes.IMPORT)
                         else -> activeSubTool = toolId
                     }
                 }
@@ -1035,6 +1037,7 @@ private data class MoreTool(
 
 private val moreTools = listOf(
     MoreTool("WEEKLY_DIGEST", "Weekly digest", "Your week in review, computed on this device", Icons.Rounded.AutoAwesome),
+    MoreTool("SMS_IMPORT", "Import bank SMS", "Paste or share a bank message", Icons.Rounded.Sms),
     MoreTool("CSV_IMPORT", "Import CSV", "Bring in a bank statement export", Icons.Rounded.UploadFile),
     MoreTool("ACCOUNTS", "Accounts", "Balances, transfers, reconciling", Icons.Rounded.AccountBalance),
     MoreTool("RECURRING", "Reminders", "Bills and income that repeat", Icons.Rounded.EventRepeat),
