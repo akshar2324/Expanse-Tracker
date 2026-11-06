@@ -1,6 +1,9 @@
 package com.akshar.ui.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -46,8 +49,25 @@ val Typography = Typography(
     labelSmall = style(11, 16, FontWeight.Medium, 0.04.em),
 )
 
-/** Tabular figures keep columns of money aligned and stop totals from jittering as they change. */
-fun TextStyle.money(): TextStyle = copy(fontFeatureSettings = "tnum")
+/**
+ * Style for money. Tabular figures keep columns aligned and stop totals jittering as they change.
+ * In Atelier, amounts of 16sp and up are set in the serif, scaled up for its smaller x-height.
+ */
+@Composable
+@ReadOnlyComposable
+fun TextStyle.money(): TextStyle =
+    // Serif digits get thin below ~16sp, so small amounts stay in Inter for legibility.
+    if (LocalAppStyle.current == AppStyle.ATELIER && fontSize.isSpecified && fontSize.value >= 16f) {
+        copy(
+            fontFamily = InstrumentSerif,
+            fontWeight = FontWeight.Normal,
+            fontSize = fontSize * 1.2f,
+            letterSpacing = 0.sp,
+            fontFeatureSettings = "tnum",
+        )
+    } else {
+        copy(fontFeatureSettings = "tnum")
+    }
 
 /** Small all-caps eyebrow label used above sections and hero numbers. */
 fun TextStyle.eyebrow(): TextStyle = copy(fontWeight = FontWeight.SemiBold, letterSpacing = 0.08.em)

@@ -63,6 +63,11 @@ object GlassCapabilities {
 @Composable
 fun GlassBackdrop(modifier: Modifier = Modifier) {
     val glass = AkSpendTheme.glass
+    if (AkSpendTheme.style.isFlat) {
+        // Flat styles sit on one quiet colour: no pools, no shader, no settle animation.
+        Box(modifier.fillMaxSize().background(glass.base))
+        return
+    }
     val reducedMotion = AkSpendTheme.reducedMotion
     val phase = remember { Animatable(if (reducedMotion) 1f else 0f) }
     LaunchedEffect(reducedMotion) {

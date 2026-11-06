@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -48,6 +50,7 @@ import androidx.compose.material.icons.rounded.Calculate
 import androidx.compose.material.icons.rounded.EventRepeat
 import androidx.compose.material.icons.rounded.Handshake
 import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -583,6 +586,9 @@ fun ToolsScreen(
                     }
                 }
 
+                "APPEARANCE" -> {
+                    AppearancePicker()
+                }
                 "SETTINGS" -> {
                     val selectedCountryCode by viewModel.selectedCountry.collectAsStateWithLifecycle()
                     Column(
@@ -1043,6 +1049,7 @@ private val moreTools = listOf(
     MoreTool("CALCULATORS", "Calculators", "EMI, SIP and quick maths", Icons.Rounded.Calculate),
     MoreTool("BACKUP", "Backup & restore", "Export or restore your data file", Icons.Rounded.Backup),
     MoreTool("VAULT", "Vault & passcode", "App lock and fingerprint", Icons.Rounded.Shield),
+    MoreTool("APPEARANCE", "Appearance", "Choose the look of the app", Icons.Rounded.Palette),
     MoreTool("SETTINGS", "Region & currency", "Currency symbol and payment methods", Icons.Rounded.Public),
 )
 
@@ -1524,5 +1531,52 @@ fun CalculatorsTab() {
                 }
             }
         }
+    }
+}
+
+
+/** Lets the user switch the whole app between visual styles. Applies immediately. */
+@Composable
+private fun AppearancePicker() {
+    val context = LocalContext.current
+    val current = Appearance.style
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg)
+            .selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        AppStyle.entries.forEach { style ->
+            val selected = style == current
+            GlassCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(selected = selected, role = androidx.compose.ui.semantics.Role.RadioButton) {
+                        Appearance.select(context, style)
+                    },
+                contentPadding = PaddingValues(horizontal = Spacing.xl, vertical = Spacing.lg)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(style.label, style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(Spacing.xxs))
+                        Text(
+                            style.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    RadioButton(selected = selected, onClick = null)
+                }
+            }
+        }
+        Text(
+            text = "Light or dark follows your phone's setting.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = Spacing.xs)
+        )
     }
 }

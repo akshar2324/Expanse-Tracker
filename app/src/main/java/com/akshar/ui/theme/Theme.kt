@@ -95,6 +95,7 @@ private val DarkColorScheme = darkColorScheme(
 val LocalFinanceColors = staticCompositionLocalOf { LightFinanceColors }
 val LocalGlassColors = staticCompositionLocalOf { LightGlassColors }
 val LocalIsDarkTheme = staticCompositionLocalOf { false }
+val LocalAppStyle = staticCompositionLocalOf { AppStyle.Default }
 
 /** True when the user switched animations off (animator duration scale 0). */
 val LocalReducedMotion = staticCompositionLocalOf { false }
@@ -107,6 +108,8 @@ object AkSpendTheme {
         @Composable @ReadOnlyComposable get() = LocalGlassColors.current
     val isDark: Boolean
         @Composable @ReadOnlyComposable get() = LocalIsDarkTheme.current
+    val style: AppStyle
+        @Composable @ReadOnlyComposable get() = LocalAppStyle.current
     val reducedMotion: Boolean
         @Composable @ReadOnlyComposable get() = LocalReducedMotion.current
 }
@@ -114,20 +117,34 @@ object AkSpendTheme {
 @Composable
 fun AkSpendTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    style: AppStyle = Appearance.style,
     content: @Composable () -> Unit,
 ) {
     val reducedMotion = rememberReducedMotion()
+    val atelier = style == AppStyle.ATELIER
+    val finance = when {
+        atelier -> if (darkTheme) AtelierDarkFinance else AtelierLightFinance
+        else -> if (darkTheme) DarkFinanceColors else LightFinanceColors
+    }
+    val surfaces = when {
+        atelier -> if (darkTheme) AtelierDarkSurfaces else AtelierLightSurfaces
+        else -> if (darkTheme) DarkGlassColors else LightGlassColors
+    }
     CompositionLocalProvider(
-        LocalFinanceColors provides if (darkTheme) DarkFinanceColors else LightFinanceColors,
-        LocalGlassColors provides if (darkTheme) DarkGlassColors else LightGlassColors,
+        LocalFinanceColors provides finance,
+        LocalGlassColors provides surfaces,
         LocalIsDarkTheme provides darkTheme,
         LocalReducedMotion provides reducedMotion,
+        LocalAppStyle provides style,
     ) {
-        val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+        val colorScheme = when {
+            atelier -> if (darkTheme) AtelierDarkColorScheme else AtelierLightColorScheme
+            else -> if (darkTheme) DarkColorScheme else LightColorScheme
+        }
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = Typography,
-            shapes = Shapes,
+            typography = if (atelier) AtelierTypography else Typography,
+            shapes = if (atelier) AtelierShapes else Shapes,
         ) {
             // Glass panels are drawn with modifiers, not Material Surfaces, so nothing else sets
             // the content color. Without this, Text with no explicit color falls back to black,
