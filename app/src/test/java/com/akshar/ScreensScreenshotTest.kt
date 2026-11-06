@@ -108,6 +108,21 @@ class ScreensScreenshotTest {
     seed(app)
     val viewModel = FinanceViewModel(app)
     val mode = if (dark) "dark" else "light"
+    runBlocking {
+      val inbox = com.akshar.sms.inbox.ImportInboxDatabase.getInstance(app).pendingImportDao()
+      inbox.clear()
+      val now = System.currentTimeMillis()
+      listOf(
+        "Sent Rs.799.00 From HDFC Bank A/C *4821 To NETFLIX On 14/10/26 Ref 629100004321",
+        "Sent Rs.1,240.50 From HDFC Bank A/C *4821 To SWIGGY On 15/10/26 Ref 629100004322",
+      ).forEachIndexed { i, text ->
+        com.akshar.sms.inbox.AutoImportCapture.capture("com.google.android.apps.messaging", "JD-HDFCBK-S", text, now - i, supported = true)
+          ?.let { inbox.insert(it) }
+      }
+      com.akshar.sms.inbox.AutoImportCapture.capture("com.phonepe.app", "Paid", "Rs 450.00 debited from your account at PETROL PUMP NH8.", now - 5, supported = true)
+        ?.let { inbox.insert(it) }
+    }
+    val inboxViewModel = com.akshar.sms.inbox.ImportInboxViewModel(app)
     var screen by mutableStateOf("add")
 
     composeTestRule.setContent {
@@ -128,12 +143,23 @@ class ScreensScreenshotTest {
               )
             }
           }
+          "inbox" -> Box(Modifier.fillMaxSize()) {
+            GlassBackdrop()
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+              com.akshar.ui.screens.ImportInboxScreen(
+                viewModel = inboxViewModel,
+                currencySymbol = "₹",
+                onBack = {},
+                onReview = {},
+              )
+            }
+          }
           "onboarding" -> OnboardingScreen(viewModel = viewModel, onFinish = {})
           else -> LockScreen(correctPin = "1234", useBiometrics = true, onUnlockSuccess = {}, onTriggerBiometric = {})
         }
       }
     }
-    listOf("add" to "8-add-transaction", "sms" to "8b-sms-import", "onboarding" to "9-onboarding", "lock" to "10-lock").forEach { (key, name) ->
+    listOf("add" to "8-add-transaction", "sms" to "8b-sms-import", "inbox" to "8c-import-inbox", "onboarding" to "9-onboarding", "lock" to "10-lock").forEach { (key, name) ->
       screen = key
       settle()
       composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-$name.png")
@@ -151,6 +177,8 @@ class ScreensScreenshotTest {
 
   private fun seed(app: ExpenseTrackerApp) = runBlocking {
     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.akshar.data.db.AppDatabase.getInstance(app).clearAllTables() }
+    // The inbox is its own database; start every capture without leftover queued payments.
+    com.akshar.sms.inbox.ImportInboxDatabase.getInstance(app).pendingImportDao().clear()
     val repo = app.repository
     val day = 24L * 60 * 60 * 1000
     val now = System.currentTimeMillis()

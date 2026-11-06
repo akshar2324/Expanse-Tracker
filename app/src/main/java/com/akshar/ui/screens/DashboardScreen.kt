@@ -61,6 +61,10 @@ fun DashboardScreen(
     val transactions = allTransactions.filter { it.transferId == null }
     val budgets by viewModel.allBudgets.collectAsStateWithLifecycle()
     val recurringList by viewModel.allRecurringTransactions.collectAsStateWithLifecycle()
+    val inboxContext = androidx.compose.ui.platform.LocalContext.current
+    val pendingImports by remember {
+        com.akshar.sms.inbox.ImportInboxDatabase.getInstance(inboxContext).pendingImportDao().observeCount()
+    }.collectAsStateWithLifecycle(initialValue = 0)
 
     val selectedCountry by viewModel.selectedCountry.collectAsStateWithLifecycle()
     val currencySymbol = viewModel.getCurrencySymbol()
@@ -162,6 +166,27 @@ fun DashboardScreen(
                     onAddTransfer = { navController.navigate("addTransfer") },
                     modifier = Modifier.entrance(entrance, 1)
                 )
+            }
+
+            if (pendingImports > 0) {
+                item(key = "toReview") {
+                    GlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { navController.navigate(com.akshar.SmsImportRoutes.INBOX) },
+                        onClickLabel = "Open payments to review",
+                        contentPadding = PaddingValues(Spacing.lg)
+                    ) {
+                        Text(
+                            if (pendingImports == 1) "1 payment to review" else "$pendingImports payments to review",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            "Picked up from your notifications. Tap to check and save.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
 
             item(key = "today") {

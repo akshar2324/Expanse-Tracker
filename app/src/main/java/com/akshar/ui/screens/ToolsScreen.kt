@@ -41,6 +41,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AccountBalance
+import androidx.compose.material.icons.rounded.Inbox
 import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.Assessment
 import androidx.compose.material.icons.rounded.AutoAwesome
@@ -121,6 +122,7 @@ fun ToolsScreen(
                         toolId == "WEEKLY_DIGEST" && navController != null -> navController.navigate("weeklyDigest")
                         toolId == "CSV_IMPORT" && navController != null -> navController.navigate("csvImport")
                         toolId == "SMS_IMPORT" && navController != null -> navController.navigate(com.akshar.SmsImportRoutes.IMPORT)
+                        toolId == "AUTO_IMPORT" && navController != null -> navController.navigate(com.akshar.SmsImportRoutes.INBOX)
                         else -> activeSubTool = toolId
                     }
                 }
@@ -1037,6 +1039,7 @@ private data class MoreTool(
 
 private val moreTools = listOf(
     MoreTool("WEEKLY_DIGEST", "Weekly digest", "Your week in review, computed on this device", Icons.Rounded.AutoAwesome),
+    MoreTool("AUTO_IMPORT", "Auto-import", "Payments from bank and UPI notifications", Icons.Rounded.Inbox),
     MoreTool("SMS_IMPORT", "Import bank SMS", "Paste or share a bank message", Icons.Rounded.Sms),
     MoreTool("CSV_IMPORT", "Import CSV", "Bring in a bank statement export", Icons.Rounded.UploadFile),
     MoreTool("ACCOUNTS", "Accounts", "Balances, transfers, reconciling", Icons.Rounded.AccountBalance),
