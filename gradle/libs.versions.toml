@@ -37,7 +37,7 @@ fragment = "1.8.5"
 glance = "1.1.1"
 work = "2.11.2"
 documentfile = "1.0.0"
-txnparse = "0.2.0"
+txnparse = "0.2.1"
 
 [libraries]
 txnparse = { group = "com.github.akshar2324", name = "txnparse", version.ref = "txnparse" }
