@@ -1,10 +1,26 @@
 name: CodeQL
 
+# CodeQL only reads code, so it runs when code or build files change. The weekly
+# scheduled run still scans everything, including dependency updates.
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "**/*.kt"
+      - "**/*.kts"
+      - "**/*.java"
+      - "gradle/**"
+      - "gradle.properties"
+      - ".github/workflows/codeql.yml"
   push:
     branches: [main]
+    paths:
+      - "**/*.kt"
+      - "**/*.kts"
+      - "**/*.java"
+      - "gradle/**"
+      - "gradle.properties"
+      - ".github/workflows/codeql.yml"
   schedule:
     - cron: "23 3 * * 1"
   workflow_dispatch:
