@@ -24,6 +24,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -473,70 +476,54 @@ fun AppScaffold(viewModel: FinanceViewModel) {
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val isWide = maxWidth >= 600.dp
+        val largeText = LocalDensity.current.fontScale >= 1.5f
+        val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val barInset = when {
+            isWide || !showNavigation -> 0.dp
+            flatStyle -> (if (largeText) 80.dp else FlatBarHeight) + navBarBottom + Spacing.lg
+            else -> (if (largeText) 88.dp else FloatingBarHeight) + FloatingBarMargin + navBarBottom + Spacing.lg
+        }
 
-        if (isWide) {
-            // Adaptive wide layout: a floating glass rail beside a centred content column.
-            Box(Modifier.fillMaxSize()) {
+        // Keep one NavHost at a stable composition location. Moving it into separate wide
+        // and narrow branches discards destination rememberSaveable state on rotation.
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.fillMaxSize().glassBlurSource(blurState)) {
                 GlassBackdrop()
-                Row(modifier = Modifier.fillMaxSize()) {
-                    if (showNavigation) {
+                Row(Modifier.fillMaxSize()) {
+                    if (isWide && showNavigation) {
                         GlassNavigationRail(tabs = tabs, currentRoute = currentRoute, onSelect = navigateToTab)
                     }
                     Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .windowInsetsPadding(contentInsets)
+                        modifier = Modifier.weight(1f).fillMaxHeight().windowInsetsPadding(contentInsets),
+                        contentAlignment = Alignment.TopCenter
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .widthIn(max = 800.dp)
-                                .align(Alignment.Center)
-                        ) {
-                            AppNavGraph(navController = navController, viewModel = viewModel, modifier = Modifier.fillMaxSize())
+                        CompositionLocalProvider(LocalFloatingBarInset provides barInset) {
+                            AppNavGraph(
+                                navController = navController,
+                                viewModel = viewModel,
+                                modifier = Modifier
+                                    .widthIn(max = if (isWide) 800.dp else androidx.compose.ui.unit.Dp.Infinity)
+                                    .fillMaxSize()
+                            )
                         }
                     }
                 }
             }
-        } else {
-            val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            val barInset = when {
-                !showNavigation -> 0.dp
-                flatStyle -> FlatBarHeight + navBarBottom + Spacing.lg
-                else -> FloatingBarHeight + FloatingBarMargin + navBarBottom + Spacing.lg
-            }
-
-            Box(modifier = Modifier.fillMaxSize()) {
-                Box(modifier = Modifier.fillMaxSize().glassBlurSource(blurState)) {
-                    GlassBackdrop()
-                    CompositionLocalProvider(LocalFloatingBarInset provides barInset) {
-                        AppNavGraph(
-                            navController = navController,
-                            viewModel = viewModel,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .windowInsetsPadding(contentInsets)
-                        )
-                    }
-                }
-
-                AnimatedVisibility(
-                    visible = showNavigation,
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                    enter = fadeIn(motionSpec<Float>()) + slideInVertically(motionSpec<IntOffset>()) { it / 2 },
-                    exit = fadeOut(motionSpec<Float>(Durations.quick)) + slideOutVertically(motionSpec<IntOffset>(Durations.quick)) { it / 2 }
-                ) {
-                    if (flatStyle) {
-                        FlatTabBar(tabs = tabs, currentRoute = currentRoute, onSelect = navigateToTab)
-                    } else {
-                        FloatingTabBar(
-                            tabs = tabs,
-                            currentRoute = currentRoute,
-                            onSelect = navigateToTab,
-                            blurState = blurState
-                        )
-                    }
+            AnimatedVisibility(
+                visible = !isWide && showNavigation,
+                modifier = Modifier.align(Alignment.BottomCenter),
+                enter = fadeIn(motionSpec<Float>()) + slideInVertically(motionSpec<IntOffset>()) { it / 2 },
+                exit = fadeOut(motionSpec<Float>(Durations.quick)) + slideOutVertically(motionSpec<IntOffset>(Durations.quick)) { it / 2 }
+            ) {
+                if (flatStyle) {
+                    FlatTabBar(tabs = tabs, currentRoute = currentRoute, onSelect = navigateToTab)
+                } else {
+                    FloatingTabBar(
+                        tabs = tabs,
+                        currentRoute = currentRoute,
+                        onSelect = navigateToTab,
+                        blurState = blurState
+                    )
                 }
             }
         }
@@ -557,6 +544,7 @@ private fun FlatTabBar(
     currentRoute: String?,
     onSelect: (String) -> Unit,
 ) {
+    val largeText = LocalDensity.current.fontScale >= 1.5f
     val glass = AkSpendTheme.glass
     val hairline = MaterialTheme.colorScheme.outlineVariant
     Box(
@@ -571,7 +559,7 @@ private fun FlatTabBar(
             modifier = Modifier
                 .widthIn(max = 560.dp)
                 .fillMaxWidth()
-                .height(FlatBarHeight)
+                .height(if (largeText) 80.dp else FlatBarHeight)
                 .padding(horizontal = Spacing.sm)
                 .selectableGroup(),
             verticalAlignment = Alignment.CenterVertically
@@ -581,7 +569,7 @@ private fun FlatTabBar(
                     tab = tab,
                     selected = currentRoute == tab.route,
                     onClick = { onSelect(tab.route) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(if (largeText && currentRoute == tab.route) 1.8f else 1f)
                 )
             }
         }
@@ -595,6 +583,7 @@ private fun FlatTabBarItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val largeText = LocalDensity.current.fontScale >= 1.5f
     val contentColor by animateColorAsState(
         if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
         motionSpec(),
@@ -608,7 +597,8 @@ private fun FlatTabBarItem(
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .selectable(selected = selected, role = Role.Tab, onClick = onClick),
+            .selectable(selected = selected, role = Role.Tab, onClick = onClick)
+            .semantics { if (largeText && !selected) text = AnnotatedString(tab.label) },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -619,12 +609,14 @@ private fun FlatTabBarItem(
             modifier = Modifier.size(22.dp)
         )
         Spacer(Modifier.height(3.dp))
-        Text(
-            text = tab.label,
-            style = MaterialTheme.typography.labelSmall,
-            color = contentColor,
-            maxLines = 1
-        )
+        if (!largeText || selected) {
+            Text(
+                text = tab.label,
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor,
+                maxLines = 1
+            )
+        }
         Spacer(Modifier.height(4.dp))
         Box(Modifier.size(4.dp).clip(CircleShape).background(dotColor))
     }
@@ -638,6 +630,7 @@ private fun FloatingTabBar(
     onSelect: (String) -> Unit,
     blurState: GlassBlurState?,
 ) {
+    val largeText = LocalDensity.current.fontScale >= 1.5f
     val glass = AkSpendTheme.glass
     Box(
         modifier = Modifier
@@ -650,7 +643,7 @@ private fun FloatingTabBar(
             modifier = Modifier
                 .widthIn(max = 520.dp)
                 .fillMaxWidth()
-                .height(FloatingBarHeight)
+                .height(if (largeText) 88.dp else FloatingBarHeight)
                 .shadow(18.dp, PillShape, ambientColor = glass.shadow, spotColor = glass.shadow)
                 .glassBarBackground(blurState, PillShape, glass)
                 .padding(6.dp)
@@ -662,7 +655,7 @@ private fun FloatingTabBar(
                     tab = tab,
                     selected = currentRoute == tab.route,
                     onClick = { onSelect(tab.route) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(if (largeText && currentRoute == tab.route) 1.8f else 1f)
                 )
             }
         }
@@ -681,6 +674,7 @@ private fun TabBarItem(
         motionSpec(),
         label = "tabIndicator"
     )
+    val largeText = LocalDensity.current.fontScale >= 1.5f
     val contentColor by animateColorAsState(
         if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         motionSpec(),
@@ -691,7 +685,8 @@ private fun TabBarItem(
             .fillMaxHeight()
             .clip(PillShape)
             .background(indicator)
-            .selectable(selected = selected, role = Role.Tab, onClick = onClick),
+            .selectable(selected = selected, role = Role.Tab, onClick = onClick)
+            .semantics { if (largeText && !selected) text = AnnotatedString(tab.label) },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -702,12 +697,14 @@ private fun TabBarItem(
             modifier = Modifier.size(24.dp)
         )
         Spacer(Modifier.height(2.dp))
-        Text(
-            text = tab.label,
-            style = MaterialTheme.typography.labelMedium,
-            color = contentColor,
-            maxLines = 1
-        )
+        if (!largeText || selected) {
+            Text(
+                text = tab.label,
+                style = MaterialTheme.typography.labelMedium,
+                color = contentColor,
+                maxLines = 1
+            )
+        }
     }
 }
 

@@ -229,7 +229,7 @@ fun OnboardingScreen(
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                     Text(
-                                        text = "The app starts locked with passcode 1234. Change it, or turn on fingerprint unlock, under More › Vault & passcode.",
+                                        text = "App lock is off until you set a passcode. Set one under More › Vault & passcode, then choose whether to enable fingerprint unlock.",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )

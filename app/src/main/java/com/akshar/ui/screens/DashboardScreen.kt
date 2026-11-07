@@ -340,6 +340,7 @@ private fun BalanceHero(
     onAddTransfer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val largeText = androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f
     val finance = AkSpendTheme.finance
     val shown = rememberCountUp(currentBalance)
     val finalText = "$currencySymbol${String.format("%,.2f", currentBalance)}"
@@ -363,22 +364,27 @@ private fun BalanceHero(
             modifier = Modifier.semantics { contentDescription = "Net balance $finalText" }
         )
         Spacer(modifier = Modifier.height(Spacing.lg))
-        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            FlowPill(
-                icon = Icons.Rounded.SouthWest,
-                label = "In",
-                value = "$currencySymbol${String.format("%,.0f", monthIncome)}",
-                tint = finance.income,
-                modifier = Modifier.weight(1f)
-            )
-            FlowPill(
-                icon = Icons.Rounded.NorthEast,
-                label = "Out",
-                value = "$currencySymbol${String.format("%,.0f", monthExpense)}",
-                tint = finance.expense,
-                modifier = Modifier.weight(1f)
-            )
-        }
+        HeroPair(
+            stacked = largeText,
+            first = { pillModifier ->
+                FlowPill(
+                    icon = Icons.Rounded.SouthWest,
+                    label = "In",
+                    value = "$currencySymbol${String.format("%,.0f", monthIncome)}",
+                    tint = finance.income,
+                    modifier = pillModifier
+                )
+            },
+            second = { pillModifier ->
+                FlowPill(
+                    icon = Icons.Rounded.NorthEast,
+                    label = "Out",
+                    value = "$currencySymbol${String.format("%,.0f", monthExpense)}",
+                    tint = finance.expense,
+                    modifier = pillModifier
+                )
+            }
+        )
         if (totalBudgetLimit > 0) {
             val used = (budgetSpent / totalBudgetLimit).toFloat().coerceIn(0f, 1f)
             val animatedUsed by animateFloatAsState(used, motionSpec(Durations.emphasized * 2), label = "budgetUsed")
@@ -425,6 +431,7 @@ private fun BalanceHero(
             }
             FilledTonalButton(
                 onClick = onAddTransfer,
+                contentPadding = if (largeText) PaddingValues(horizontal = Spacing.sm, vertical = Spacing.sm) else ButtonDefaults.ContentPadding,
                 modifier = Modifier.weight(1f).heightIn(min = Spacing.touchTarget),
                 shape = PillShape,
                 colors = ButtonDefaults.filledTonalButtonColors(
@@ -436,6 +443,25 @@ private fun BalanceHero(
                 Spacer(Modifier.width(Spacing.xs))
                 Text("Transfer", style = MaterialTheme.typography.labelLarge)
             }
+        }
+    }
+}
+
+@Composable
+private fun HeroPair(
+    stacked: Boolean,
+    first: @Composable (Modifier) -> Unit,
+    second: @Composable (Modifier) -> Unit
+) {
+    if (stacked) {
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            first(Modifier.fillMaxWidth())
+            second(Modifier.fillMaxWidth())
+        }
+    } else {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            first(Modifier.weight(1f))
+            second(Modifier.weight(1f))
         }
     }
 }
@@ -459,7 +485,7 @@ private fun FlowPill(
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(Spacing.sm))
         Column {
-            Text("$label this month", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            Text("$label this month", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(value, style = MaterialTheme.typography.titleSmall.money(), color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
