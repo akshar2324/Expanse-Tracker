@@ -56,6 +56,7 @@ fun AddTransactionScreen(
     onSaved: () -> Unit = onNavigateBack
 ) {
     val context = LocalContext.current
+    val selectorColumns = if (androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f) 1 else 3
     var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
 
     // --- State Holding (saveable so input survives rotation and process death) ---
@@ -379,10 +380,10 @@ fun AddTransactionScreen(
                 color = MaterialTheme.colorScheme.onSurface
             )
             
-            // FlowRow equivalent or Column listing in grid
+            // Give long category names room when the owner increases text size.
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Group categories by 3 in a Row for visual grid layout
-                currentCategories.chunked(3).forEach { rowList ->
+                // Keep each selected option readable without reducing the requested font scale.
+                currentCategories.chunked(selectorColumns).forEach { rowList ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -395,7 +396,7 @@ fun AddTransactionScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(Spacing.touchTarget)
+                                    .heightIn(min = Spacing.touchTarget)
                                     .glassPanel(PillShape, glass, chipColor)
                                     .selectable(selected = selected, role = Role.RadioButton) {
                                         categorySelected = category
@@ -408,13 +409,13 @@ fun AddTransactionScreen(
                                     text = category,
                                     style = MaterialTheme.typography.labelLarge,
                                     color = textColor,
-                                    maxLines = 1,
+                                    maxLines = if (selectorColumns == 1) 2 else 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
                         // Fill structural blank spaces to preserve even alignment
-                        val blanks = 3 - rowList.size
+                        val blanks = selectorColumns - rowList.size
                         if (blanks > 0) {
                             repeat(blanks) {
                                 Spacer(modifier = Modifier.weight(1f))
@@ -505,7 +506,7 @@ fun AddTransactionScreen(
             )
             
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                paymentMethods.chunked(3).forEach { rowMethods ->
+                paymentMethods.chunked(selectorColumns).forEach { rowMethods ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -517,7 +518,7 @@ fun AddTransactionScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(Spacing.touchTarget)
+                                    .heightIn(min = Spacing.touchTarget)
                                     .glassPanel(PillShape, glass, surface)
                                     .selectable(selected = isSelected, role = Role.RadioButton) { paymentMethod = method }
                                     .padding(horizontal = 4.dp),
@@ -527,7 +528,7 @@ fun AddTransactionScreen(
                                     text = method,
                                     style = MaterialTheme.typography.labelLarge,
                                     color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
+                                    maxLines = if (selectorColumns == 1) 2 else 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
