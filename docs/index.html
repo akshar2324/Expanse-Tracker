@@ -3,170 +3,166 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>AkSpend · Private, offline money tracker for Android</title>
-  <meta name="description" content="AkSpend is a free, open-source expense tracker that works fully offline. No account, no cloud, no trackers. Your money data never leaves your phone.">
-  <meta name="theme-color" content="#0b0a09">
+  <title>AkSpend · Private, offline expense tracker for Android</title>
+  <meta name="description" content="AkSpend is a free, open-source expense tracker for Android. No account and no internet permission: everything you log stays on your phone.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f7f2ea" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#11100e" media="(prefers-color-scheme: dark)">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://akshar2324.github.io/Expanse-Tracker/">
   <meta property="og:title" content="AkSpend · Your money. Only yours.">
-  <meta property="og:description" content="A private, offline expense tracker for Android. No account, no cloud, no trackers.">
+  <meta property="og:description" content="A free, open-source expense tracker for Android. No account, no internet permission.">
   <meta property="og:image" content="https://akshar2324.github.io/Expanse-Tracker/assets/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="AkSpend: Your money. Only yours. A glowing particle sphere beside the app's home screen.">
+  <meta property="og:image:alt" content="AkSpend: Your money. Only yours. The app's home screen beside the headline.">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="canonical" href="https://akshar2324.github.io/Expanse-Tracker/">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231E4C45'/%3E%3Cpath d='M16 24h28a4 4 0 0 1 4 4v16a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V24zm0 0 22-8v8' fill='none' stroke='%238ED4C6' stroke-width='4' stroke-linejoin='round'/%3E%3Ccircle cx='40' cy='36' r='3' fill='%238ED4C6'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230F5F54'/%3E%3Cpath d='M16 24h28a4 4 0 0 1 4 4v16a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V24zm0 0 22-8v8' fill='none' stroke='%23F7F2EA' stroke-width='4' stroke-linejoin='round'/%3E%3Ccircle cx='40' cy='36' r='3' fill='%23F7F2EA'/%3E%3C/svg%3E">
   <link rel="preload" href="assets/fonts/inter-bold.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/instrument-serif.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/site.css">
-  <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
   <script>
-    // Decide before first paint whether the 3D experience runs, so the layout never jumps.
+    // Pick the app style before first paint so nothing flashes. Light/dark always follows the device.
     (function () {
-      var root = document.documentElement;
-      var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      var webgl = false;
-      try {
-        var c = document.createElement("canvas");
-        webgl = !!(window.WebGLRenderingContext && (c.getContext("webgl2") || c.getContext("webgl")));
-      } catch (e) {}
-      var skipped = false;
-      try { skipped = sessionStorage.getItem("akspend-skip") === "1"; } catch (e) {}
-      root.classList.add(reduced || !webgl || skipped ? "calm" : "motion");
+      var root = document.documentElement, style = "atelier";
+      root.classList.add("js");
+      try { var saved = localStorage.getItem("akspend-style"); if (saved === "atelier" || saved === "glass") style = saved; } catch (e) {}
+      root.setAttribute("data-style", style);
     })();
   </script>
 </head>
 <body>
-  <a class="skip-link" href="#features">Skip to content</a>
-
-  <canvas id="scene" aria-hidden="true"></canvas>
-  <div class="backdrop" aria-hidden="true"></div>
+  <a class="skip-link" href="#main">Skip to content</a>
 
   <header class="topbar">
     <a class="brand" href="#top" aria-label="AkSpend home">
       <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" class="brand-bg"/><path d="M8 12h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-10zm0 0 11-4v4" class="brand-line"/><circle cx="20" cy="18" r="1.6" class="brand-dot"/></svg>
       <span>AkSpend</span>
     </a>
-    <nav aria-label="Primary">
-      <a class="pill" href="#story">How it works</a>
-      <a class="pill" href="#features">Features</a>
-      <a class="pill" href="#privacy">Privacy</a>
-      <a class="pill" href="https://github.com/akshar2324/Expanse-Tracker" rel="noopener">Source</a>
-      <a class="pill pill-solid" href="#download">Download</a>
+    <nav class="nav" aria-label="Primary">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#privacy">Privacy</a>
+      <a href="https://github.com/akshar2324/Expanse-Tracker" rel="noopener">Source</a>
     </nav>
+    <a class="btn btn-primary btn-sm" href="#download">Download</a>
   </header>
 
-  <ol class="rail" aria-hidden="true">
-    <li data-step="0"></li><li data-step="1"></li><li data-step="2"></li><li data-step="3"></li><li data-step="4"></li>
-  </ol>
-
-  <main id="top">
+  <main id="main">
     <!-- HERO -->
-    <section class="hero" aria-labelledby="hero-title">
-      <p class="hud hud-top">/ A NEW KIND OF LEDGER</p>
+    <section id="top" class="hero" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <h1 id="hero-title" class="display">
-          <span>Your money.</span>
-          <span>Only yours.</span>
-        </h1>
-        <div class="hero-rule" aria-hidden="true"><span>PRIVATE</span><i></i><span>OFFLINE</span><i></i><span>OPEN SOURCE</span></div>
-      </div>
-      <div class="hero-foot">
-        <ul class="hud hud-list">
-          <li>/ CLOUD: NONE</li>
-          <li>/ ACCOUNT: NOT REQUIRED</li>
-          <li>/ TRACKERS: 0</li>
+        <p class="eyebrow">Free · Open source · Android 7.0+</p>
+        <h1 id="hero-title">Your money.<br><span class="accent">Only yours.</span></h1>
+        <p class="lede">AkSpend is an expense tracker that keeps everything on your Android phone. There's no account to make and no internet permission, so every rupee you log stays with you.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="https://github.com/akshar2324/Expanse-Tracker/releases/latest" rel="noopener">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
+            <span>Download APK <small>v1.4.0 · 4 MB</small></span>
+          </a>
+          <a class="btn btn-ghost" href="#install">How to install</a>
+        </div>
+        <ul class="checks">
+          <li>No account</li>
+          <li>No internet permission</li>
+          <li>MIT licensed</li>
         </ul>
-        <p class="hero-lede"><span class="chev" aria-hidden="true">&gt;</span> AkSpend is an expense tracker that lives entirely on your Android phone. No sign-up, no servers, no ads. Every rupee you log stays with you.</p>
+        <div class="style-pick" role="radiogroup" aria-labelledby="style-label">
+          <span id="style-label">App style</span>
+          <button type="button" role="radio" data-style="atelier" aria-checked="true">Atelier</button>
+          <button type="button" role="radio" data-style="glass" aria-checked="false">Liquid glass</button>
+        </div>
+        <p class="style-note">Switch to see each look the app offers. Light or dark follows your device.</p>
+      </div>
+
+      <div class="hero-art">
+        <canvas class="orb" aria-hidden="true"></canvas>
+        <div class="phone-wrap">
+        <figure class="phone phone-hero">
+          <img data-shot="home" src="screenshots/atelier/atelier-light-1-home.jpg" alt="AkSpend home screen in the Atelier style: net balance of ₹36,021.00 with Add and Transfer buttons" width="450" height="928" fetchpriority="high">
+        </figure>
+        <div class="chip chip-a" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2.5"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg>
+          Fingerprint lock
+        </div>
+        <div class="chip chip-b" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4 12.5 9 17.5 20 6.5"/></svg>
+          Works with no signal
+        </div>
+        </div>
       </div>
     </section>
 
-    <!-- STORY: three pinned chapters -->
-    <section id="story" class="story" aria-label="How AkSpend works">
-      <div class="stage">
-        <article class="chapter" data-chapter="0">
-          <p class="hud">/ 01 · THE VAULT</p>
-          <h2 class="display display-sm">Offline<br>by design.</h2>
-          <p class="kicker">NO CLOUD. NO SIGN-UP. NO EXCEPTIONS.</p>
-          <p>There is no AkSpend server to hack, sell or shut down. The app doesn't even ask for internet access. Your ledger is a database on your phone, and it only leaves when you export it yourself.</p>
-          <a class="pill" href="#privacy">Read the privacy model</a>
-          <figure class="chapter-shot"><img src="screenshots/liquid-glass/after/dark-10-lock.jpg" alt="AkSpend lock screen asking for fingerprint" loading="lazy" width="540" height="1202"></figure>
-        </article>
-
-        <article class="chapter" data-chapter="1">
-          <p class="hud">/ 02 · THE LEDGER</p>
-          <h2 class="display display-sm">Every rupee,<br>accounted for.</h2>
-          <p class="kicker">CASH, BANK, WALLET, CARD.</p>
-          <p>Log a spend in two taps or from the home-screen widget. Keep separate accounts, move money between them without faking income, and see exactly where this week went.</p>
-          <a class="pill" href="#features">See the features</a>
-          <figure class="chapter-shot"><img src="screenshots/liquid-glass/after/dark-1-home.jpg" alt="AkSpend home screen showing net balance and this month's spending" loading="lazy" width="540" height="1202"></figure>
-        </article>
-
-        <article class="chapter" data-chapter="2">
-          <p class="hud">/ 03 · THE PLAN</p>
-          <h2 class="display display-sm">Budgets that<br>keep up.</h2>
-          <p class="kicker">WEEKLY. MONTHLY. GOALS.</p>
-          <p>Set limits per category, watch them fill, and get a heads-up before you go over. Savings goals and a weekly digest show the bigger picture, all worked out on the device.</p>
-          <a class="pill" href="#download">Get AkSpend</a>
-          <figure class="chapter-shot"><img src="screenshots/liquid-glass/after/dark-3-budgets.jpg" alt="AkSpend budgets screen with category limits and progress bars" loading="lazy" width="540" height="1202"></figure>
-        </article>
-
-        <div class="counter" aria-hidden="true"><span class="counter-now">01</span><span class="counter-sep">/</span><span>03</span></div>
+    <!-- HOW IT WORKS -->
+    <section id="how" class="section" aria-labelledby="how-title">
+      <div class="section-head">
+        <p class="eyebrow">How it works</p>
+        <h2 id="how-title">Log it, see it, stay on budget.</h2>
       </div>
+      <ol class="how">
+        <li class="reveal">
+          <figure class="phone">
+            <img data-shot="log" src="screenshots/atelier/atelier-light-2-activity.jpg" alt="Activity in the Atelier style: today's expenses and income with category and payment method" width="450" height="928" loading="lazy">
+          </figure>
+          <span class="step-n">1</span>
+          <h3>Log a spend in two taps</h3>
+          <p>Add it in the app or from the home-screen widget. Pick the account it came from; moving money between your own accounts never counts as income.</p>
+        </li>
+        <li class="reveal">
+          <figure class="phone">
+            <img data-shot="insights" src="screenshots/atelier/atelier-light-4-insights.jpg" alt="Insights in the Atelier style: spending forecast and spending by category" width="450" height="928" loading="lazy">
+          </figure>
+          <span class="step-n">2</span>
+          <h3>See where it went</h3>
+          <p>Insights shows spending by category, the last seven days and a month-end forecast, all worked out on the phone.</p>
+        </li>
+        <li class="reveal">
+          <figure class="phone">
+            <img data-shot="budgets" src="screenshots/atelier/atelier-light-3-budgets.jpg" alt="Budgets in the Atelier style, before any budget is set, with a New budget button" width="450" height="928" loading="lazy">
+          </figure>
+          <span class="step-n">3</span>
+          <h3>Stay under budget</h3>
+          <p>Set weekly or monthly limits per category, watch them fill, and get a heads-up before you go over.</p>
+        </li>
+      </ol>
     </section>
-
-    <div class="ticker" aria-hidden="true">
-      <div class="ticker-track">
-        <span>/ NO CLOUD</span><span>/ NO ADS</span><span>/ NO ACCOUNT</span><span>/ NO TRACKERS</span><span>/ OPEN SOURCE</span><span>/ WORKS OFFLINE</span>
-        <span>/ NO CLOUD</span><span>/ NO ADS</span><span>/ NO ACCOUNT</span><span>/ NO TRACKERS</span><span>/ OPEN SOURCE</span><span>/ WORKS OFFLINE</span>
-      </div>
-    </div>
 
     <!-- FEATURES -->
-    <section id="features" class="section features" aria-labelledby="features-title">
-      <p class="hud hud-line"><b>04</b> / FEATURES <i></i> <span>EVERYTHING ON-DEVICE</span></p>
-      <h2 id="features-title" class="display display-md reveal">Everything a ledger should do.<br><em>Nothing it shouldn't.</em></h2>
-
-      <div class="phones reveal" aria-label="Screens from the app">
-        <figure class="phone phone-left"><img src="screenshots/liquid-glass/after/dark-4-insights.jpg" alt="Insights: spending forecast and spending by category" loading="lazy" width="540" height="1202"></figure>
-        <figure class="phone phone-mid"><img src="screenshots/liquid-glass/after/dark-1-home.jpg" alt="Home: net balance, money in and out this month" loading="lazy" width="540" height="1202"></figure>
-        <figure class="phone phone-right"><img src="screenshots/liquid-glass/after/dark-8-add-transaction.jpg" alt="Adding an expense with amount, category and payment method" loading="lazy" width="540" height="1202"></figure>
+    <section id="features" class="section" aria-labelledby="features-title">
+      <div class="section-head">
+        <p class="eyebrow">Features</p>
+        <h2 id="features-title">What else is inside</h2>
       </div>
-
-      <ul class="bento">
-        <li class="reveal card card-wide">
-          <span class="tag">ACCOUNTS</span>
-          <h3>Many accounts, one honest total</h3>
+      <ul class="grid">
+        <li class="card reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 14.5h2"/></svg>
+          <h3>Many accounts, one total</h3>
           <p>Cash, bank, wallet, savings and credit cards. Transfers move money between them without counting as income or spending, and reconciliation keeps balances true.</p>
         </li>
-        <li class="reveal card">
-          <span class="tag">BUDGETS</span>
-          <h3>Limits and goals</h3>
-          <p>Weekly or monthly budgets per category, plus savings goals that track themselves.</p>
-        </li>
-        <li class="reveal card">
-          <span class="tag">INSIGHTS</span>
-          <h3>A weekly digest</h3>
-          <p>Top categories, unusual spends and a month-end forecast, computed on the phone.</p>
-        </li>
-        <li class="reveal card">
-          <span class="tag">IMPORT</span>
+        <li class="card reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 15v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3"/></svg>
           <h3>Bring your statements</h3>
           <p>Import bank or wallet CSVs in a staged review. Duplicates are caught by row fingerprint.</p>
         </li>
-        <li class="reveal card">
-          <span class="tag">LOCK</span>
+        <li class="card reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2.5"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg>
           <h3>Biometric lock</h3>
           <p>Fingerprint or face unlock, backed by the Android keystore.</p>
         </li>
-        <li class="reveal card card-wide">
-          <span class="tag">BACKUP</span>
+        <li class="card reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6z"/><path d="M9 13h6M9 16.5h6M14.5 4v3.5H18"/></svg>
           <h3>Backups you hold</h3>
           <p>Export a JSON backup or the raw database and restore it whenever you like. Android cloud backup is switched off.</p>
         </li>
-        <li class="reveal card card-full">
-          <span class="tag">EVERYDAY</span>
-          <h3>The small things that make it stick</h3>
+        <li class="card reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
+          <h3>A weekly digest</h3>
+          <p>Top categories, unusual spends and a month-end forecast, plus savings goals alongside your budgets.</p>
+        </li>
+        <li class="card reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7M20 4v4.5h-4.5"/></svg>
+          <h3>Recurring, loans and a widget</h3>
           <p>Recurring transactions, money you've lent or borrowed, a quick-add home-screen widget, and light and dark themes that follow your phone.</p>
         </li>
       </ul>
@@ -174,8 +170,12 @@
 
     <!-- PRIVACY -->
     <section id="privacy" class="section privacy" aria-labelledby="privacy-title">
-      <p class="hud hud-line"><b>05</b> / PRIVACY <i></i> <span>VERIFY IT YOURSELF</span></p>
-      <h2 id="privacy-title" class="display display-md reveal">Most finance apps make money from your money data.<br><em>This one can't.</em></h2>
+      <div class="privacy-copy reveal">
+        <p class="eyebrow">Privacy</p>
+        <h2 id="privacy-title">Many money apps earn from your data. <span class="accent">AkSpend never sees&nbsp;it.</span></h2>
+        <p>There is no AkSpend server. Your ledger is a database on your phone, and it only leaves when you export it yourself.</p>
+        <p class="fineprint">The <a href="https://github.com/akshar2324/Expanse-Tracker" rel="noopener">source code</a> is public, and the app's manifest asks for no internet permission. Read the <a href="privacy.html">privacy policy</a>.</p>
+      </div>
       <div class="compare reveal" role="table" aria-label="AkSpend compared with a typical finance app">
         <div class="compare-row compare-head" role="row">
           <span role="columnheader"></span><span role="columnheader">Typical app</span><span role="columnheader">AkSpend</span>
@@ -186,47 +186,46 @@
         <div class="compare-row" role="row"><span role="rowheader">Works with no signal</span><span role="cell" class="no">Partly</span><span role="cell" class="yes">Fully</span></div>
         <div class="compare-row" role="row"><span role="rowheader">Code you can read</span><span role="cell" class="no">No</span><span role="cell" class="yes">All of it</span></div>
       </div>
-      <p class="fineprint">Don't take our word for it. The <a href="https://github.com/akshar2324/Expanse-Tracker" rel="noopener">source code</a> is public, and the app's manifest asks for no internet permission. Read the <a href="privacy.html">privacy policy</a>.</p>
     </section>
 
-    <!-- DOWNLOAD -->
-    <section id="download" class="section download" aria-labelledby="download-title">
-      <p class="hud"><b>06</b> / DOWNLOAD · ANDROID 7.0+</p>
-      <h2 id="download-title" class="display">Take your money<br>offline.</h2>
-      <p class="lede">Free and open source. No account to create, nothing to sign in to. Install it and start logging.</p>
-      <div class="cta-row">
-        <a class="btn btn-primary" href="https://github.com/akshar2324/Expanse-Tracker/releases/latest" rel="noopener">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"/></svg>
-          Download APK
-        </a>
-        <a class="btn btn-ghost" href="#install">How to install</a>
+    <!-- DOWNLOAD + INSTALL -->
+    <section id="download" class="section" aria-labelledby="download-title">
+      <div class="download-panel reveal">
+        <h2 id="download-title">Take your money offline.</h2>
+        <p>Free and open source, and a 4 MB download. Install it and start logging.</p>
+        <div class="cta-row">
+          <a class="btn btn-light" href="https://github.com/akshar2324/Expanse-Tracker/releases/latest" rel="noopener">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
+            <span>Download APK <small>v1.4.0 · Android 7.0+</small></span>
+          </a>
+          <a class="btn btn-outline-light" href="https://github.com/akshar2324/Expanse-Tracker" rel="noopener">View source</a>
+        </div>
       </div>
 
       <div id="install" class="install">
-        <p class="hud hud-line"><b>07</b> / INSTALL <i></i> <span>ABOUT A MINUTE</span></p>
+        <h3 class="install-title">Installing takes about a minute</h3>
         <ol class="steps">
-          <li class="reveal card">
-            <span class="step-n">01</span>
-            <h3>Download the APK</h3>
+          <li class="card reveal">
+            <span class="step-n">1</span>
+            <h4>Download the APK</h4>
             <p>On your Android phone, tap <strong>Download APK</strong>. It opens the latest release on GitHub. Tap the file ending in <code>.apk</code>.</p>
           </li>
-          <li class="reveal card">
-            <span class="step-n">02</span>
-            <h3>Allow this one install</h3>
+          <li class="card reveal">
+            <span class="step-n">2</span>
+            <h4>Allow this one install</h4>
             <p>Android asks before installing apps from outside the Play Store. Tap <strong>Settings</strong>, turn on <strong>Allow from this source</strong> for your browser, then go back.</p>
           </li>
-          <li class="reveal card">
-            <span class="step-n">03</span>
-            <h3>Install and open</h3>
+          <li class="card reveal">
+            <span class="step-n">3</span>
+            <h4>Install and open</h4>
             <p>Tap <strong>Install</strong>, then <strong>Open</strong>. There's no sign-up: you're logging your first expense straight away. You can turn the browser permission off again afterwards.</p>
           </li>
         </ol>
-        <div class="reveal card safety">
-          <span class="tag">IS IT SAFE?</span>
-          <h3>You don't have to trust us. You can check.</h3>
+        <div class="card safety reveal">
+          <h4>Is it safe? You can check.</h4>
           <ul>
             <li><strong>No internet permission.</strong> An app's manifest lists what it's allowed to do, and AkSpend's has no internet access, so it can't send your data anywhere. Check it in the <a href="https://github.com/akshar2324/Expanse-Tracker/blob/main/app/src/main/AndroidManifest.xml" rel="noopener">source</a> or with any APK inspector app.</li>
-            <li><strong>Built from public code.</strong> Every release is built from the <a href="https://github.com/akshar2324/Expanse-Tracker" rel="noopener">open-source repository</a>, so anyone can read exactly what it does.</li>
+            <li><strong>Built from public code.</strong> Every release is built from the <a href="https://github.com/akshar2324/Expanse-Tracker" rel="noopener">open-source repository</a>, so anyone can read what it does.</li>
             <li><strong>Only download from this page or the GitHub releases page.</strong> Copies of the APK on other sites aren't ours.</li>
           </ul>
         </div>
@@ -235,17 +234,19 @@
   </main>
 
   <footer class="footer">
-    <span>AkSpend</span>
+    <a class="brand brand-sm" href="#top">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" class="brand-bg"/><path d="M8 12h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-10zm0 0 11-4v4" class="brand-line"/><circle cx="20" cy="18" r="1.6" class="brand-dot"/></svg>
+      <span>AkSpend</span>
+    </a>
     <nav aria-label="Legal">
       <a href="privacy.html">Privacy</a>
       <a href="terms.html">Terms</a>
       <a href="mailto:axar2324@gmail.com">Contact</a>
+      <a href="https://github.com/akshar2324/Expanse-Tracker" rel="noopener">GitHub</a>
     </nav>
-    <span class="muted">Made for people who'd rather not be the product.</span>
+    <span class="muted">Open source under the MIT license.</span>
   </footer>
 
-  <button class="skip-anim" type="button" hidden>Skip animation <span aria-hidden="true">↓</span></button>
-
-  <script type="module" src="assets/site.js"></script>
+  <script src="assets/site.js" defer></script>
 </body>
 </html>
