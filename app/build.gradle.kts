@@ -57,6 +57,11 @@ android {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
   }
+  lint {
+    // Lint app code only. Test sources produce warnings nobody acts on and add a full
+    // analysis pass for unit tests and another for instrumented tests.
+    ignoreTestSources = true
+  }
   buildFeatures {
     compose = true
     buildConfig = true
@@ -65,6 +70,10 @@ android {
     unitTests {
       isIncludeAndroidResources = true
       all { test ->
+        // Robolectric tests are CPU-bound and isolated per class, so run them in several JVMs:
+        // 2 on a 4-core CI runner, up to 4 on a laptop.
+        test.maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceIn(1, 4)
+        test.maxHeapSize = "2g"
         // Load ByteBuddy's agent at JVM start so MockK's inline mocking never
         // has to self-attach, which times out in a busy shared test JVM.
         val agentJar: FileCollection = byteBuddyAgent

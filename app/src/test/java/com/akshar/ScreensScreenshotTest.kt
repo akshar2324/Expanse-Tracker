@@ -59,23 +59,17 @@ import java.util.Locale
  * Renders the real app shell with a seeded on-device database and captures every main tab.
  * Images go to build/outputs/roborazzi/screens so routine test runs never touch tracked files.
  */
-@RunWith(RobolectricTestRunner::class)
-@GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [36])
-class ScreensScreenshotTest {
+/**
+ * Shared setup for the screen captures. The tests live in the small subclasses at the end of this
+ * file: Gradle runs test classes in parallel, and as one class these captures took most of CI.
+ */
+abstract class ScreensScreenshotBase {
 
   @get:Rule val composeTestRule = createComposeRule()
 
   private val tabs = listOf("Home", "Activity", "Budgets", "Insights", "More")
 
-  @Test
-  fun mainScreens_light() = captureMainScreens(dark = false)
-
-  @Test
-  fun mainScreens_dark() = captureMainScreens(dark = true)
-
-  @Test
-  fun activity_largeFonts_reducedMotion() {
+  protected fun activityLargeFontsReducedMotion() {
     Locale.setDefault(Locale.US)
     RuntimeEnvironment.setFontScale(2f)
     val app = ApplicationProvider.getApplicationContext<ExpenseTrackerApp>()
@@ -112,13 +106,7 @@ class ScreensScreenshotTest {
     composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/light-14-activity-saved-large-fonts.png")
   }
 
-  @Test
-  fun mainScreens_largeFont_light() = captureMainScreens(dark = false, fontScale = 2f)
-
-  @Test
-  fun mainScreens_largeFont_dark() = captureMainScreens(dark = true, fontScale = 2f)
-
-  private fun captureMainScreens(dark: Boolean, fontScale: Float = 1f) {
+  protected fun captureMainScreens(dark: Boolean, fontScale: Float = 1f) {
     Locale.setDefault(Locale.US)
     if (dark) RuntimeEnvironment.setQualifiers("+night")
     val app = ApplicationProvider.getApplicationContext<ExpenseTrackerApp>()
@@ -176,19 +164,7 @@ class ScreensScreenshotTest {
     settle()
   }
 
-  @Test
-  fun standaloneScreens_light() = captureStandalone(dark = false)
-
-  @Test
-  fun standaloneScreens_dark() = captureStandalone(dark = true)
-
-  @Test
-  fun standaloneScreens_largeFont_light() = captureStandalone(dark = false, fontScale = 2f)
-
-  @Test
-  fun standaloneScreens_largeFont_dark() = captureStandalone(dark = true, fontScale = 2f)
-
-  private fun captureStandalone(dark: Boolean, fontScale: Float = 1f) {
+  protected fun captureStandalone(dark: Boolean, fontScale: Float = 1f) {
     Locale.setDefault(Locale.US)
     if (dark) RuntimeEnvironment.setQualifiers("+night")
     val app = ApplicationProvider.getApplicationContext<ExpenseTrackerApp>()
@@ -311,4 +287,37 @@ class ScreensScreenshotTest {
       )
     )
   }
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [36])
+class ScreensMainScreenshotTest : ScreensScreenshotBase() {
+  @Test fun mainScreens_light() = captureMainScreens(dark = false)
+  @Test fun mainScreens_dark() = captureMainScreens(dark = true)
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [36])
+class ScreensMainLargeFontScreenshotTest : ScreensScreenshotBase() {
+  @Test fun mainScreens_largeFont_light() = captureMainScreens(dark = false, fontScale = 2f)
+  @Test fun mainScreens_largeFont_dark() = captureMainScreens(dark = true, fontScale = 2f)
+  @Test fun activity_largeFonts_reducedMotion() = activityLargeFontsReducedMotion()
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [36])
+class ScreensStandaloneScreenshotTest : ScreensScreenshotBase() {
+  @Test fun standaloneScreens_light() = captureStandalone(dark = false)
+  @Test fun standaloneScreens_dark() = captureStandalone(dark = true)
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [36])
+class ScreensStandaloneLargeFontScreenshotTest : ScreensScreenshotBase() {
+  @Test fun standaloneScreens_largeFont_light() = captureStandalone(dark = false, fontScale = 2f)
+  @Test fun standaloneScreens_largeFont_dark() = captureStandalone(dark = true, fontScale = 2f)
 }

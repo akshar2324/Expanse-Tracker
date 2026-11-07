@@ -42,14 +42,17 @@ import org.robolectric.annotation.GraphicsMode
 class AdaptiveDraftTest {
     @get:Rule val compose = createComposeRule()
 
+    private val viewModels = TestViewModelOwner()
+
     @After fun close() {
+        viewModels.clear()
         com.akshar.sms.inbox.ImportInboxDatabase.closeAndResetInstance()
         AppDatabase.closeAndResetInstance()
     }
 
     @Test fun draftSurvivesSwitchingBetweenBottomBarAndNavigationRail() {
         val wide = mutableStateOf(false)
-        val vm = FinanceViewModel(ApplicationProvider.getApplicationContext<ExpenseTrackerApp>())
+        val vm = viewModels.finance(ApplicationProvider.getApplicationContext<ExpenseTrackerApp>())
         compose.setContent {
             Box(Modifier.requiredSize(if (wide.value) 800.dp else 400.dp, 900.dp)) {
                 AkSpendTheme { AppScaffold(vm) }
@@ -72,7 +75,7 @@ class AdaptiveDraftTest {
     }
 
     @Test fun doubleFontScaleKeepsFinancialLabelsAndCategoryNamesReadable() {
-        val vm = FinanceViewModel(ApplicationProvider.getApplicationContext<ExpenseTrackerApp>())
+        val vm = viewModels.finance(ApplicationProvider.getApplicationContext<ExpenseTrackerApp>())
         compose.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) {

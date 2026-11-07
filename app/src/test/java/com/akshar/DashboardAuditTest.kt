@@ -28,7 +28,9 @@ import org.robolectric.annotation.Config
 class DashboardAuditTest {
     @get:Rule val compose = createComposeRule()
     private val app = ApplicationProvider.getApplicationContext<ExpenseTrackerApp>()
+    private val viewModels = TestViewModelOwner()
     @After fun close() {
+        viewModels.clear()
         com.akshar.sms.inbox.ImportInboxDatabase.closeAndResetInstance()
         AppDatabase.closeAndResetInstance()
     }
@@ -36,7 +38,7 @@ class DashboardAuditTest {
         amount = amount, type = "EXPENSE", category = "Food", description = "Audit", date = date, paymentMethod = "Cash"
     )
     private fun show(fontScale: Float = 1f) {
-        val vm = FinanceViewModel(app)
+        val vm = viewModels.finance(app)
         compose.setContent {
             AkSpendTheme {
                 val density = LocalDensity.current
