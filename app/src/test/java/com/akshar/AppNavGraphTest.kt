@@ -34,11 +34,12 @@ class AppNavGraphTest {
     private lateinit var app: ExpenseTrackerApp
     private lateinit var viewModel: FinanceViewModel
     private lateinit var navController: NavHostController
+    private val viewModels = TestViewModelOwner()
 
     @Before
     fun setup() {
         app = ApplicationProvider.getApplicationContext() as ExpenseTrackerApp
-        viewModel = FinanceViewModel(app)
+        viewModel = viewModels.finance(app)
         composeTestRule.setContent {
             navController = rememberNavController()
             AppNavGraph(navController = navController, viewModel = viewModel)
@@ -47,6 +48,7 @@ class AppNavGraphTest {
 
     @After
     fun tearDown() {
+        viewModels.clear()
         runBlocking { com.akshar.sms.inbox.ImportInboxDatabase.getInstance(app).pendingImportDao().clear() }
         com.akshar.sms.inbox.ImportInboxDatabase.closeAndResetInstance()
         AppDatabase.closeAndResetInstance()
