@@ -1,450 +1,252 @@
-<!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<!doctype html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- SEO Meta Tags -->
-    <title>AkSpend - Smart, Private, Offline Finance Ledger & Budget Tracker</title>
-    <meta name="description" content="Take control of your personal finances with AkSpend. A high-performance, client-side, 100% offline, privacy-first ledger with monthly budgets, savings goals, and transaction reminders.">
-    <meta name="keywords" content="AkSpend, personal finance tracker, offline budget planner, local ledger, android finance app, secure wallet, privacy ledger, expense manager, money tracking">
-    <meta name="author" content="AkSpend App">
-    <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="#0f172a">
-
-    <!-- OpenGraph (Facebook, LinkedIn, Discord etc.) -->
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="AkSpend - Smart, Private, Offline Finance Ledger">
-    <meta property="og:description" content="A 100% offline, client-side financial helper. Plan budgets, tracks savings milestones, and organize costs with absolute on-device security. No third-party servers, free of trackers.">
-    <meta property="og:url" content="https://akshar2324.github.io/AkSpend-Web/">
-    <meta property="og:image" content="https://akshar2324.github.io/AkSpend-Web/assets/og-preview.png">
-    <meta property="og:site_name" content="AkSpend">
-    <meta property="og:locale" content="en_US">
-
-    <!-- Twitter Cards -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="AkSpend - Private Personal Finance Ledger">
-    <meta name="twitter:description" content="Manage transaction logs, monthly budget targets, and compound savings goals locally. Free of ads, analytics, or remote database services. Ready for Android.">
-    <meta name="twitter:image" content="https://akshar2324.github.io/AkSpend-Web/assets/og-preview.png">
-
-    <!-- Preloads & Fonts -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet font-sans">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>AkSpend · Private, offline expense tracker for Android</title>
+  <meta name="description" content="AkSpend is a free, open-source expense tracker for Android. No account and no internet permission: everything you log stays on your phone.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f7f2ea" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#11100e" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://akshar2324.github.io/Expanse-Tracker/">
+  <meta property="og:title" content="AkSpend · Your money. Only yours.">
+  <meta property="og:description" content="A free, open-source expense tracker for Android. No account, no internet permission.">
+  <meta property="og:image" content="https://akshar2324.github.io/Expanse-Tracker/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="AkSpend: Your money. Only yours. The app's home screen beside the headline.">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://akshar2324.github.io/Expanse-Tracker/">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230F5F54'/%3E%3Cpath d='M16 24h28a4 4 0 0 1 4 4v16a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V24zm0 0 22-8v8' fill='none' stroke='%23F7F2EA' stroke-width='4' stroke-linejoin='round'/%3E%3Ccircle cx='40' cy='36' r='3' fill='%23F7F2EA'/%3E%3C/svg%3E">
+  <link rel="preload" href="assets/fonts/inter-bold.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/instrument-serif.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/site.css">
+  <script>
+    // Pick the app style before first paint so nothing flashes. Light/dark always follows the device.
+    (function () {
+      var root = document.documentElement, style = "atelier";
+      root.classList.add("js");
+      try { var saved = localStorage.getItem("akspend-style"); if (saved === "atelier" || saved === "glass") style = saved; } catch (e) {}
+      root.setAttribute("data-style", style);
+    })();
+  </script>
 </head>
-<body class="bg-slate-950 text-slate-300 min-h-screen flex flex-col selection:bg-emerald-500 selection:text-slate-950">
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
 
-    <!-- Nav Bar -->
-    <header class="border-b border-slate-900 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
-        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-            <a href="#" class="flex items-center space-x-2.5 group">
-                <div class="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20 group-hover:bg-emerald-500/20 transition-all duration-300 flex items-center justify-center">
-                    <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                </div>
-                <span class="text-2xl font-extrabold tracking-tight text-white">Ak<span class="text-emerald-500">Spend</span></span>
-            </a>
-            
-            <nav class="hidden md:flex items-center space-x-8 text-sm font-medium text-slate-400">
-                <a href="#features" class="hover:text-white transition-colors">Features</a>
-                <a href="#roadmap" class="hover:text-white transition-colors">Upcoming Roadmap</a>
-                <a href="#privacy" class="hover:text-white transition-colors">Privacy Model</a>
-                <a href="privacy.html" class="hover:text-white transition-colors">Privacy Policy</a>
-                <a href="terms.html" class="hover:text-white transition-colors">Terms</a>
-            </nav>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="AkSpend home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" class="brand-bg"/><path d="M8 12h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-10zm0 0 11-4v4" class="brand-line"/><circle cx="20" cy="18" r="1.6" class="brand-dot"/></svg>
+      <span>AkSpend</span>
+    </a>
+    <nav class="nav" aria-label="Primary">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#privacy">Privacy</a>
+      <a href="https://github.com/akshar2324/Expanse-Tracker" rel="noopener">Source</a>
+    </nav>
+    <a class="btn btn-primary btn-sm" href="#download">Download</a>
+  </header>
 
-            <div>
-                <a href="#download" class="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition-all duration-200 rounded-xl shadow-lg shadow-emerald-500/15">
-                    Download APK
-                </a>
-            </div>
+  <main id="main">
+    <!-- HERO -->
+    <section id="top" class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">Free · Open source · Android 7.0+</p>
+        <h1 id="hero-title">Your money.<br><span class="accent">Only yours.</span></h1>
+        <p class="lede">AkSpend is an expense tracker that keeps everything on your Android phone. There's no account to make and no internet permission, so every rupee you log stays with you.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="https://github.com/akshar2324/Expanse-Tracker/releases/latest" rel="noopener">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
+            <span>Download APK <small>v1.4.0 · 4 MB</small></span>
+          </a>
+          <a class="btn btn-ghost" href="#install">How to install</a>
         </div>
-    </header>
-
-    <!-- Hero Section -->
-    <section class="relative overflow-hidden py-24 lg:py-32 border-b border-slate-900">
-        <!-- Ambient Blur Decoration -->
-        <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[140px] pointer-events-none"></div>
-        <div class="absolute bottom-10 left-10 w-[350px] h-[350px] bg-blue-500/5 rounded-full blur-[120px] pointer-events-none"></div>
-
-        <div class="max-w-6xl mx-auto px-6 relative z-10">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-                
-                <!-- Narrative Content -->
-                <div class="lg:col-span-7 text-center lg:text-left">
-                    <span class="inline-flex items-center space-x-2 px-3 .5 py-1 bg-emerald-500/10 border border-emerald-500/25 rounded-full text-xs font-semibold text-emerald-400 tracking-wide mb-6 uppercase">
-                        🛡️ 100% Offline & Absolute Data Privacy
-                    </span>
-                    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-[1.1] mb-6">
-                        Smart finance tracking that <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-300">never leaves your phone.</span>
-                    </h1>
-                    <p class="text-lg text-slate-400 max-w-xl mx-auto lg:mx-0 mb-8 leading-relaxed">
-                        AkSpend is a secure, local-first finance manager built with Kotlin and Jetpack Compose. Enjoy instantaneous ledger logging, multi-currency wallets, automatic recurring bills, and comprehensive budget warnings—completely free of tracking code, remote servers, or cloud vulnerabilities.
-                    </p>
-                    
-                    <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
-                        <a href="#download" class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 text-base font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition-all rounded-xl shadow-lg shadow-emerald-500/20 group">
-                            Install Now
-                            <svg class="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                            </svg>
-                        </a>
-                        <a href="#features" class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 text-base font-bold text-slate-300 bg-slate-900 border border-slate-800 hover:border-slate-700 hover:bg-slate-800/80 transition-all rounded-xl">
-                            Explore Functions
-                        </a>
-                    </div>
-                </div>
-
-                <!-- Interactive App Mockup -->
-                <div class="lg:col-span-5 flex justify-center">
-                    <div class="relative w-72 h-[580px] bg-slate-900 rounded-[40px] p-3 shadow-2xl border-4 border-slate-800/80 flex flex-col overflow-hidden">
-                        <!-- Top Notch -->
-                        <div class="absolute top-2 left-1/2 -translate-x-1/2 w-32 h-4 bg-slate-950 rounded-full z-20"></div>
-                        
-                        <!-- Internal Screen Layout -->
-                        <div class="flex-grow bg-slate-950 rounded-[30px] p-4 flex flex-col justify-between overflow-hidden relative border border-slate-800">
-                            <!-- Header Info -->
-                            <div class="pt-4 flex justify-between items-center z-10">
-                                <div>
-                                    <span class="text-[10px] text-slate-500 block font-semibold">Total Net Balance</span>
-                                    <span class="text-xl font-extrabold text-white">$5,340.00</span>
-                                </div>
-                                <span class="text-[9px] uppercase font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">Local Wallet</span>
-                            </div>
-
-                            <!-- Budget progress mockup -->
-                            <div class="my-3 p-3 bg-slate-900/60 rounded-xl border border-slate-800/80">
-                                <div class="flex justify-between items-center mb-1.5">
-                                    <span class="text-[10px] text-slate-200 font-semibold block">🍔 Food & Groceries</span>
-                                    <span class="text-[10px] text-emerald-400 font-bold">68% spent</span>
-                                </div>
-                                <div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden">
-                                    <div class="bg-gradient-to-r from-emerald-500 to-emerald-400 w-[68%] h-full rounded-full"></div>
-                                </div>
-                                <div class="flex justify-between items-center text-[9px] text-slate-500 mt-1.5">
-                                    <span>Spent: $340.00</span>
-                                    <span>Monthly Cap: $500.00</span>
-                                </div>
-                            </div>
-
-                            <!-- Transaction Mockup Ledger -->
-                            <div class="flex-grow space-y-2 py-2 overflow-hidden">
-                                <span class="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Recent Ledger Feed</span>
-                                
-                                <div class="flex items-center justify-between p-2.5 bg-slate-900/40 rounded-lg border border-slate-900 text-xs">
-                                    <div class="flex items-center space-x-2">
-                                        <div class="w-7 h-7 bg-amber-500/10 rounded-lg border border-amber-500/20 flex items-center justify-center text-[11px]">📦</div>
-                                        <div>
-                                            <span class="font-bold text-white block text-[11px]">Amazon Delivery</span>
-                                            <span class="text-[9px] text-slate-500">Today, 2:45 PM</span>
-                                        </div>
-                                    </div>
-                                    <span class="font-extrabold text-rose-400">-$34.20</span>
-                                </div>
-
-                                <div class="flex items-center justify-between p-2.5 bg-slate-900/40 rounded-lg border border-slate-900 text-xs">
-                                    <div class="flex items-center space-x-2">
-                                        <div class="w-7 h-7 bg-emerald-500/10 rounded-lg border border-emerald-500/20 flex items-center justify-center text-[11px]">💼</div>
-                                        <div>
-                                            <span class="font-bold text-white block text-[11px]">Contract Salary</span>
-                                            <span class="text-[9px] text-slate-500">June 1, 9:00 AM</span>
-                                        </div>
-                                    </div>
-                                    <span class="font-extrabold text-emerald-400">+$2,450.00</span>
-                                </div>
-
-                                <div class="flex items-center justify-between p-2.5 bg-slate-900/40 rounded-lg border border-slate-900 text-xs text-slate-500">
-                                    <div class="flex items-center space-x-2">
-                                        <div class="w-7 h-7 bg-blue-500/10 rounded-lg border border-blue-500/20 flex items-center justify-center text-[11px]">🔋</div>
-                                        <div>
-                                            <span class="font-bold text-slate-400 block text-[11px]">Electric Utility</span>
-                                            <span class="text-[9px] text-slate-500">May 28</span>
-                                        </div>
-                                    </div>
-                                    <span class="font-extrabold text-slate-300">-$75.00</span>
-                                </div>
-                            </div>
-
-                            <!-- Bottom Navigation representation -->
-                            <div class="border-t border-slate-900 pt-3 flex justify-around items-center text-slate-500 text-[10px]">
-                                <span class="text-emerald-400 font-semibold block flex flex-col items-center">
-                                    <span class="text-lg">📊</span> <span class="text-[9px] mt-0.5">Home</span>
-                                </span>
-                                <span class="flex flex-col items-center hover:text-slate-300 cursor-pointer">
-                                    <span class="text-lg">⏱️</span> <span class="text-[9px] mt-0.5">Budgets</span>
-                                </span>
-                                <span class="flex flex-col items-center hover:text-slate-300 cursor-pointer">
-                                    <span class="text-lg">🎯</span> <span class="text-[9px] mt-0.5">Goals</span>
-                                </span>
-                                <span class="flex flex-col items-center hover:text-slate-300 cursor-pointer">
-                                    <span class="text-lg">🛠️</span> <span class="text-[9px] mt-0.5">Tools</span>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
+        <ul class="checks">
+          <li>No account</li>
+          <li>No internet permission</li>
+          <li>MIT licensed</li>
+        </ul>
+        <div class="style-pick" role="radiogroup" aria-labelledby="style-label">
+          <span id="style-label">App style</span>
+          <button type="button" role="radio" data-style="atelier" aria-checked="true">Atelier</button>
+          <button type="button" role="radio" data-style="glass" aria-checked="false">Liquid glass</button>
         </div>
+        <p class="style-note">Switch to see each look the app offers. Light or dark follows your device.</p>
+      </div>
+
+      <div class="hero-art">
+        <canvas class="orb" aria-hidden="true"></canvas>
+        <div class="phone-wrap">
+        <figure class="phone phone-hero">
+          <img data-shot="home" src="screenshots/atelier/atelier-light-1-home.jpg" alt="AkSpend home screen in the Atelier style: net balance of ₹36,021.00 with Add and Transfer buttons" width="450" height="928" fetchpriority="high">
+        </figure>
+        <div class="chip chip-a" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2.5"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg>
+          Fingerprint lock
+        </div>
+        <div class="chip chip-b" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4 12.5 9 17.5 20 6.5"/></svg>
+          Works with no signal
+        </div>
+        </div>
+      </div>
     </section>
 
-    <!-- Deep Functions & Features Explanation -->
-    <section id="features" class="py-24 max-w-6xl mx-auto px-6 border-b border-slate-900">
-        <div class="text-center max-w-2xl mx-auto mb-20">
-            <span class="text-sm font-bold text-emerald-500 uppercase tracking-widest block mb-3">Core Capabilities</span>
-            <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-                An executive personal ledger that keeps you in command of your money
-            </h2>
-            <p class="text-slate-400 mt-4 leading-relaxed">
-                AkSpend does of all the heavy calculations, indexing, and budget monitoring locally inside your secure Android sandbox. No accounts, no sign-ups, no data harvesting.
-            </p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            
-            <!-- Ledger & Multi-Currency Wallet -->
-            <div class="p-8 bg-slate-900/30 rounded-2xl border border-slate-900 hover:border-emerald-500/20 hover:bg-slate-900/40 transition-all duration-300 group">
-                <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/15 flex items-center justify-center text-emerald-500 text-xl font-bold mb-6 group-hover:scale-110 transition-transform duration-300">
-                    💳
-                </div>
-                <h3 class="text-xl font-bold text-white mb-3">Multi-Currency Local Ledger</h3>
-                <p class="text-sm text-slate-400 leading-relaxed">
-                    Create instant transaction records by switching local currency settings effortlessly (supports ₹, $, €, £, and custom symbols). Formats figures on the fly based on current systems, maintaining your correct cumulative and transactional balance state perfectly.
-                </p>
-            </div>
-
-            <!-- Intelligent Categorization -->
-            <div class="p-8 bg-slate-900/30 rounded-2xl border border-slate-900 hover:border-emerald-500/20 hover:bg-slate-900/40 transition-all duration-300 group">
-                <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/15 flex items-center justify-center text-emerald-500 text-xl font-bold mb-6 group-hover:scale-110 transition-transform duration-300">
-                    📊
-                </div>
-                <h3 class="text-xl font-bold text-white mb-3">Intelligent Expense Tracking</h3>
-                <p class="text-sm text-slate-400 leading-relaxed">
-                    Easily categorize and log your daily expenses. AkSpend maintains a clean ledger of your spending habits, helping you visualize where your money goes without ever touching the cloud.
-                </p>
-            </div>
-
-            <!-- Dynamic Budgets & Safety Monitors -->
-            <div class="p-8 bg-slate-900/30 rounded-2xl border border-slate-900 hover:border-emerald-500/20 hover:bg-slate-900/40 transition-all duration-300 group">
-                <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/15 flex items-center justify-center text-emerald-500 text-xl font-bold mb-6 group-hover:scale-110 transition-transform duration-300">
-                    ⏱️
-                </div>
-                <h3 class="text-xl font-bold text-white mb-3">Categorized Monthly Budgets</h3>
-                <p class="text-sm text-slate-400 leading-relaxed">
-                    Establish custom fiscal caps for individual pillars like Foods, Shopping, Transport, and Bills. The application constantly assesses your real-time spend velocities against limits, serving subtle progress graphics and alerts if you approach limits.
-                </p>
-            </div>
-
-            <!-- Savings Milestones Goals -->
-            <div class="p-8 bg-slate-900/30 rounded-2xl border border-slate-900 hover:border-emerald-500/20 hover:bg-slate-900/40 transition-all duration-300 group">
-                <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/15 flex items-center justify-center text-emerald-500 text-xl font-bold mb-6 group-hover:scale-110 transition-transform duration-300">
-                    🎯
-                </div>
-                <h3 class="text-xl font-bold text-white mb-3">Savings Goals & Target Milestones</h3>
-                <p class="text-sm text-slate-400 leading-relaxed">
-                    Set up dedicated buckets for emergencies, modern tech setups, or travel funds. Record compound savings, assign targeted resolution dates, and distribute liquid cash to goals to observe completion rates climbing towards 100%.
-                </p>
-            </div>
-
-            <!-- Billing Schedules -->
-            <div class="p-8 bg-slate-900/30 rounded-2xl border border-slate-900 hover:border-emerald-500/20 hover:bg-slate-900/40 transition-all duration-300 group">
-                <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/15 flex items-center justify-center text-emerald-500 text-xl font-bold mb-6 group-hover:scale-110 transition-transform duration-300">
-                    🔄
-                </div>
-                <h3 class="text-xl font-bold text-white mb-3">Recurring Bills Schedule</h3>
-                <p class="text-sm text-slate-400 leading-relaxed">
-                    Stay on top of repeating overheads such as insurance, software subscriptions, or home rent. Pre-configure items with daily, weekly, or monthly triggers, and AkSpend's scheduler will queue and generate correct ledger transactions automatically.
-                </p>
-            </div>
-
-            <!-- Material 3 Engineering -->
-            <div class="p-8 bg-slate-900/30 rounded-2xl border border-slate-900 hover:border-emerald-500/20 hover:bg-slate-900/40 transition-all duration-300 group">
-                <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/15 flex items-center justify-center text-emerald-500 text-xl font-bold mb-6 group-hover:scale-110 transition-transform duration-300">
-                    🎨
-                </div>
-                <h3 class="text-xl font-bold text-white mb-3">Material 3 Obsidian Canvas</h3>
-                <p class="text-sm text-slate-400 leading-relaxed">
-                    An interface designed to keep you concentrated. Implements a fluid screen setup featuring custom-derived state transitions, detailed dark theme layouts, adaptive spacing columns, and gorgeous custom canvas-bound bar and cash flow vectors.
-                </p>
-            </div>
-
-        </div>
+    <!-- HOW IT WORKS -->
+    <section id="how" class="section" aria-labelledby="how-title">
+      <div class="section-head">
+        <p class="eyebrow">How it works</p>
+        <h2 id="how-title">Log it, see it, stay on budget.</h2>
+      </div>
+      <ol class="how">
+        <li class="reveal">
+          <figure class="phone">
+            <img data-shot="log" src="screenshots/atelier/atelier-light-2-activity.jpg" alt="Activity in the Atelier style: today's expenses and income with category and payment method" width="450" height="928" loading="lazy">
+          </figure>
+          <span class="step-n">1</span>
+          <h3>Log a spend in two taps</h3>
+          <p>Add it in the app or from the home-screen widget. Pick the account it came from; moving money between your own accounts never counts as income.</p>
+        </li>
+        <li class="reveal">
+          <figure class="phone">
+            <img data-shot="insights" src="screenshots/atelier/atelier-light-4-insights.jpg" alt="Insights in the Atelier style: spending forecast and spending by category" width="450" height="928" loading="lazy">
+          </figure>
+          <span class="step-n">2</span>
+          <h3>See where it went</h3>
+          <p>Insights shows spending by category, the last seven days and a month-end forecast, all worked out on the phone.</p>
+        </li>
+        <li class="reveal">
+          <figure class="phone">
+            <img data-shot="budgets" src="screenshots/atelier/atelier-light-3-budgets.jpg" alt="Budgets in the Atelier style, before any budget is set, with a New budget button" width="450" height="928" loading="lazy">
+          </figure>
+          <span class="step-n">3</span>
+          <h3>Stay under budget</h3>
+          <p>Set weekly or monthly limits per category, watch them fill, and get a heads-up before you go over.</p>
+        </li>
+      </ol>
     </section>
 
-    <!-- Upcoming Features & Product Roadmap -->
-    <section id="roadmap" class="py-24 max-w-6xl mx-auto px-6 border-b border-slate-900">
-        <div class="text-center max-w-2xl mx-auto mb-16">
-            <span class="text-sm font-bold text-emerald-500 uppercase tracking-widest block mb-3">Under Active Development</span>
-            <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-                AkSpend Roadmap: Upcoming Integrations
-            </h2>
-            <p class="text-slate-400 mt-4 leading-relaxed">
-                We are committed to extending AkSpend's capabilities while preserving our absolute oath of data sovereignty. Here is what we are building next.
-            </p>
-        </div>
-
-        <div class="relative border-l border-slate-800 ml-4 md:ml-32 space-y-12">
-            
-            <!-- Roadmap item 1 -->
-            <div class="relative pl-8 sm:pl-12">
-                <div class="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-emerald-400 border-4 border-slate-950"></div>
-                <div class="bg-gradient-to-r from-slate-900/40 to-slate-900/10 border border-slate-800 hover:border-slate-700 transition-all p-6 rounded-2xl">
-                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                            <span>🤖 Smart AI Budgeting Assistant</span>
-                            <span class="text-[10px] bg-emerald-500/15 text-emerald-400 border border-emerald-400/20 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">In Progress</span>
-                        </h3>
-                        <span class="text-xs text-slate-500 font-semibold">Scheduled: Q3 2026</span>
-                    </div>
-                    <p class="text-sm text-slate-400 leading-relaxed">
-                        Integrating on-device Gemini AI processing (under Gemini's absolute edge models or secure server-side API sandboxes with anonymized parameters). The assistant will detect silent subscription growths, forecast burn-rates, and summarize seasonal financial patterns locally.
-                    </p>
-                </div>
-            </div>
-
-            <!-- Roadmap item 2 -->
-            <div class="relative pl-8 sm:pl-12">
-                <div class="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-slate-700 border-4 border-slate-950"></div>
-                <div class="bg-gradient-to-r from-slate-900/40 to-slate-900/10 border border-slate-900 hover:border-slate-700 transition-all p-6 rounded-2xl">
-                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                        <h3 class="text-lg font-bold text-slate-200 flex items-center gap-2">
-                            <span>🔒 Zero-Knowledge Cloud Backup & Sync</span>
-                            <span class="text-[10px] bg-slate-800 text-slate-400 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">Planning</span>
-                        </h3>
-                        <span class="text-xs text-slate-500 font-semibold">Scheduled: Q4 2026</span>
-                    </div>
-                    <p class="text-sm text-slate-400 leading-relaxed">
-                        A dynamic sync module allowing transactions to mirror across tablet, wear, and secondary mobile screens. Data will be run through high-grade end-to-end client-side encryption using a password key managed strictly by you before ever uploading to a storage bucket.
-                    </p>
-                </div>
-            </div>
-
-            <!-- Roadmap item 3 -->
-            <div class="relative pl-8 sm:pl-12">
-                <div class="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-slate-700 border-4 border-slate-950"></div>
-                <div class="bg-gradient-to-r from-slate-900/40 to-slate-900/10 border border-slate-900 hover:border-slate-700 transition-all p-6 rounded-2xl">
-                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                        <h3 class="text-lg font-bold text-slate-200 flex items-center gap-2">
-                            <span>📄 OCR Smart Receipt & Invoice Scan</span>
-                            <span class="text-[10px] bg-slate-800 text-slate-400 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">Planning</span>
-                        </h3>
-                        <span class="text-xs text-slate-500 font-semibold">Scheduled: Q1 2027</span>
-                    </div>
-                    <p class="text-sm text-slate-400 leading-relaxed">
-                        Point the camera at any supermarket bill, gas station receipt, or enterprise invoice. Our local machine learning text-extractors will scan the layout, split items, isolate taxes, extract cash-flow quantities, and file the correct transaction ledger entries automatically.
-                    </p>
-                </div>
-            </div>
-
-            <!-- Roadmap item 4 -->
-            <div class="relative pl-8 sm:pl-12">
-                <div class="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-slate-700 border-4 border-slate-950"></div>
-                <div class="bg-gradient-to-r from-slate-900/40 to-slate-900/10 border border-slate-900 hover:border-slate-700 transition-all p-6 rounded-2xl">
-                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                        <h3 class="text-lg font-bold text-slate-200 flex items-center gap-2">
-                            <span>📈 Advanced Co-Investment & Asset Dividends</span>
-                            <span class="text-[10px] bg-slate-800 text-slate-400 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">Concept</span>
-                        </h3>
-                        <span class="text-xs text-slate-500 font-semibold">Scheduled: Q2 2027</span>
-                    </div>
-                    <p class="text-sm text-slate-400 leading-relaxed">
-                        Track compound savings yields, index equity investments, and log passive income pipelines, keeping your total asset health completely transparent and centralized beside your immediate checkings register.
-                    </p>
-                </div>
-            </div>
-
-        </div>
+    <!-- FEATURES -->
+    <section id="features" class="section" aria-labelledby="features-title">
+      <div class="section-head">
+        <p class="eyebrow">Features</p>
+        <h2 id="features-title">What else is inside</h2>
+      </div>
+      <ul class="grid">
+        <li class="card reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 14.5h2"/></svg>
+          <h3>Many accounts, one total</h3>
+          <p>Cash, bank, wallet, savings and credit cards. Transfers move money between them without counting as income or spending, and reconciliation keeps balances true.</p>
+        </li>
+        <li class="card reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 15v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3"/></svg>
+          <h3>Bring your statements</h3>
+          <p>Import bank or wallet CSVs in a staged review. Duplicates are caught by row fingerprint.</p>
+        </li>
+        <li class="card reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2.5"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg>
+          <h3>Biometric lock</h3>
+          <p>Fingerprint or face unlock, backed by the Android keystore.</p>
+        </li>
+        <li class="card reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6z"/><path d="M9 13h6M9 16.5h6M14.5 4v3.5H18"/></svg>
+          <h3>Backups you hold</h3>
+          <p>Export a JSON backup or the raw database and restore it whenever you like. Android cloud backup is switched off.</p>
+        </li>
+        <li class="card reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
+          <h3>A weekly digest</h3>
+          <p>Top categories, unusual spends and a month-end forecast, plus savings goals alongside your budgets.</p>
+        </li>
+        <li class="card reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7M20 4v4.5h-4.5"/></svg>
+          <h3>Recurring, loans and a widget</h3>
+          <p>Recurring transactions, money you've lent or borrowed, a quick-add home-screen widget, and light and dark themes that follow your phone.</p>
+        </li>
+      </ul>
     </section>
 
-    <!-- Detailed Privacy Model Statement -->
-    <section id="privacy" class="py-24 bg-slate-900/20 border-b border-slate-900">
-        <div class="max-w-5xl mx-auto px-6">
-            <div class="bg-gradient-to-br from-slate-950 to-slate-900 rounded-3xl border border-slate-800 p-8 sm:p-12 relative overflow-hidden">
-                <div class="absolute -top-24 -right-24 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
-                
-                <div class="relative z-10 max-w-3xl">
-                    <span class="text-emerald-500 font-bold uppercase text-xs tracking-wider block mb-3">The Zero-Server Manifesto</span>
-                    <h2 class="text-3xl font-extrabold text-white mb-6">Designed to protect your financial footprint from day one</h2>
-                    <p class="text-slate-400 leading-relaxed mb-6 font-medium text-base">
-                        Your budget is your personal business. Traditional companies log your habits on their databases to advertise and optimize their profits. AkSpend is designed under an opposite, uncompromising local-first design:
-                    </p>
-                    <ul class="space-y-4 mb-8 text-sm text-slate-300">
-                        <li class="flex items-start">
-                            <span class="text-emerald-500 mr-2.5 font-bold">✓</span>
-                            <span><strong>No Cloud Accounts:</strong> You don't need a username, phone linking, password reset portal, or identity login screen. You install the app, set basic parameters, and start logging instantly.</span>
-                        </li>
-                        <li class="flex items-start">
-                            <span class="text-emerald-500 mr-2.5 font-bold">✓</span>
-                            <span><strong>Fully Isolated Room Database:</strong> All data cells sit within SQLite tables encrypted by standard Android system-level sandboxing.</span>
-                        </li>
-                        <li class="flex items-start">
-                            <span class="text-emerald-500 mr-2.5 font-bold">✓</span>
-                            <span><strong>Raw Local SMS Scans:</strong> Our parser translates transaction strings inside device runtime memory. The original SMS files never get parsed onto server APIs.</span>
-                        </li>
-                        <li class="flex items-start">
-                            <span class="text-emerald-500 mr-2.5 font-bold">✓</span>
-                            <span><strong>No Background Trackers:</strong> We deploy zero Facebook SDKs, Google Analytics libraries, Mixpanel codes, or third-party marketing tags inside our builds.</span>
-                        </li>
-                    </ul>
-                    <div class="flex flex-wrap gap-4">
-                        <a href="privacy.html" class="inline-flex items-center text-sm font-semibold text-emerald-400 hover:text-emerald-300 transition-colors underline">
-                            Read detailed Privacy Policy &rarr;
-                        </a>
-                        <span class="hidden sm:inline text-slate-700">|</span>
-                        <a href="terms.html" class="inline-flex items-center text-sm font-semibold text-emerald-400 hover:text-emerald-300 transition-colors underline">
-                            Read terms of service &rarr;
-                        </a>
-                    </div>
-                </div>
-            </div>
+    <!-- PRIVACY -->
+    <section id="privacy" class="section privacy" aria-labelledby="privacy-title">
+      <div class="privacy-copy reveal">
+        <p class="eyebrow">Privacy</p>
+        <h2 id="privacy-title">Many money apps earn from your data. <span class="accent">AkSpend never sees&nbsp;it.</span></h2>
+        <p>There is no AkSpend server. Your ledger is a database on your phone, and it only leaves when you export it yourself.</p>
+        <p class="fineprint">The <a href="https://github.com/akshar2324/Expanse-Tracker" rel="noopener">source code</a> is public, and the app's manifest asks for no internet permission. Read the <a href="privacy.html">privacy policy</a>.</p>
+      </div>
+      <div class="compare reveal" role="table" aria-label="AkSpend compared with a typical finance app">
+        <div class="compare-row compare-head" role="row">
+          <span role="columnheader"></span><span role="columnheader">Typical app</span><span role="columnheader">AkSpend</span>
         </div>
+        <div class="compare-row" role="row"><span role="rowheader">Account required</span><span role="cell" class="no">Yes</span><span role="cell" class="yes">No</span></div>
+        <div class="compare-row" role="row"><span role="rowheader">Your data on their servers</span><span role="cell" class="no">Yes</span><span role="cell" class="yes">Never</span></div>
+        <div class="compare-row" role="row"><span role="rowheader">Ads and analytics SDKs</span><span role="cell" class="no">Usually</span><span role="cell" class="yes">None</span></div>
+        <div class="compare-row" role="row"><span role="rowheader">Works with no signal</span><span role="cell" class="no">Partly</span><span role="cell" class="yes">Fully</span></div>
+        <div class="compare-row" role="row"><span role="rowheader">Code you can read</span><span role="cell" class="no">No</span><span role="cell" class="yes">All of it</span></div>
+      </div>
     </section>
 
-    <!-- Installation Center -->
-    <section id="download" class="py-24 relative bg-slate-950">
-        <div class="max-w-4xl mx-auto px-6 text-center relative z-10">
-            <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight mb-4 animate-pulse">
-                Keep your finances private and secure
-            </h2>
-            <p class="text-slate-400 max-w-lg mx-auto mb-10 text-base leading-relaxed">
-                Compile and install the safe, tracker-free companion for your financial health. Downward-compatible with Android devices running SDK 26+.
-            </p>
-
-            <div class="inline-flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto">
-                <a href="https://github.com/axar2324/AkSpend/releases" class="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 text-base font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition-all rounded-xl shadow-lg shadow-emerald-500/20">
-                    📂 Download APK via GitHub
-                </a>
-                <a href="mailto:axar2324@gmail.com" class="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 text-base font-bold text-slate-300 bg-slate-900 border border-slate-800 hover:bg-slate-800 transition-all rounded-xl">
-                    Get Support Help
-                </a>
-            </div>
+    <!-- DOWNLOAD + INSTALL -->
+    <section id="download" class="section" aria-labelledby="download-title">
+      <div class="download-panel reveal">
+        <h2 id="download-title">Take your money offline.</h2>
+        <p>Free and open source, and a 4 MB download. Install it and start logging.</p>
+        <div class="cta-row">
+          <a class="btn btn-light" href="https://github.com/akshar2324/Expanse-Tracker/releases/latest" rel="noopener">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
+            <span>Download APK <small>v1.4.0 · Android 7.0+</small></span>
+          </a>
+          <a class="btn btn-outline-light" href="https://github.com/akshar2324/Expanse-Tracker" rel="noopener">View source</a>
         </div>
+      </div>
+
+      <div id="install" class="install">
+        <h3 class="install-title">Installing takes about a minute</h3>
+        <ol class="steps">
+          <li class="card reveal">
+            <span class="step-n">1</span>
+            <h4>Download the APK</h4>
+            <p>On your Android phone, tap <strong>Download APK</strong>. It opens the latest release on GitHub. Tap the file ending in <code>.apk</code>.</p>
+          </li>
+          <li class="card reveal">
+            <span class="step-n">2</span>
+            <h4>Allow this one install</h4>
+            <p>Android asks before installing apps from outside the Play Store. Tap <strong>Settings</strong>, turn on <strong>Allow from this source</strong> for your browser, then go back.</p>
+          </li>
+          <li class="card reveal">
+            <span class="step-n">3</span>
+            <h4>Install and open</h4>
+            <p>Tap <strong>Install</strong>, then <strong>Open</strong>. There's no sign-up: you're logging your first expense straight away. You can turn the browser permission off again afterwards.</p>
+          </li>
+        </ol>
+        <div class="card safety reveal">
+          <h4>Is it safe? You can check.</h4>
+          <ul>
+            <li><strong>No internet permission.</strong> An app's manifest lists what it's allowed to do, and AkSpend's has no internet access, so it can't send your data anywhere. Check it in the <a href="https://github.com/akshar2324/Expanse-Tracker/blob/main/app/src/main/AndroidManifest.xml" rel="noopener">source</a> or with any APK inspector app.</li>
+            <li><strong>Built from public code.</strong> Every release is built from the <a href="https://github.com/akshar2324/Expanse-Tracker" rel="noopener">open-source repository</a>, so anyone can read what it does.</li>
+            <li><strong>Only download from this page or the GitHub releases page.</strong> Copies of the APK on other sites aren't ours.</li>
+          </ul>
+        </div>
+      </div>
     </section>
+  </main>
 
-    <!-- Page Footer -->
-    <footer class="border-t border-slate-900 bg-slate-950 py-12 mt-auto">
-        <div class="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between text-sm text-slate-500">
-            <div class="flex items-center space-x-2.5 mb-6 md:mb-0">
-                <span class="text-lg font-bold text-white tracking-tight">Ak<span class="text-emerald-500">Spend</span></span>
-                <span class="text-slate-700">|</span>
-                <span>The Absolute Offline Financial Ledger</span>
-            </div>
-            
-            <div class="flex flex-wrap justify-center gap-x-8 gap-y-4">
-                <a href="privacy.html" class="hover:text-slate-300 transition-colors underline">Privacy Policy</a>
-                <a href="terms.html" class="hover:text-slate-300 transition-colors underline">Terms and Conditions</a>
-                <a href="mailto:axar2324@gmail.com" class="hover:text-slate-300 transition-colors">Support Email</a>
-            </div>
-        </div>
-        <div class="max-w-6xl mx-auto px-6 mt-8 pt-8 border-t border-slate-900 text-center text-xs text-slate-600">
-            <p>&copy; 2026 AkSpend Application. Purely local-first software. All rights reserved.</p>
-        </div>
-    </footer>
+  <footer class="footer">
+    <a class="brand brand-sm" href="#top">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" class="brand-bg"/><path d="M8 12h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-10zm0 0 11-4v4" class="brand-line"/><circle cx="20" cy="18" r="1.6" class="brand-dot"/></svg>
+      <span>AkSpend</span>
+    </a>
+    <nav aria-label="Legal">
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+      <a href="mailto:axar2324@gmail.com">Contact</a>
+      <a href="https://github.com/akshar2324/Expanse-Tracker" rel="noopener">GitHub</a>
+    </nav>
+    <span class="muted">Open source under the MIT license.</span>
+  </footer>
 
+  <script src="assets/site.js" defer></script>
 </body>
 </html>
