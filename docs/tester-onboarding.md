@@ -4,13 +4,12 @@ Welcome! Thank you for helping test AkSpend, an offline-first Android personal f
 
 ## How to Join the Google Play Closed Test
 
-To become a tester for AkSpend, follow these simple steps:
+Joining takes about two minutes:
 
-1. **Provide Your Email**: Ensure that the developer has added your Google Account email address to the testing list in the Google Play Console.
-2. **Accept the Invitation**: You will receive an invitation link (usually looking like `https://play.google.com/apps/testing/com.akshar`). Click the link on your Android device or via a web browser signed in to the same Google Account.
-3. **Become a Tester**: On the testing page, click the **"Become a Tester"** button.
-4. **Download the App**: Follow the prompt to download AkSpend from the Google Play Store on your device.
-5. **Keep the App Installed**: As part of Google Play's closed testing requirements, please keep the app installed on your device and actively test it for the required duration (usually 14 days).
+1. **Join the Google Group**: Open [testers-community](https://groups.google.com/g/testers-community) and tap **Join group**.
+2. **Use your Play account**: Join with the same Google account that's signed in to the Play Store on your phone.
+3. **Open AkSpend on Google Play**: On your phone, open the [Play listing](https://play.google.com/store/apps/details?id=com.akshar.akspend). If it isn't visible yet, wait a few minutes after joining and try again.
+4. **Install and keep it**: Install AkSpend like any app and keep it installed for 14 days. Updates arrive through Google Play.
 
 ## What Feedback to Provide
 
@@ -22,7 +21,7 @@ Your insights are invaluable. While testing AkSpend, please pay attention to:
 - **Performance**: Does the app feel fast and responsive?
 - **Data Import/Export**: Try importing a CSV file or taking a backup. Did it work as expected?
 
-Please submit your feedback through the designated testing group or via the contact method provided in the testing invitation.
+Please send feedback by [opening an issue on GitHub](https://github.com/akshar2324/Expanse-Tracker/issues).
 
 ## Privacy Note
 
