@@ -160,6 +160,11 @@ fun AddTransactionScreen(
 
     val accent = if (isExpense) AkSpendTheme.finance.expense else AkSpendTheme.finance.income
     val onAccent = MaterialTheme.colorScheme.surface
+    // Flat styles (Atelier) keep filled controls in ink/champagne like every other button and
+    // leave red/green to the amount itself, so the form stays calm.
+    val flatStyle = AkSpendTheme.style.isFlat
+    val fillAccent = if (flatStyle) MaterialTheme.colorScheme.primary else accent
+    val onFillAccent = if (flatStyle) MaterialTheme.colorScheme.onPrimary else onAccent
     val glass = AkSpendTheme.glass
 
     val amountFocus = remember { FocusRequester() }
@@ -303,14 +308,14 @@ fun AddTransactionScreen(
                         .fillMaxHeight()
                         .padding(4.dp)
                         .clip(PillShape)
-                        .background(if (isExpense) AkSpendTheme.finance.expense else Color.Transparent)
+                        .background(if (isExpense) fillAccent else Color.Transparent)
                         .selectable(selected = isExpense, role = Role.Tab) { isExpense = true },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "Expense",
                         style = MaterialTheme.typography.labelLarge,
-                        color = if (isExpense) onAccent else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (isExpense) onFillAccent else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -320,14 +325,14 @@ fun AddTransactionScreen(
                         .fillMaxHeight()
                         .padding(4.dp)
                         .clip(PillShape)
-                        .background(if (!isExpense) AkSpendTheme.finance.income else Color.Transparent)
+                        .background(if (!isExpense) fillAccent else Color.Transparent)
                         .selectable(selected = !isExpense, role = Role.Tab) { isExpense = false },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "Income",
                         style = MaterialTheme.typography.labelLarge,
-                        color = if (!isExpense) onAccent else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (!isExpense) onFillAccent else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -384,8 +389,8 @@ fun AddTransactionScreen(
                     ) {
                         rowList.forEach { category ->
                             val selected = category == categorySelected
-                            val chipColor = if (selected) accent else glass.fill
-                            val textColor = if (selected) onAccent else MaterialTheme.colorScheme.onSurface
+                            val chipColor = if (selected) fillAccent else glass.fill
+                            val textColor = if (selected) onFillAccent else MaterialTheme.colorScheme.onSurface
 
                             Box(
                                 modifier = Modifier
@@ -479,7 +484,7 @@ fun AddTransactionScreen(
                             Text(
                                 text = dateFormatter.format(Date(dateSelected)),
                                 style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = AkSpendTheme.emphasis
                                 )
                             )
                         }
@@ -558,8 +563,8 @@ fun AddTransactionScreen(
                     .height(56.dp),
                 shape = PillShape,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = accent,
-                    contentColor = onAccent
+                    containerColor = fillAccent,
+                    contentColor = onFillAccent
                 )
             ) {
                 Text(

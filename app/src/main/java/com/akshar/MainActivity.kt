@@ -41,7 +41,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavHostController
 import androidx.navigation.navDeepLink
 import com.akshar.ui.screens.*
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import com.akshar.ui.theme.AkSpendTheme
+import com.akshar.ui.theme.Appearance
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -133,7 +136,8 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) AppNavigationRequests.handle(intent)
         enableEdgeToEdge()
-        
+        Appearance.load(this)
+
         val sharedPrefs = getSharedPreferences(AppLock.PREFS, android.content.Context.MODE_PRIVATE)
         appLock = AppLock(sharedPrefs)
         val onboardingCompleted = sharedPrefs.getBoolean("onboarding_completed", false)
@@ -462,7 +466,9 @@ fun AppScaffold(viewModel: FinanceViewModel) {
         }
     }
 
-    val blurState = rememberGlassBlurState()
+    // Flat styles (Atelier) use a solid bar, so there is nothing to blur.
+    val flatStyle = AkSpendTheme.style.isFlat
+    val blurState = if (flatStyle) null else rememberGlassBlurState()
     val contentInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -495,7 +501,11 @@ fun AppScaffold(viewModel: FinanceViewModel) {
             }
         } else {
             val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            val barInset = if (showNavigation) FloatingBarHeight + FloatingBarMargin + navBarBottom + Spacing.lg else 0.dp
+            val barInset = when {
+                !showNavigation -> 0.dp
+                flatStyle -> FlatBarHeight + navBarBottom + Spacing.lg
+                else -> FloatingBarHeight + FloatingBarMargin + navBarBottom + Spacing.lg
+            }
 
             Box(modifier = Modifier.fillMaxSize()) {
                 Box(modifier = Modifier.fillMaxSize().glassBlurSource(blurState)) {
@@ -517,12 +527,16 @@ fun AppScaffold(viewModel: FinanceViewModel) {
                     enter = fadeIn(motionSpec<Float>()) + slideInVertically(motionSpec<IntOffset>()) { it / 2 },
                     exit = fadeOut(motionSpec<Float>(Durations.quick)) + slideOutVertically(motionSpec<IntOffset>(Durations.quick)) { it / 2 }
                 ) {
-                    FloatingTabBar(
-                        tabs = tabs,
-                        currentRoute = currentRoute,
-                        onSelect = navigateToTab,
-                        blurState = blurState
-                    )
+                    if (flatStyle) {
+                        FlatTabBar(tabs = tabs, currentRoute = currentRoute, onSelect = navigateToTab)
+                    } else {
+                        FloatingTabBar(
+                            tabs = tabs,
+                            currentRoute = currentRoute,
+                            onSelect = navigateToTab,
+                            blurState = blurState
+                        )
+                    }
                 }
             }
         }
@@ -531,6 +545,90 @@ fun AppScaffold(viewModel: FinanceViewModel) {
 
 private val FloatingBarHeight = 68.dp
 private val FloatingBarMargin = 12.dp
+private val FlatBarHeight = 64.dp
+
+/**
+ * Atelier's tab bar: a solid strip in the page colour with a single hairline above it. The
+ * active tab is marked by ink colour and a small accent dot rather than a filled pill.
+ */
+@Composable
+private fun FlatTabBar(
+    tabs: List<NavigationTabItem>,
+    currentRoute: String?,
+    onSelect: (String) -> Unit,
+) {
+    val glass = AkSpendTheme.glass
+    val hairline = MaterialTheme.colorScheme.outlineVariant
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(glass.base)
+            .drawBehind { drawLine(hairline, Offset(0f, 0f), Offset(size.width, 0f), strokeWidth = 1.dp.toPx()) }
+            .navigationBarsPadding(),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            modifier = Modifier
+                .widthIn(max = 560.dp)
+                .fillMaxWidth()
+                .height(FlatBarHeight)
+                .padding(horizontal = Spacing.sm)
+                .selectableGroup(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            tabs.forEach { tab ->
+                FlatTabBarItem(
+                    tab = tab,
+                    selected = currentRoute == tab.route,
+                    onClick = { onSelect(tab.route) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FlatTabBarItem(
+    tab: NavigationTabItem,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val contentColor by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        motionSpec(),
+        label = "flatTabContent"
+    )
+    val dotColor by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.secondary else Color.Transparent,
+        motionSpec(),
+        label = "flatTabDot"
+    )
+    Column(
+        modifier = modifier
+            .fillMaxHeight()
+            .selectable(selected = selected, role = Role.Tab, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = tab.icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(
+            text = tab.label,
+            style = MaterialTheme.typography.labelSmall,
+            color = contentColor,
+            maxLines = 1
+        )
+        Spacer(Modifier.height(4.dp))
+        Box(Modifier.size(4.dp).clip(CircleShape).background(dotColor))
+    }
+}
 
 /** Capsule tab bar that floats over content and frosts whatever scrolls underneath it. */
 @Composable

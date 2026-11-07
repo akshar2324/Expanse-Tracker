@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import com.akshar.ui.theme.AkSpendTheme
 import com.akshar.ui.theme.Spacing
 import com.akshar.data.model.Transaction
 import java.text.SimpleDateFormat
@@ -70,6 +71,8 @@ fun TrendLineChart(transactions: List<Transaction>, lineColor: Color) {
     val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)
     val dotFill = MaterialTheme.colorScheme.surface
     val reveal = rememberChartReveal()
+    // Atelier keeps the area under the line to a faint wash so the line itself leads.
+    val areaAlpha = if (AkSpendTheme.style.isFlat) 0.10f else 0.28f
     val summary = remember(points) {
         "Daily totals. " + points.joinToString("; ") { "day ${it.first}: ${String.format("%,.0f", it.second)}" }
     }
@@ -124,7 +127,7 @@ fun TrendLineChart(transactions: List<Transaction>, lineColor: Color) {
             drawPath(
                 path = fillPath,
                 brush = Brush.verticalGradient(
-                    colors = listOf(lineColor.copy(alpha = 0.28f), Color.Transparent)
+                    colors = listOf(lineColor.copy(alpha = areaAlpha), Color.Transparent)
                 )
             )
             drawPath(

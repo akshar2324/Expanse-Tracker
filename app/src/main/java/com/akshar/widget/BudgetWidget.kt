@@ -33,6 +33,7 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.semantics.contentDescription
 import androidx.glance.semantics.semantics
+import androidx.glance.text.FontFamily
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -42,6 +43,12 @@ import com.akshar.ExpenseTrackerApp
 import com.akshar.MainActivity
 import com.akshar.data.repository.FinanceRepository
 import com.akshar.utils.CurrencyUtils
+import com.akshar.ui.theme.AppStyle
+import com.akshar.ui.theme.Appearance
+import com.akshar.ui.theme.AtelierDarkColorScheme
+import com.akshar.ui.theme.AtelierDarkFinance
+import com.akshar.ui.theme.AtelierLightColorScheme
+import com.akshar.ui.theme.AtelierLightFinance
 import com.akshar.ui.theme.DarkFinanceColors
 import com.akshar.ui.theme.DarkOnSurface
 import com.akshar.ui.theme.DarkOnSurfaceVariant
@@ -62,8 +69,8 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * This period's spending against budgets, in the AkSpend palette. It follows the system
- * light/dark setting and opens the Budgets tab when tapped.
+ * This period's spending against budgets, in the chosen app style (Atelier or glass). It follows
+ * the system light/dark setting and opens the Budgets tab when tapped.
  */
 class BudgetWidget : GlanceAppWidget() {
 
@@ -74,9 +81,12 @@ class BudgetWidget : GlanceAppWidget() {
             .putExtra(AppNavigationRequests.EXTRA_OPEN_TAB, AppNavigationRequests.TAB_BUDGETS)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
 
+        Appearance.load(context)
+        val colors = WidgetColors.forStyle(Appearance.style)
+
         // With the app lock on, the home screen must not show what the lock protects.
         if (BudgetWidgetModel.isAppLockOn(context)) {
-            provideContent { LockedWidgetContent(actionIntent = openBudgets) }
+            provideContent { LockedWidgetContent(colors, actionIntent = openBudgets) }
             return
         }
 
@@ -90,7 +100,7 @@ class BudgetWidget : GlanceAppWidget() {
             // Live while the widget session is open; BudgetWidgetUpdater covers later changes.
             val flow = remember { stateFlow(repository) }
             val state by flow.collectAsState(initial)
-            BudgetWidgetContent(state, symbol, actionIntent = openBudgets)
+            BudgetWidgetContent(state, symbol, colors, actionIntent = openBudgets)
         }
     }
 
@@ -105,26 +115,67 @@ class BudgetWidget : GlanceAppWidget() {
     }
 }
 
-private object WidgetColors {
-    val panel = ColorProvider(day = Color(0xF2FFFCF9), night = Color(0xF2221E1B))
-    val title = ColorProvider(day = LightPrimary, night = DarkPrimary)
-    val text = ColorProvider(day = LightOnSurface, night = DarkOnSurface)
-    val muted = ColorProvider(day = LightOnSurfaceVariant, night = DarkOnSurfaceVariant)
-    val track = ColorProvider(day = LightOutlineVariant, night = DarkOutlineVariant)
-    val bar = ColorProvider(day = LightPrimary, night = DarkPrimary)
-    val warning = ColorProvider(day = LightFinanceColors.warning, night = DarkFinanceColors.warning)
-    val over = ColorProvider(day = LightFinanceColors.expense, night = DarkFinanceColors.expense)
-
-    /** Teal while on track, amber from 90 %, red once over. */
+private class WidgetColors(
+    val panel: GlanceColor,
+    val title: GlanceColor,
+    val text: GlanceColor,
+    val muted: GlanceColor,
+    val track: GlanceColor,
+    val bar: GlanceColor,
+    val warning: GlanceColor,
+    val over: GlanceColor,
+    /** Atelier sets the title and headline amount in a serif; widgets can only use the system one. */
+    val serif: Boolean,
+) {
+    /** The style's accent while on track, amber from 90 %, red once over. */
     fun forUsage(fraction: Float, isOver: Boolean): GlanceColor = when {
         isOver -> over
         fraction >= 0.9f -> warning
         else -> bar
     }
+
+    companion object {
+        fun forStyle(style: AppStyle): WidgetColors = when (style) {
+            AppStyle.ATELIER -> WidgetColors(
+                panel = ColorProvider(day = Color(0xFFF7F5F0), night = Color(0xFF0C0C0C)),
+                title = ColorProvider(day = AtelierLightColorScheme.onSurface, night = AtelierDarkColorScheme.onSurface),
+                text = ColorProvider(day = AtelierLightColorScheme.onSurface, night = AtelierDarkColorScheme.onSurface),
+                muted = ColorProvider(day = AtelierLightColorScheme.onSurfaceVariant, night = AtelierDarkColorScheme.onSurfaceVariant),
+                track = ColorProvider(day = AtelierLightColorScheme.outlineVariant, night = AtelierDarkColorScheme.outlineVariant),
+                bar = ColorProvider(day = AtelierLightColorScheme.primary, night = AtelierDarkColorScheme.primary),
+                warning = ColorProvider(day = AtelierLightFinance.warning, night = AtelierDarkFinance.warning),
+                over = ColorProvider(day = AtelierLightFinance.expense, night = AtelierDarkFinance.expense),
+                serif = true,
+            )
+            AppStyle.GLASS -> WidgetColors(
+                panel = ColorProvider(day = Color(0xF2FFFCF9), night = Color(0xF2221E1B)),
+                title = ColorProvider(day = LightPrimary, night = DarkPrimary),
+                text = ColorProvider(day = LightOnSurface, night = DarkOnSurface),
+                muted = ColorProvider(day = LightOnSurfaceVariant, night = DarkOnSurfaceVariant),
+                track = ColorProvider(day = LightOutlineVariant, night = DarkOutlineVariant),
+                bar = ColorProvider(day = LightPrimary, night = DarkPrimary),
+                warning = ColorProvider(day = LightFinanceColors.warning, night = DarkFinanceColors.warning),
+                over = ColorProvider(day = LightFinanceColors.expense, night = DarkFinanceColors.expense),
+                serif = false,
+            )
+        }
+    }
+}
+
+private fun WidgetColors.titleStyle() = if (serif) {
+    TextStyle(color = title, fontSize = 18.sp, fontFamily = FontFamily.Serif)
+} else {
+    TextStyle(color = title, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+}
+
+private fun WidgetColors.amountStyle() = if (serif) {
+    TextStyle(color = text, fontSize = 24.sp, fontFamily = FontFamily.Serif)
+} else {
+    TextStyle(color = text, fontWeight = FontWeight.Bold, fontSize = 20.sp)
 }
 
 @Composable
-private fun BudgetWidgetContent(state: BudgetWidgetState, symbol: String, actionIntent: Intent) {
+private fun BudgetWidgetContent(state: BudgetWidgetState, symbol: String, colors: WidgetColors, actionIntent: Intent) {
     val money = { amount: Double -> BudgetWidgetModel.formatShort(amount, symbol) }
     val month = SimpleDateFormat("MMMM", Locale.getDefault()).format(Date())
     val showRows = LocalSize.current.height >= 300.dp
@@ -138,7 +189,7 @@ private fun BudgetWidgetContent(state: BudgetWidgetState, symbol: String, action
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(24.dp)
-            .background(WidgetColors.panel)
+            .background(colors.panel)
             .padding(14.dp)
             .clickable(actionStartActivity(actionIntent))
             .semantics { contentDescription = description },
@@ -147,44 +198,44 @@ private fun BudgetWidgetContent(state: BudgetWidgetState, symbol: String, action
         Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Vertical.CenterVertically) {
             Text(
                 text = "Budgets",
-                style = TextStyle(color = WidgetColors.title, fontWeight = FontWeight.Bold, fontSize = 15.sp),
+                style = colors.titleStyle(),
                 modifier = GlanceModifier.defaultWeight()
             )
-            Text(text = month, style = TextStyle(color = WidgetColors.muted, fontSize = 12.sp), maxLines = 1)
+            Text(text = month, style = TextStyle(color = colors.muted, fontSize = 12.sp), maxLines = 1)
         }
         Spacer(GlanceModifier.height(8.dp))
 
         if (!state.hasBudgets) {
             Text(
                 text = "No budgets yet",
-                style = TextStyle(color = WidgetColors.text, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                style = TextStyle(color = colors.text, fontWeight = FontWeight.Medium, fontSize = 14.sp)
             )
-            Text(text = "Tap to set one", style = TextStyle(color = WidgetColors.muted, fontSize = 12.sp))
+            Text(text = "Tap to set one", style = TextStyle(color = colors.muted, fontSize = 12.sp))
             return@Column
         }
 
         Text(
             text = money(state.totalSpent),
-            style = TextStyle(color = WidgetColors.text, fontWeight = FontWeight.Bold, fontSize = 20.sp),
+            style = colors.amountStyle(),
             maxLines = 1
         )
         Text(
             text = "of ${money(state.totalLimit)}",
-            style = TextStyle(color = WidgetColors.muted, fontSize = 12.sp),
+            style = TextStyle(color = colors.muted, fontSize = 12.sp),
             maxLines = 1
         )
         Spacer(GlanceModifier.height(6.dp))
         LinearProgressIndicator(
             progress = state.fraction,
             modifier = GlanceModifier.fillMaxWidth().height(8.dp).cornerRadius(4.dp),
-            color = WidgetColors.forUsage(state.fraction, state.isOver),
-            backgroundColor = WidgetColors.track
+            color = colors.forUsage(state.fraction, state.isOver),
+            backgroundColor = colors.track
         )
         Spacer(GlanceModifier.height(4.dp))
         Text(
             text = if (state.isOver) "${money(state.overBy)} over" else "${money(state.remaining)} left",
             style = TextStyle(
-                color = if (state.isOver) WidgetColors.over else WidgetColors.muted,
+                color = if (state.isOver) colors.over else colors.muted,
                 fontWeight = if (state.isOver) FontWeight.Medium else FontWeight.Normal,
                 fontSize = 12.sp
             ),
@@ -197,13 +248,13 @@ private fun BudgetWidgetContent(state: BudgetWidgetState, symbol: String, action
                 Row(modifier = GlanceModifier.fillMaxWidth()) {
                     Text(
                         text = if (row.weekly) "${row.label} · week" else row.label,
-                        style = TextStyle(color = WidgetColors.text, fontSize = 12.sp),
+                        style = TextStyle(color = colors.text, fontSize = 12.sp),
                         maxLines = 1,
                         modifier = GlanceModifier.defaultWeight()
                     )
                     Text(
                         text = "${money(row.spent)} / ${money(row.limit)}",
-                        style = TextStyle(color = if (row.isOver) WidgetColors.over else WidgetColors.muted, fontSize = 12.sp),
+                        style = TextStyle(color = if (row.isOver) colors.over else colors.muted, fontSize = 12.sp),
                         maxLines = 1
                     )
                 }
@@ -211,8 +262,8 @@ private fun BudgetWidgetContent(state: BudgetWidgetState, symbol: String, action
                 LinearProgressIndicator(
                     progress = row.fraction,
                     modifier = GlanceModifier.fillMaxWidth().height(5.dp).cornerRadius(3.dp),
-                    color = WidgetColors.forUsage(row.fraction, row.isOver),
-                    backgroundColor = WidgetColors.track
+                    color = colors.forUsage(row.fraction, row.isOver),
+                    backgroundColor = colors.track
                 )
             }
         }
@@ -221,12 +272,12 @@ private fun BudgetWidgetContent(state: BudgetWidgetState, symbol: String, action
 
 /** Shown instead of any amounts while the app lock is on. */
 @Composable
-private fun LockedWidgetContent(actionIntent: Intent) {
+private fun LockedWidgetContent(colors: WidgetColors, actionIntent: Intent) {
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(24.dp)
-            .background(WidgetColors.panel)
+            .background(colors.panel)
             .padding(14.dp)
             .clickable(actionStartActivity(actionIntent))
             .semantics { contentDescription = "Budgets. Locked. Open AkSpend to see them." },
@@ -234,16 +285,16 @@ private fun LockedWidgetContent(actionIntent: Intent) {
     ) {
         Text(
             text = "Budgets",
-            style = TextStyle(color = WidgetColors.title, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            style = colors.titleStyle()
         )
         Spacer(GlanceModifier.height(8.dp))
         Text(
             text = "Locked",
-            style = TextStyle(color = WidgetColors.text, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+            style = TextStyle(color = colors.text, fontWeight = FontWeight.Medium, fontSize = 14.sp)
         )
         Text(
             text = "Amounts are hidden while the app lock is on. Tap to open.",
-            style = TextStyle(color = WidgetColors.muted, fontSize = 12.sp)
+            style = TextStyle(color = colors.muted, fontSize = 12.sp)
         )
     }
 }
