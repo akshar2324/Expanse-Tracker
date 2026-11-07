@@ -28,3 +28,7 @@ release*.json
 
 # Generated build outputs
 .build-outputs/
+
+# Device test evidence (videos, screenshots, logcat). Kept on the tester's machine:
+# docs/ is published to GitHub Pages, and recordings show the phone's status bar.
+docs/testing/*/
