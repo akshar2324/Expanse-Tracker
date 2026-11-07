@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -119,18 +120,19 @@ fun ScreenHeader(
                 bottom = Spacing.md
             )
     ) {
-        if (onBack != null || actions != null) {
+        // Pushed screens get a toolbar row (back + actions) above the title. Tab screens have
+        // no back button, so their actions sit beside the title and every tab title lines up.
+        val actionsBesideTitle = onBack == null && actions != null
+        if (onBack != null) {
             Row(
                 modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.touchTarget),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (onBack != null) {
-                    GlassIconButton(
-                        icon = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        onClick = onBack
-                    )
-                }
+                GlassIconButton(
+                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    onClick = onBack
+                )
                 Spacer(Modifier.weight(1f))
                 if (actions != null) Row(verticalAlignment = Alignment.CenterVertically, content = actions)
             }
@@ -138,27 +140,35 @@ fun ScreenHeader(
         } else {
             Spacer(Modifier.height(Spacing.lg))
         }
-        if (eyebrow != null) {
-            Text(
-                text = eyebrow.uppercase(),
-                style = MaterialTheme.typography.labelMedium.eyebrow(),
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(Modifier.height(Spacing.xxs))
-        }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.semantics { heading() }
-        )
-        if (subtitle != null) {
-            Spacer(Modifier.height(Spacing.xs))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Row(verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f)) {
+                if (eyebrow != null) {
+                    Text(
+                        text = eyebrow.uppercase(),
+                        style = MaterialTheme.typography.labelMedium.eyebrow(),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(Spacing.xxs))
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.semantics { heading() }
+                )
+                if (subtitle != null) {
+                    Spacer(Modifier.height(Spacing.xs))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            if (actionsBesideTitle && actions != null) {
+                Spacer(Modifier.width(Spacing.md))
+                Row(verticalAlignment = Alignment.CenterVertically, content = actions)
+            }
         }
     }
 }
@@ -410,3 +420,12 @@ fun glassCardColors(container: Color = AkSpendTheme.glass.fill) =
 /** Hairline rim for Material cards so they read as glass panels. */
 @Composable
 fun glassBorder() = androidx.compose.foundation.BorderStroke(1.dp, AkSpendTheme.glass.highlight.copy(alpha = AkSpendTheme.glass.highlight.alpha * 0.6f))
+
+
+/**
+ * Text colour that stays readable on a solid [background]: near-black on light fills, white on
+ * dark ones. Use for labels on semantic colours (income/expense) that change between themes.
+ */
+fun readableOn(background: Color): Color =
+    // 0.18 is where near-black and white give equal contrast, so this always picks the higher one.
+    if (background.luminance() > 0.18f) Color(0xFF121212) else Color.White

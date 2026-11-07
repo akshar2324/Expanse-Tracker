@@ -14,6 +14,7 @@ import com.akshar.data.model.SavingsGoal
 import com.akshar.data.model.Transaction
 import com.akshar.data.model.Debt
 import com.akshar.data.model.CsvImportProfile
+import com.akshar.data.model.MerchantCategory
 
 val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
@@ -69,6 +70,39 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+/** Learned merchant -> category mappings (see [com.akshar.utils.CategoryMemory]). */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `merchant_categories` (" +
+                "`merchantKey` TEXT NOT NULL, " +
+                "`type` TEXT NOT NULL, " +
+                "`displayName` TEXT NOT NULL, " +
+                "`category` TEXT NOT NULL, " +
+                "`updatedAt` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`merchantKey`, `type`))"
+        )
+    }
+}
+
+val ALL_MIGRATIONS = arrayOf(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+
+const val DATABASE_VERSION = 7
+
+/**
+ * Transactions default to accountId = 1 (manual entries, CSV imports, recurring entries).
+ * Upgraded installs get that account from MIGRATION_5_6; fresh installs need it too, or every
+ * entry points at an account that does not exist and the Accounts screen shows no balance.
+ */
+object SeedDefaultAccountCallback : RoomDatabase.Callback() {
+    override fun onCreate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "INSERT OR IGNORE INTO `accounts` (`id`, `name`, `type`, `openingBalance`, `isArchived`, `timestamp`) " +
+                "VALUES (1, 'Cash', 'Cash', 0.0, 0, ${System.currentTimeMillis()})"
+        )
+    }
+}
+
 @Database(
     entities = [
         Transaction::class,
@@ -78,9 +112,10 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         Debt::class,
         CsvImportProfile::class,
         Account::class,
-        Reconciliation::class
+        Reconciliation::class,
+        MerchantCategory::class
     ],
-    version = 6,
+    version = DATABASE_VERSION,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -98,7 +133,8 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "expense_tracker_pro_db"
                 )
-                .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(*ALL_MIGRATIONS)
+                .addCallback(SeedDefaultAccountCallback)
                 .build()
                 INSTANCE = instance
                 instance

@@ -1,5 +1,6 @@
 package com.akshar.ui.screens
 
+import com.akshar.utils.launchFilePicker
 import com.akshar.ui.theme.*
 import com.akshar.ui.components.*
 import android.net.Uri
@@ -109,7 +110,7 @@ fun SelectFileStep(viewModel: CsvImportViewModel) {
         )
         Spacer(modifier = Modifier.height(32.dp))
         Button(
-            onClick = { launcher.launch("text/*") },
+            onClick = { launcher.launchFilePicker(context, "text/*") },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp)
@@ -130,7 +131,7 @@ fun SelectFileStep(viewModel: CsvImportViewModel) {
                             .padding(vertical = 4.dp),
                         onClick = {
                             viewModel.loadProfile(profile)
-                            launcher.launch("text/*")
+                            launcher.launchFilePicker(context, "text/*")
                         },
                         onClickLabel = "Use ${profile.name} and choose a file",
                         contentPadding = PaddingValues(Spacing.lg)
@@ -173,11 +174,11 @@ fun ConfigureMappingStep(viewModel: CsvImportViewModel) {
             .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("File: $fileName", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Text("File: $fileName", fontWeight = AkSpendTheme.emphasis, color = MaterialTheme.colorScheme.primary)
 
         Card {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("File Format", fontWeight = FontWeight.Bold)
+                Text("File Format", fontWeight = AkSpendTheme.emphasis)
 
                 OutlinedTextField(
                     colors = glassTextFieldColors(),
@@ -204,7 +205,7 @@ fun ConfigureMappingStep(viewModel: CsvImportViewModel) {
 
         Card {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Column Mapping", fontWeight = FontWeight.Bold)
+                Text("Column Mapping", fontWeight = AkSpendTheme.emphasis)
                 Text("Use the exact column name (if the file has a header row) or a 0-based column number.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                 OutlinedTextField(
@@ -382,12 +383,17 @@ fun PreviewStep(viewModel: CsvImportViewModel) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(row.parsedRow.description, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
                             Text(
-                                "${row.parsedRow.type.lowercase().replaceFirstChar { it.uppercase() }} · ${String.format("%,.2f", row.parsedRow.amount)}",
+                                "${row.parsedRow.type.lowercase().replaceFirstChar { it.uppercase() }} · ${String.format("%,.2f", row.parsedRow.amount)} · ${row.parsedRow.category}" +
+                                    if (row.learnedCategory) " (learned)" else "",
                                 style = MaterialTheme.typography.bodySmall.money(),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             if (row.isDuplicate) {
-                                Text("Possible duplicate: already in AkSpend", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
+                                Text(
+                                    (row.duplicateNote ?: "Possible duplicate: already saved") + ". Tick to import anyway.",
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
                             }
                         }
                     }

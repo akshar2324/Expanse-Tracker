@@ -18,31 +18,44 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import com.akshar.ui.theme.AkSpendTheme
 import com.akshar.ui.theme.Spacing
 import com.akshar.data.model.Transaction
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * Daily totals for the last 7 days (today included), oldest first. Days are keyed by their
+ * real start-of-day, so entries from other months never land in the window and a window that
+ * crosses a month boundary stays in date order. Labels are the day of month ("dd").
+ */
 internal fun calculateTrendPoints(
     transactions: List<Transaction>,
     calendar: Calendar = Calendar.getInstance()
 ): List<Pair<String, Double>> {
-    val formatter = SimpleDateFormat("dd", Locale.getDefault())
-    val totals = TreeMap<String, Double>()
+    val cal = calendar.clone() as Calendar
+    cal.set(Calendar.HOUR_OF_DAY, 0)
+    cal.set(Calendar.MINUTE, 0)
+    cal.set(Calendar.SECOND, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    cal.add(Calendar.DAY_OF_YEAR, -6)
 
-    repeat(7) {
-        totals[formatter.format(calendar.time)] = 0.0
-        calendar.add(Calendar.DAY_OF_YEAR, -1)
+    val dayStarts = LongArray(8)
+    for (i in 0..7) {
+        dayStarts[i] = cal.timeInMillis
+        cal.add(Calendar.DAY_OF_YEAR, 1)
     }
-
-    val date = Date()
+    val totals = DoubleArray(7)
     transactions.forEach { transaction ->
-        date.time = transaction.date
-        val key = formatter.format(date)
-        totals[key] = (totals[key] ?: 0.0) + transaction.amount
+        if (transaction.date < dayStarts[0] || transaction.date >= dayStarts[7]) return@forEach
+        var day = 6
+        while (transaction.date < dayStarts[day]) day--
+        totals[day] += transaction.amount
     }
 
-    return totals.toList().takeLast(10)
+    val formatter = SimpleDateFormat("dd", Locale.getDefault())
+    formatter.timeZone = calendar.timeZone
+    return (0 until 7).map { formatter.format(Date(dayStarts[it])) to totals[it] }
 }
 
 // --- Custom Animated Line Trend Chart ---
@@ -58,6 +71,8 @@ fun TrendLineChart(transactions: List<Transaction>, lineColor: Color) {
     val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)
     val dotFill = MaterialTheme.colorScheme.surface
     val reveal = rememberChartReveal()
+    // Atelier keeps the area under the line to a faint wash so the line itself leads.
+    val areaAlpha = if (AkSpendTheme.style.isFlat) 0.10f else 0.28f
     val summary = remember(points) {
         "Daily totals. " + points.joinToString("; ") { "day ${it.first}: ${String.format("%,.0f", it.second)}" }
     }
@@ -70,7 +85,6 @@ fun TrendLineChart(transactions: List<Transaction>, lineColor: Color) {
                 .padding(horizontal = Spacing.sm, vertical = Spacing.xs)
                 .semantics { contentDescription = summary }
         ) {
-            val stepX = size.width / (points.size - 1).coerceAtLeast(1)
             val progress = reveal()
 
             val gridLines = 4
@@ -86,8 +100,13 @@ fun TrendLineChart(transactions: List<Transaction>, lineColor: Color) {
             }
 
             // Smooth the series with horizontal cubic tangents so it reads like a calm curve.
+            // Keep the line inside the canvas: inset by the dot radius so dots at zero or at the
+            // peak aren't cut in half by the canvas edge.
+            val inset = 6.dp.toPx()
+            val plotHeight = size.height - 2 * inset
+            val plotStepX = (size.width - 2 * inset) / (points.size - 1).coerceAtLeast(1)
             val coords = points.mapIndexed { index, pair ->
-                Offset(index * stepX, size.height - (pair.second.toFloat() / displayMax) * size.height * progress)
+                Offset(inset + index * plotStepX, inset + plotHeight - (pair.second.toFloat() / displayMax) * plotHeight * progress)
             }
             val path = Path()
             coords.forEachIndexed { index, point ->
@@ -102,13 +121,13 @@ fun TrendLineChart(transactions: List<Transaction>, lineColor: Color) {
 
             val fillPath = Path()
             fillPath.addPath(path)
-            fillPath.lineTo(size.width, size.height)
-            fillPath.lineTo(0f, size.height)
+            fillPath.lineTo(coords.last().x, size.height)
+            fillPath.lineTo(coords.first().x, size.height)
             fillPath.close()
             drawPath(
                 path = fillPath,
                 brush = Brush.verticalGradient(
-                    colors = listOf(lineColor.copy(alpha = 0.28f), Color.Transparent)
+                    colors = listOf(lineColor.copy(alpha = areaAlpha), Color.Transparent)
                 )
             )
             drawPath(

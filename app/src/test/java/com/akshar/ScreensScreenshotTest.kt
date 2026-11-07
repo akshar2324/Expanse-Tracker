@@ -6,15 +6,23 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.runtime.CompositionLocalProvider
+import com.akshar.ui.theme.LocalReducedMotion
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.hasScrollToNodeAction
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import com.akshar.ui.screens.AddTransactionScreen
@@ -33,6 +41,8 @@ import com.akshar.ui.theme.AkSpendTheme
 import com.akshar.ui.viewmodel.FinanceViewModel
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.akshar.data.activity.DataStoreSavedFilterStore
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
@@ -64,15 +74,64 @@ class ScreensScreenshotTest {
   @Test
   fun mainScreens_dark() = captureMainScreens(dark = true)
 
-  private fun captureMainScreens(dark: Boolean) {
+  @Test
+  fun activity_largeFonts_reducedMotion() {
+    Locale.setDefault(Locale.US)
+    RuntimeEnvironment.setFontScale(2f)
+    val app = ApplicationProvider.getApplicationContext<ExpenseTrackerApp>()
+    seed(app)
+    val viewModel = FinanceViewModel(app)
+    composeTestRule.setContent {
+      AkSpendTheme(darkTheme = false) {
+        CompositionLocalProvider(
+          LocalReducedMotion provides true,
+        ) { AppScaffold(viewModel = viewModel) }
+      }
+    }
+    settle()
+    composeTestRule.onAllNodes(hasText("Activity") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab))[0].performClick()
+    settle()
+    composeTestRule.onNodeWithContentDescription("Show filters").performClick()
+    composeTestRule.onNodeWithText("Expenses").performClick()
+    settle()
+    composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/light-13-activity-large-fonts.png")
+    composeTestRule.onNodeWithText("Min").performScrollTo().performTextInput("100")
+    composeTestRule.onNodeWithText("Save filter").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+    composeTestRule.onNodeWithText("Name").performTextInput("Large text spends")
+    settle()
+    composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/light-16-activity-save-large-fonts.png")
+    composeTestRule.onNodeWithText("Save", useUnmergedTree = true).performClick()
+    settle()
+    composeTestRule.onAllNodesWithText("Clear filters")[0].performSemanticsAction(SemanticsActions.OnClick)
+    settle()
+    composeTestRule.onNodeWithTag("activity-list").performScrollToIndex(0)
+    composeTestRule.onNodeWithText("Large text spends").performScrollTo().performClick()
+    settle()
+    composeTestRule.onNodeWithTag("activity-list").performScrollToIndex(0)
+    composeTestRule.onNodeWithContentDescription("Hide filters", substring = true).performScrollTo().performClick()
+    composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/light-14-activity-saved-large-fonts.png")
+  }
+
+  @Test
+  fun mainScreens_largeFont_light() = captureMainScreens(dark = false, fontScale = 2f)
+
+  @Test
+  fun mainScreens_largeFont_dark() = captureMainScreens(dark = true, fontScale = 2f)
+
+  private fun captureMainScreens(dark: Boolean, fontScale: Float = 1f) {
     Locale.setDefault(Locale.US)
     if (dark) RuntimeEnvironment.setQualifiers("+night")
     val app = ApplicationProvider.getApplicationContext<ExpenseTrackerApp>()
     seed(app)
     val viewModel = FinanceViewModel(app)
-    val mode = if (dark) "dark" else "light"
+    val mode = (if (fontScale > 1f) "large-font-" else "") + if (dark) "dark" else "light"
 
-    composeTestRule.setContent { AkSpendTheme(darkTheme = dark) { AppScaffold(viewModel = viewModel) } }
+    composeTestRule.setContent { AkSpendTheme(darkTheme = dark) {
+      val density = androidx.compose.ui.platform.LocalDensity.current
+      androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(density.density, fontScale)
+      ) { AppScaffold(viewModel = viewModel) }
+    } }
     settle()
 
     tabs.forEachIndexed { index, tab ->
@@ -90,9 +149,31 @@ class ScreensScreenshotTest {
     composeTestRule.onAllNodesWithContentDescription("Back")[0].performClick()
     settle()
     // Invoke the action directly: once scrolled into view the card can sit under the floating tab bar.
-    composeTestRule.onNodeWithText("Your weekly digest").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+    composeTestRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Your weekly digest"))
+    composeTestRule.onNodeWithText("Your weekly digest").performSemanticsAction(SemanticsActions.OnClick)
     settle()
     composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-7-weekly-digest.png")
+
+    // Activity: the open filter panel, then a search that matches nothing.
+    composeTestRule.onAllNodesWithContentDescription("Back")[0].performClick()
+    settle()
+    composeTestRule.onAllNodes(hasText("Activity") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab))[0].performClick()
+    settle()
+    composeTestRule.onNodeWithContentDescription("Show filters").performClick()
+    composeTestRule.onNodeWithText("Expenses").performClick()
+    settle()
+    composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-11-activity-filters.png")
+    composeTestRule.onNodeWithText("Custom…").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+    settle()
+    composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-15-activity-custom-range.png")
+    composeTestRule.onNodeWithText("Cancel").performClick()
+    composeTestRule.onNodeWithText("Search description, category or payment").performScrollTo().performTextInput("zzz")
+    settle()
+    composeTestRule.onNodeWithContentDescription("Hide filters", substring = true).performClick()
+    settle()
+    composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-12-activity-no-matches.png")
+    composeTestRule.onAllNodesWithText("Clear filters")[0].performSemanticsAction(SemanticsActions.OnClick)
+    settle()
   }
 
   @Test
@@ -101,28 +182,76 @@ class ScreensScreenshotTest {
   @Test
   fun standaloneScreens_dark() = captureStandalone(dark = true)
 
-  private fun captureStandalone(dark: Boolean) {
+  @Test
+  fun standaloneScreens_largeFont_light() = captureStandalone(dark = false, fontScale = 2f)
+
+  @Test
+  fun standaloneScreens_largeFont_dark() = captureStandalone(dark = true, fontScale = 2f)
+
+  private fun captureStandalone(dark: Boolean, fontScale: Float = 1f) {
     Locale.setDefault(Locale.US)
     if (dark) RuntimeEnvironment.setQualifiers("+night")
     val app = ApplicationProvider.getApplicationContext<ExpenseTrackerApp>()
     seed(app)
     val viewModel = FinanceViewModel(app)
-    val mode = if (dark) "dark" else "light"
+    val mode = (if (fontScale > 1f) "large-font-" else "") + if (dark) "dark" else "light"
+    runBlocking {
+      val inbox = com.akshar.sms.inbox.ImportInboxDatabase.getInstance(app).pendingImportDao()
+      inbox.clear()
+      val now = System.currentTimeMillis()
+      listOf(
+        "Sent Rs.799.00 From HDFC Bank A/C *4821 To NETFLIX On 14/10/26 Ref 629100004321",
+        "Sent Rs.1,240.50 From HDFC Bank A/C *4821 To SWIGGY On 15/10/26 Ref 629100004322",
+      ).forEachIndexed { i, text ->
+        com.akshar.sms.inbox.AutoImportCapture.capture("com.google.android.apps.messaging", "JD-HDFCBK-S", text, now - i, supported = true)
+          ?.let { inbox.insert(it) }
+      }
+      com.akshar.sms.inbox.AutoImportCapture.capture("com.phonepe.app", "Paid", "Rs 450.00 debited from your account at PETROL PUMP NH8.", now - 5, supported = true)
+        ?.let { inbox.insert(it) }
+    }
+    val inboxViewModel = com.akshar.sms.inbox.ImportInboxViewModel(app)
     var screen by mutableStateOf("add")
 
     composeTestRule.setContent {
       AkSpendTheme(darkTheme = dark) {
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        androidx.compose.runtime.CompositionLocalProvider(
+          androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(density.density, fontScale)
+        ) {
         when (screen) {
           "add" -> Box(Modifier.fillMaxSize()) {
             GlassBackdrop()
             Box(Modifier.fillMaxSize().safeDrawingPadding()) { AddTransactionScreen(viewModel = viewModel, onNavigateBack = {}) }
           }
+          "sms" -> Box(Modifier.fillMaxSize()) {
+            GlassBackdrop()
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+              com.akshar.ui.screens.SmsImportScreen(
+                currencySymbol = "₹",
+                onBack = {},
+                onReview = {},
+                sharedText = "Sent Rs.1,240.50 From HDFC Bank A/C *4821 To SWIGGY On 14/10/26 Ref 629100004321",
+              )
+            }
+          }
+          "inbox" -> Box(Modifier.fillMaxSize()) {
+            GlassBackdrop()
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+              com.akshar.ui.screens.ImportInboxScreen(
+                viewModel = inboxViewModel,
+                currencySymbol = "₹",
+                onBack = {},
+                onReview = {},
+              )
+            }
+          }
           "onboarding" -> OnboardingScreen(viewModel = viewModel, onFinish = {})
-          else -> LockScreen(correctPin = "1234", useBiometrics = true, onUnlockSuccess = {}, onTriggerBiometric = {})
+          else -> LockScreen(appLock = com.akshar.security.AppLock.from(app), useBiometrics = true, onUnlockSuccess = {}, onTriggerBiometric = {})
+        }
         }
       }
     }
-    listOf("add" to "8-add-transaction", "onboarding" to "9-onboarding", "lock" to "10-lock").forEach { (key, name) ->
+    listOf("add" to "8-add-transaction", "sms" to "8b-sms-import", "inbox" to "8c-import-inbox", "onboarding" to "9-onboarding", "lock" to "10-lock").forEach { (key, name) ->
       screen = key
       settle()
       composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-$name.png")
@@ -140,6 +269,10 @@ class ScreensScreenshotTest {
 
   private fun seed(app: ExpenseTrackerApp) = runBlocking {
     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.akshar.data.db.AppDatabase.getInstance(app).clearAllTables() }
+    val savedStore = DataStoreSavedFilterStore(app)
+    savedStore.savedFilters.first().forEach { savedStore.delete(it.name) }
+    // The inbox is its own database; start every capture without leftover queued payments.
+    com.akshar.sms.inbox.ImportInboxDatabase.getInstance(app).pendingImportDao().clear()
     val repo = app.repository
     val day = 24L * 60 * 60 * 1000
     val now = System.currentTimeMillis()

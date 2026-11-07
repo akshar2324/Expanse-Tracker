@@ -68,6 +68,8 @@ fun CashFlowBarChart(transactions: List<Transaction>) {
     val axisMax = if (maxVal == 0f) 5000f else maxVal
     val incomeColor = AkSpendTheme.finance.income
     val expenseColor = AkSpendTheme.finance.expense
+    // Flat styles draw solid bars; glass keeps its soft top-to-bottom fade.
+    val barFade = if (AkSpendTheme.style.isFlat) 1f else 0.55f
     val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)
     val reveal = rememberChartReveal()
     val summary = remember(data) {
@@ -113,7 +115,7 @@ fun CashFlowBarChart(transactions: List<Transaction>) {
                 val expHeight = (triple.third.toFloat() / axisMax) * size.height * progress
                 if (incHeight > 0f) {
                     drawRoundRect(
-                        brush = Brush.verticalGradient(listOf(incomeColor, incomeColor.copy(alpha = 0.55f)), startY = size.height - incHeight, endY = size.height),
+                        brush = Brush.verticalGradient(listOf(incomeColor, incomeColor.copy(alpha = barFade)), startY = size.height - incHeight, endY = size.height),
                         topLeft = Offset(centerX - barWidth - gap / 2, size.height - incHeight),
                         size = Size(barWidth, incHeight),
                         cornerRadius = radius
@@ -121,7 +123,7 @@ fun CashFlowBarChart(transactions: List<Transaction>) {
                 }
                 if (expHeight > 0f) {
                     drawRoundRect(
-                        brush = Brush.verticalGradient(listOf(expenseColor, expenseColor.copy(alpha = 0.55f)), startY = size.height - expHeight, endY = size.height),
+                        brush = Brush.verticalGradient(listOf(expenseColor, expenseColor.copy(alpha = barFade)), startY = size.height - expHeight, endY = size.height),
                         topLeft = Offset(centerX + gap / 2, size.height - expHeight),
                         size = Size(barWidth, expHeight),
                         cornerRadius = radius

@@ -9,10 +9,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -93,25 +90,14 @@ class FinanceViewModelTest {
     }
 
     @Test
-    fun `exportDataToJson returns null when JSON creation fails`() {
+    fun `exportDataToJson returns null when reading the database fails`() = kotlinx.coroutines.runBlocking {
         val repository = mockk<FinanceRepository>(relaxed = true)
         val mockApp = mockk<ExpenseTrackerApp>(relaxed = true)
-        val invalidTransaction = mockk<Transaction>()
-        every { invalidTransaction.amount } throws IllegalStateException("Forced export failure")
         every { mockApp.repository } returns repository
-        every { repository.allTransactions } returns MutableStateFlow(listOf(invalidTransaction))
-        every { repository.allBudgets } returns MutableStateFlow(emptyList())
-        every { repository.allSavingsGoals } returns MutableStateFlow(emptyList())
-        every { repository.allRecurringTransactions } returns MutableStateFlow(emptyList())
-        every { repository.allDebts } returns MutableStateFlow(emptyList())
+        io.mockk.coEvery { repository.exportSnapshot() } throws IllegalStateException("Forced export failure")
         val subject = FinanceViewModel(mockApp)
-        val collector = CoroutineScope(Dispatchers.Main.immediate).launch {
-            subject.allTransactions.collect { }
-        }
-        shadowOf(android.os.Looper.getMainLooper()).idle()
 
         assertNull(subject.exportDataToJson())
-        collector.cancel()
     }
 
     @Test
@@ -175,6 +161,47 @@ class FinanceViewModelTest {
         assertFalse(viewModel.restoreDataFromJson("this is not valid json"))
         val status = viewModel.backupStatus.value
         assertEquals("Failed to restore backup: invalid JSON format.", status)
+    }
+
+    @Test
+    fun `restoreDataFromJson rejects a backup with malformed rows without touching data`() {
+        val repository = mockk<FinanceRepository>(relaxed = true)
+        val subject = financeViewModelWith(repository)
+
+        assertFalse(subject.restoreDataFromJson("""{"transactions":[{"type":"EXPENSE"}]}"""))
+        assertFalse(subject.restoreDataFromJson("{}"))
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        coVerify(exactly = 0) { repository.replaceAllData(any()) }
+    }
+
+    @Test
+    fun `addTransaction rounds the amount to cents`() {
+        val repository = mockk<FinanceRepository>(relaxed = true)
+        val subject = financeViewModelWith(repository)
+
+        subject.addTransaction(10.0 / 3, "EXPENSE", "Food", "", 1L, "Cash")
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        coVerify(exactly = 1) { repository.insertTransaction(match { it.amount == 3.33 }) }
+    }
+
+    @Test
+    fun `saveTransfer writes a matched expense and income pair through one repository call`() {
+        val repository = mockk<FinanceRepository>(relaxed = true)
+        val subject = financeViewModelWith(repository)
+
+        subject.saveTransfer(1L, 2L, 25.005, "Top up", 5L, transferId = "t-1")
+        Thread.sleep(200) // saveTransfer runs on Dispatchers.IO
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        coVerify(timeout = 2000, exactly = 1) {
+            repository.saveTransfer(
+                match { it.type == "EXPENSE" && it.accountId == 1L && it.amount == 25.01 && it.transferId == "t-1" },
+                match { it.type == "INCOME" && it.accountId == 2L && it.amount == 25.01 && it.transferId == "t-1" }
+            )
+        }
+        coVerify(exactly = 0) { repository.deleteTransfer(any()) }
     }
 
     private fun financeViewModelWith(repository: FinanceRepository): FinanceViewModel {

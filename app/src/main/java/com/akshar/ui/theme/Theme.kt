@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -18,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 
 // `background` is transparent on purpose: every screen sits on the shared GlassBackdrop
@@ -94,6 +96,7 @@ private val DarkColorScheme = darkColorScheme(
 val LocalFinanceColors = staticCompositionLocalOf { LightFinanceColors }
 val LocalGlassColors = staticCompositionLocalOf { LightGlassColors }
 val LocalIsDarkTheme = staticCompositionLocalOf { false }
+val LocalAppStyle = staticCompositionLocalOf { AppStyle.Default }
 
 /** True when the user switched animations off (animator duration scale 0). */
 val LocalReducedMotion = staticCompositionLocalOf { false }
@@ -106,6 +109,12 @@ object AkSpendTheme {
         @Composable @ReadOnlyComposable get() = LocalGlassColors.current
     val isDark: Boolean
         @Composable @ReadOnlyComposable get() = LocalIsDarkTheme.current
+    val style: AppStyle
+        @Composable @ReadOnlyComposable get() = LocalAppStyle.current
+    /** Weight for emphasised labels: bold in glass, a calmer medium in Atelier. */
+    val emphasis: FontWeight
+        @Composable @ReadOnlyComposable get() =
+            if (LocalAppStyle.current == AppStyle.ATELIER) FontWeight.Medium else FontWeight.Bold
     val reducedMotion: Boolean
         @Composable @ReadOnlyComposable get() = LocalReducedMotion.current
 }
@@ -113,21 +122,40 @@ object AkSpendTheme {
 @Composable
 fun AkSpendTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    style: AppStyle = Appearance.style,
     content: @Composable () -> Unit,
 ) {
     val reducedMotion = rememberReducedMotion()
+    val atelier = style == AppStyle.ATELIER
+    val finance = when {
+        atelier -> if (darkTheme) AtelierDarkFinance else AtelierLightFinance
+        else -> if (darkTheme) DarkFinanceColors else LightFinanceColors
+    }
+    val surfaces = when {
+        atelier -> if (darkTheme) AtelierDarkSurfaces else AtelierLightSurfaces
+        else -> if (darkTheme) DarkGlassColors else LightGlassColors
+    }
     CompositionLocalProvider(
-        LocalFinanceColors provides if (darkTheme) DarkFinanceColors else LightFinanceColors,
-        LocalGlassColors provides if (darkTheme) DarkGlassColors else LightGlassColors,
+        LocalFinanceColors provides finance,
+        LocalGlassColors provides surfaces,
         LocalIsDarkTheme provides darkTheme,
         LocalReducedMotion provides reducedMotion,
+        LocalAppStyle provides style,
     ) {
+        val colorScheme = when {
+            atelier -> if (darkTheme) AtelierDarkColorScheme else AtelierLightColorScheme
+            else -> if (darkTheme) DarkColorScheme else LightColorScheme
+        }
         MaterialTheme(
-            colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
-            typography = Typography,
-            shapes = Shapes,
-            content = content
-        )
+            colorScheme = colorScheme,
+            typography = if (atelier) AtelierTypography else Typography,
+            shapes = if (atelier) AtelierShapes else Shapes,
+        ) {
+            // Glass panels are drawn with modifiers, not Material Surfaces, so nothing else sets
+            // the content color. Without this, Text with no explicit color falls back to black,
+            // which is unreadable in dark mode.
+            CompositionLocalProvider(LocalContentColor provides colorScheme.onSurface, content = content)
+        }
     }
 }
 

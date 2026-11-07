@@ -1,5 +1,6 @@
 package com.akshar.ui.screens
 
+import com.akshar.utils.launchFilePicker
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Toast
@@ -16,6 +17,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import kotlinx.coroutines.launch
+import androidx.glance.appwidget.updateAll
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -40,6 +45,8 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.AccountBalance
+import androidx.compose.material.icons.rounded.Inbox
+import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.Assessment
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Backup
@@ -47,6 +54,8 @@ import androidx.compose.material.icons.rounded.Calculate
 import androidx.compose.material.icons.rounded.EventRepeat
 import androidx.compose.material.icons.rounded.Handshake
 import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -69,6 +78,8 @@ fun ToolsScreen(
     modifier: Modifier = Modifier,
     navController: NavController? = null
 ) {
+    val confirmDelete = rememberConfirmDeleteState()
+    ConfirmDeleteDialog(confirmDelete)
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
 
@@ -116,6 +127,9 @@ fun ToolsScreen(
                         toolId == "ACCOUNTS" && navController != null -> navController.navigate("accounts")
                         toolId == "WEEKLY_DIGEST" && navController != null -> navController.navigate("weeklyDigest")
                         toolId == "CSV_IMPORT" && navController != null -> navController.navigate("csvImport")
+                        toolId == "SMS_IMPORT" && navController != null -> navController.navigate(com.akshar.SmsImportRoutes.IMPORT)
+                        toolId == "LEARNED_CATEGORIES" && navController != null -> navController.navigate(com.akshar.LearnedCategoriesRoute)
+                        toolId == "AUTO_IMPORT" && navController != null -> navController.navigate(com.akshar.SmsImportRoutes.INBOX)
                         else -> activeSubTool = toolId
                     }
                 }
@@ -150,7 +164,7 @@ fun ToolsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp),
+                            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Button(
@@ -159,35 +173,21 @@ fun ToolsScreen(
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("New Auto-Recurring Entry")
+                            Text("Add repeating entry")
                         }
 
                         Text(
-                            text = "Active Recurring Logs",
-                            fontWeight = FontWeight.Bold,
+                            text = "Active reminders",
+                            fontWeight = AkSpendTheme.emphasis,
                             style = MaterialTheme.typography.titleMedium
                         )
 
                         if (recurringList.isEmpty()) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().weight(1.0f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        imageVector = Icons.Default.EventRepeat,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
-                                        modifier = Modifier.size(56.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "No recurring transactions set up.",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
+                            EmptyState(
+                                icon = Icons.Default.EventRepeat,
+                                title = "No reminders yet",
+                                message = "Add rent, bills or salary once and they'll be logged for you each time they repeat."
+                            )
                         } else {
                             LazyColumn(
                                 modifier = Modifier.weight(1.0f),
@@ -206,7 +206,7 @@ fun ToolsScreen(
                                             Column {
                                                 Text(
                                                     text = recurring.description,
-                                                    fontWeight = FontWeight.Bold,
+                                                    fontWeight = AkSpendTheme.emphasis,
                                                     style = MaterialTheme.typography.bodyLarge
                                                 )
                                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -228,7 +228,7 @@ fun ToolsScreen(
                                                     style = MaterialTheme.typography.titleMedium.money()
                                                 )
                                                 Spacer(modifier = Modifier.width(12.dp))
-                                                IconButton(onClick = { viewModel.deleteRecurringTransactionById(recurring.id) }) {
+                                                IconButton(onClick = { confirmDelete.request("Delete \"${recurring.description.ifBlank { recurring.category }}\" reminder?") { viewModel.deleteRecurringTransactionById(recurring.id) } }) {
                                                     Icon(
                                                         imageVector = Icons.Default.DeleteOutline,
                                                         contentDescription = "Delete",
@@ -248,10 +248,10 @@ fun ToolsScreen(
 
                 // --- security settings (Finance Vault) ---
                 "VAULT" -> {
-                    val sharedPrefs = remember { context.getSharedPreferences("vault_settings", android.content.Context.MODE_PRIVATE) }
-                    var vaultEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("vault_enabled", true)) }
-                    var vaultBiometrics by remember { mutableStateOf(sharedPrefs.getBoolean("vault_biometrics", true)) }
-                    var actualPin by remember { mutableStateOf(sharedPrefs.getString("vault_pin", "1234") ?: "1234") }
+                    val appLock = remember { com.akshar.security.AppLock.from(context) }
+                    var hasPin by remember { mutableStateOf(appLock.hasPin) }
+                    var vaultEnabled by remember { mutableStateOf(appLock.isActive) }
+                    var vaultBiometrics by remember { mutableStateOf(context.getSharedPreferences(com.akshar.security.AppLock.PREFS, android.content.Context.MODE_PRIVATE).getBoolean(com.akshar.security.AppLock.KEY_BIOMETRICS, true)) }
 
                     var pinChangeInput by remember { mutableStateOf("") }
                     var confirmPinInput by remember { mutableStateOf("") }
@@ -259,7 +259,7 @@ fun ToolsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp)
+                            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg)
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
@@ -277,14 +277,14 @@ fun ToolsScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Advanced Security & Vault",
-                                        fontWeight = FontWeight.Bold,
+                                        text = "Keep your money private",
+                                        fontWeight = AkSpendTheme.emphasis,
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Maintain privacy for your transactions and bank statement records. Toggle access checks and set custom authentication PIN codes below.",
+                                    text = "Lock the app with a passcode or your fingerprint. Your data never leaves this device.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                                 )
@@ -294,8 +294,8 @@ fun ToolsScreen(
                         Card(modifier = Modifier.fillMaxWidth(), colors = glassCardColors(), border = glassBorder()) {
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text(
-                                    text = "Authentication Methods",
-                                    fontWeight = FontWeight.Bold,
+                                    text = "Unlock options",
+                                    fontWeight = AkSpendTheme.emphasis,
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -306,15 +306,21 @@ fun ToolsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1.0f)) {
-                                        Text("App lock", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                                        Text("Ask for your passcode every time AkSpend opens.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text("App lock", fontWeight = AkSpendTheme.emphasis, style = MaterialTheme.typography.bodyMedium)
+                                        Text(
+                                            if (hasPin) "Ask for your passcode when AkSpend opens, and again after 30 seconds away."
+                                            else "Set a passcode below to turn this on.",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
                                     Switch(
                                         checked = vaultEnabled,
+                                        enabled = hasPin,
                                         onCheckedChange = { checked ->
                                             vaultEnabled = checked
-                                            sharedPrefs.edit().putBoolean("vault_enabled", checked).apply()
-                                            Toast.makeText(context, if (checked) "Secure lock enabled!" else "Secure lock disabled!", Toast.LENGTH_SHORT).show()
+                                            appLock.setEnabled(checked)
+                                            Toast.makeText(context, if (checked) "App lock on" else "App lock off", Toast.LENGTH_SHORT).show()
                                         }
                                     )
                                 }
@@ -327,7 +333,7 @@ fun ToolsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1.0f)) {
-                                        Text("Fingerprint unlock", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                        Text("Fingerprint unlock", fontWeight = AkSpendTheme.emphasis, style = MaterialTheme.typography.bodyMedium)
                                         Text("Use your fingerprint instead of typing the passcode.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     Switch(
@@ -335,26 +341,27 @@ fun ToolsScreen(
                                         enabled = vaultEnabled,
                                         onCheckedChange = { checked ->
                                             vaultBiometrics = checked
-                                            sharedPrefs.edit().putBoolean("vault_biometrics", checked).apply()
-                                            Toast.makeText(context, if (checked) "Biometrics integrated!" else "Biometrics omitted.", Toast.LENGTH_SHORT).show()
+                                            appLock.setBiometrics(checked)
+                                            Toast.makeText(context, if (checked) "Fingerprint unlock on" else "Fingerprint unlock off", Toast.LENGTH_SHORT).show()
                                         }
                                     )
                                 }
                             }
                         }
 
-                        AnimatedVisibility(visible = vaultEnabled) {
+                        AnimatedVisibility(visible = vaultEnabled || !hasPin) {
                             Card(modifier = Modifier.fillMaxWidth(), colors = glassCardColors(), border = glassBorder()) {
                                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                     Text(
-                                        text = "Reset Vault passcode",
-                                        fontWeight = FontWeight.Bold,
+                                        text = if (hasPin) "Change passcode" else "Set a passcode",
+                                        fontWeight = AkSpendTheme.emphasis,
                                         style = MaterialTheme.typography.titleMedium,
                                         color = MaterialTheme.colorScheme.primary
                                     )
 
                                     Text(
-                                        text = "Current PIN: ****",
+                                        text = if (hasPin) "Your passcode is set. Enter a new one to replace it."
+                                        else "Choose 4 digits that aren't easy to guess. Saving turns on the app lock.",
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -367,7 +374,7 @@ fun ToolsScreen(
                                                 pinChangeInput = input
                                             }
                                         },
-                                        label = { Text("New 4-Digit Passcode") },
+                                        label = { Text("New 4-digit passcode") },
                                         placeholder = { Text("Enter 4 numbers") },
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         modifier = Modifier.fillMaxWidth(),
@@ -382,7 +389,7 @@ fun ToolsScreen(
                                                 confirmPinInput = input
                                             }
                                         },
-                                        label = { Text("Confirm New Passcode") },
+                                        label = { Text("Confirm new passcode") },
                                         placeholder = { Text("Re-enter 4 numbers") },
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         modifier = Modifier.fillMaxWidth(),
@@ -392,15 +399,16 @@ fun ToolsScreen(
                                     Button(
                                         onClick = {
                                             if (pinChangeInput.length != 4) {
-                                                Toast.makeText(context, "PIN must be exactly 4 digits!", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "The passcode must be 4 digits", Toast.LENGTH_SHORT).show()
                                             } else if (pinChangeInput != confirmPinInput) {
-                                                Toast.makeText(context, "PINs do not match!", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "The passcodes don't match", Toast.LENGTH_SHORT).show()
                                             } else {
-                                                actualPin = pinChangeInput
-                                                sharedPrefs.edit().putString("vault_pin", pinChangeInput).apply()
+                                                appLock.setPin(pinChangeInput)
+                                                hasPin = true
+                                                vaultEnabled = true
                                                 pinChangeInput = ""
                                                 confirmPinInput = ""
-                                                Toast.makeText(context, "Security passcode updated successfully!", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "Passcode saved. App lock is on.", Toast.LENGTH_SHORT).show()
                                             }
                                         },
                                         modifier = Modifier
@@ -409,7 +417,7 @@ fun ToolsScreen(
                                     ) {
                                         Icon(Icons.Default.VpnKey, contentDescription = null)
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Save New passcode")
+                                        Text("Save passcode")
                                     }
                                 }
                             }
@@ -422,7 +430,7 @@ fun ToolsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp),
+                            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Card(
@@ -439,27 +447,27 @@ fun ToolsScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Generate Summary Ledger",
-                                        fontWeight = FontWeight.Bold,
+                                        text = "Export a summary",
+                                        fontWeight = AkSpendTheme.emphasis,
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Compile full breakdowns into clean data files to share or backup in sheets.",
+                                    text = "Build a CSV of your income and spending to copy into a spreadsheet.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                                 )
                             }
                         }
 
-                        Text("Select Compilation Scope", fontWeight = FontWeight.Bold)
+                        SectionHeader(title = "Choose a period")
 
                         listOf(
-                            "DAILY" to "Daily Financial Sheet",
-                            "WEEKLY" to "Weekly Income vs Expense Summary",
-                            "MONTHLY" to "Monthly category Breakdowns",
-                            "YEARLY" to "Yearly Audit Ledger Sheet"
+                            "DAILY" to "Today",
+                            "WEEKLY" to "This week",
+                            "MONTHLY" to "This month by category",
+                            "YEARLY" to "This year"
                         ).forEach { (typeKey, rowLabel) ->
                             Card(
                                 colors = glassCardColors(),
@@ -485,7 +493,7 @@ fun ToolsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(24.dp)
+                            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg)
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
@@ -504,15 +512,14 @@ fun ToolsScreen(
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
-                                        text = "NATIVE SQLITE BACKUPS",
-                                        fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        letterSpacing = 1.sp
+                                        text = "Your data, on your device",
+                                        fontWeight = AkSpendTheme.emphasis,
+                                        style = MaterialTheme.typography.titleMedium
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "Your financial records are 100% yours, stored locally on your device's protected memory. You can now perform full binary exports of the underlying Room SQLite database directly.",
+                                    text = "Everything is stored only on this phone. Save a backup file so you can restore it later or move it to a new phone.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                     lineHeight = 18.sp
@@ -528,12 +535,12 @@ fun ToolsScreen(
                         ) {
                             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text(
-                                    text = "Export Database File",
-                                    fontWeight = FontWeight.Bold,
+                                    text = "Save a backup",
+                                    fontWeight = AkSpendTheme.emphasis,
                                     style = MaterialTheme.typography.titleSmall
                                 )
                                 Text(
-                                    text = "Exporting creates a production-grade, uncompressed binary SQLite snapshot of your database (.db). You can save this file securely in Google Drive, local Folders, or send it to another device.",
+                                    text = "Creates one .db file with all your entries. Keep it somewhere safe, like your Drive or a folder on this phone.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -551,7 +558,7 @@ fun ToolsScreen(
                                 ) {
                                     Icon(Icons.Default.Share, contentDescription = null)
                                     Spacer(modifier = Modifier.width(10.dp))
-                                    Text("Export .db Backup File", fontWeight = FontWeight.Bold)
+                                    Text("Save backup file", fontWeight = AkSpendTheme.emphasis)
                                 }
                             }
                         }
@@ -564,20 +571,20 @@ fun ToolsScreen(
                         ) {
                             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text(
-                                    text = "Restore Database File",
-                                    fontWeight = FontWeight.Bold,
+                                    text = "Restore from a backup",
+                                    fontWeight = AkSpendTheme.emphasis,
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "Select a previously exported database .db backup. Note: Restoring overrides your existing local database file and reboots the application to securely swap the data engine.",
+                                    text = "Pick a .db file you saved before. This replaces everything currently in the app, then restarts it.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Button(
                                     onClick = {
-                                        dbFilePickerLauncher.launch("application/octet-stream")
+                                        dbFilePickerLauncher.launchFilePicker(context, "application/octet-stream")
                                     },
                                     modifier = Modifier.fillMaxWidth().height(50.dp),
                                     colors = ButtonDefaults.buttonColors(
@@ -588,42 +595,41 @@ fun ToolsScreen(
                                 ) {
                                     Icon(Icons.Default.UploadFile, contentDescription = null)
                                     Spacer(modifier = Modifier.width(10.dp))
-                                    Text("Upload & Restore .db File", fontWeight = FontWeight.Bold)
+                                    Text("Choose backup file", fontWeight = AkSpendTheme.emphasis)
                                 }
                             }
                         }
+
+                        AutoBackupSection(financeViewModel = viewModel)
                     }
                 }
 
+                "APPEARANCE" -> {
+                    AppearancePicker()
+                }
                 "SETTINGS" -> {
                     val selectedCountryCode by viewModel.selectedCountry.collectAsStateWithLifecycle()
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
+                            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Text(
-                            text = "Global Preferences",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
                         Card(
                             colors = glassCardColors(AkSpendTheme.glass.fillStrong),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    text = "Select Country & Currency Region",
+                                    text = "Your region",
                                     style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = AkSpendTheme.emphasis,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "This automatically adjusts payment methods, hides region-specific features (like UPI parsing in non-Indian regions), and updates formatting symbols.",
+                                    text = "Sets the currency symbol and which payment methods you see. UPI options only show for India.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -659,7 +665,7 @@ fun ToolsScreen(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = "$cName ($code)",
-                                            fontWeight = FontWeight.Bold,
+                                            fontWeight = AkSpendTheme.emphasis,
                                             style = MaterialTheme.typography.bodyLarge
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
@@ -706,11 +712,13 @@ fun ToolsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp),
+                            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                            colors = if (AkSpendTheme.style.isFlat) glassCardColors(AkSpendTheme.glass.fillStrong)
+                                     else CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                            border = if (AkSpendTheme.style.isFlat) glassBorder() else null,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -724,13 +732,13 @@ fun ToolsScreen(
                                 ) {
                                     Column {
                                         Text(
-                                            text = "Debts Balance",
+                                            text = "Net balance",
                                             style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
+                                            fontWeight = AkSpendTheme.emphasis,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer
                                         )
                                         Text(
-                                            text = "Overview of pending settlements",
+                                            text = "What is still unsettled",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                         )
@@ -739,9 +747,13 @@ fun ToolsScreen(
                                     val netScore = totalLent - totalBorrowed
                                     val netFormatted = viewModel.formatCurrencyValue(kotlin.math.abs(netScore))
                                     Text(
-                                        text = if (netScore >= 0) "+$netFormatted" else "-$netFormatted",
+                                        text = when {
+                                            kotlin.math.abs(netScore) < 0.005 -> netFormatted
+                                            netScore > 0 -> "+$netFormatted"
+                                            else -> "-$netFormatted"
+                                        },
                                         style = MaterialTheme.typography.headlineSmall,
-                                        fontWeight = FontWeight.Bold,
+                                        fontWeight = AkSpendTheme.emphasis,
                                         color = if (netScore >= 0) AkSpendTheme.finance.income else AkSpendTheme.finance.expense
                                     )
                                 }
@@ -752,27 +764,27 @@ fun ToolsScreen(
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "Others Owe You (Lent)",
+                                            text = "Owed to you",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                         )
                                         Text(
                                             text = viewModel.formatCurrencyValue(totalLent),
                                             style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
+                                            fontWeight = AkSpendTheme.emphasis,
                                             color = AkSpendTheme.finance.income
                                         )
                                     }
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "You Owe Others (Borrowed)",
+                                            text = "You owe",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                                         )
                                         Text(
                                             text = viewModel.formatCurrencyValue(totalBorrowed),
                                             style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
+                                            fontWeight = AkSpendTheme.emphasis,
                                             color = AkSpendTheme.finance.expense
                                         )
                                     }
@@ -786,7 +798,7 @@ fun ToolsScreen(
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("New Borrow / Lent Record")
+                            Text("Add a record")
                         }
 
                         Row(
@@ -819,7 +831,7 @@ fun ToolsScreen(
                                     Text(
                                         text = fName,
                                         style = MaterialTheme.typography.bodySmall.copy(
-                                            fontWeight = FontWeight.Bold,
+                                            fontWeight = AkSpendTheme.emphasis,
                                             color = textCol
                                         )
                                     )
@@ -828,25 +840,12 @@ fun ToolsScreen(
                         }
 
                         if (filteredDebts.isEmpty()) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().weight(1.0f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        imageVector = Icons.Default.Info,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.outlineVariant,
-                                        modifier = Modifier.size(64.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Text(
-                                        text = "No pending records found under this filter.",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
+                            EmptyState(
+                                icon = Icons.Default.Handshake,
+                                title = if (debtsList.isEmpty()) "Nothing owed" else "No records here",
+                                message = if (debtsList.isEmpty()) "Note money you lend or borrow so you remember who to settle with."
+                                          else "Try another filter to see your other records."
+                            )
                         } else {
                             LazyColumn(
                                 modifier = Modifier.weight(1.0f),
@@ -877,7 +876,7 @@ fun ToolsScreen(
                                                     
                                                     Text(
                                                         text = debt.personName,
-                                                        fontWeight = FontWeight.Bold,
+                                                        fontWeight = AkSpendTheme.emphasis,
                                                         style = MaterialTheme.typography.bodyLarge,
                                                         color = if (debt.isResolved) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface
                                                     )
@@ -925,7 +924,7 @@ fun ToolsScreen(
                                                 Text(
                                                     text = viewModel.formatCurrencyValue(debt.amount),
                                                     style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
+                                                    fontWeight = AkSpendTheme.emphasis,
                                                     color = if (debt.isResolved) MaterialTheme.colorScheme.outline
                                                             else if (debt.type == "LENT") AkSpendTheme.finance.income
                                                             else AkSpendTheme.finance.expense
@@ -955,7 +954,7 @@ fun ToolsScreen(
                                                     }
 
                                                     IconButton(
-                                                        onClick = { viewModel.deleteDebt(debt) },
+                                                        onClick = { confirmDelete.request("Delete record for ${debt.personName}?") { viewModel.deleteDebt(debt) } },
                                                         modifier = Modifier.size(36.dp)
                                                     ) {
                                                         Icon(
@@ -1010,10 +1009,10 @@ fun ToolsScreen(
 
         AlertDialog(
             onDismissRequest = { showReportDetailType = null },
-            title = { Text("$sheetType Financial Sheet") },
+            title = { Text("Report ready") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Report compiled successfully:", style = MaterialTheme.typography.labelSmall)
+                    Text("Copy this CSV into a spreadsheet:", style = MaterialTheme.typography.labelSmall)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1062,6 +1061,8 @@ private data class MoreTool(
 
 private val moreTools = listOf(
     MoreTool("WEEKLY_DIGEST", "Weekly digest", "Your week in review, computed on this device", Icons.Rounded.AutoAwesome),
+    MoreTool("AUTO_IMPORT", "Auto-import", "Payments from bank and UPI notifications", Icons.Rounded.Inbox),
+    MoreTool("SMS_IMPORT", "Import bank SMS", "Paste or share a bank message", Icons.Rounded.Sms),
     MoreTool("CSV_IMPORT", "Import CSV", "Bring in a bank statement export", Icons.Rounded.UploadFile),
     MoreTool("ACCOUNTS", "Accounts", "Balances, transfers, reconciling", Icons.Rounded.AccountBalance),
     MoreTool("RECURRING", "Reminders", "Bills and income that repeat", Icons.Rounded.EventRepeat),
@@ -1070,7 +1071,9 @@ private val moreTools = listOf(
     MoreTool("CALCULATORS", "Calculators", "EMI, SIP and quick maths", Icons.Rounded.Calculate),
     MoreTool("BACKUP", "Backup & restore", "Export or restore your data file", Icons.Rounded.Backup),
     MoreTool("VAULT", "Vault & passcode", "App lock and fingerprint", Icons.Rounded.Shield),
+    MoreTool("APPEARANCE", "Appearance", "Choose the look of the app", Icons.Rounded.Palette),
     MoreTool("SETTINGS", "Region & currency", "Currency symbol and payment methods", Icons.Rounded.Public),
+    MoreTool("LEARNED_CATEGORIES", "Learned categories", "Shops and payees you've categorised", Icons.Rounded.Psychology),
 )
 
 @Composable
@@ -1220,7 +1223,7 @@ fun AddRecurringDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New Recurring Rule") },
+        title = { Text("New repeating entry") },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1234,12 +1237,12 @@ fun AddRecurringDialog(
                     FilterChip(
                         selected = isExpense,
                         onClick = { isExpense = true },
-                        label = { Text("Expense (Debit)") }
+                        label = { Text("Expense") }
                     )
                     FilterChip(
                         selected = !isExpense,
                         onClick = { isExpense = false },
-                        label = { Text("Income (Credit)") }
+                        label = { Text("Income") }
                     )
                 }
 
@@ -1247,7 +1250,7 @@ fun AddRecurringDialog(
                     colors = glassTextFieldColors(),
                     value = amountStr,
                     onValueChange = { amountStr = it },
-                    label = { Text("Impact Sum (₹)") },
+                    label = { Text("Amount") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -1257,13 +1260,13 @@ fun AddRecurringDialog(
                     colors = glassTextFieldColors(),
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Billing Description") },
+                    label = { Text("Description") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 // Frequency Dropdown
-                Text("Repetition Interval", style = MaterialTheme.typography.labelSmall)
+                Text("Repeats", style = MaterialTheme.typography.labelSmall)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1290,7 +1293,7 @@ fun AddRecurringDialog(
                 }
 
                 // Category Dropdown
-                Text("Log Category", style = MaterialTheme.typography.labelSmall)
+                Text("Category", style = MaterialTheme.typography.labelSmall)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1320,7 +1323,7 @@ fun AddRecurringDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val amt = com.akshar.utils.MathUtils.evaluateMathExpression(amountStr) ?: 0.0
+                    val amt = com.akshar.utils.MoneyUtils.parseAmount(amountStr) ?: 0.0
                     if (amt > 0 && description.isNotEmpty()) {
                         onConfirm(
                             amt,
@@ -1333,7 +1336,7 @@ fun AddRecurringDialog(
                     }
                 }
             ) {
-                Text("Enable Schedule")
+                Text("Save")
             }
         },
         dismissButton = {
@@ -1360,7 +1363,7 @@ fun AddDebtDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New Borrow / Lent Record", fontWeight = FontWeight.Bold) },
+        title = { Text("Add a borrow or lend record", fontWeight = AkSpendTheme.emphasis) },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1391,8 +1394,8 @@ fun AddDebtDialog(
                             Text(
                                 text = tLabel,
                                 style = MaterialTheme.typography.bodySmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (active) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                    fontWeight = AkSpendTheme.emphasis,
+                                    color = if (active) readableOn(activeColor) else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             )
                         }
@@ -1404,8 +1407,8 @@ fun AddDebtDialog(
                     colors = glassTextFieldColors(),
                     value = personName,
                     onValueChange = { personName = it },
-                    label = { Text("Person's Name") },
-                    placeholder = { Text("e.g. John Doe") },
+                    label = { Text("Person's name") },
+                    placeholder = { Text("e.g. Riya") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1426,8 +1429,8 @@ fun AddDebtDialog(
                     colors = glassTextFieldColors(),
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Description / Notes") },
-                    placeholder = { Text("e.g. For dinner bills, project, etc.") },
+                    label = { Text("Note (optional)") },
+                    placeholder = { Text("e.g. Dinner split") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -1435,7 +1438,7 @@ fun AddDebtDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val amtVal = com.akshar.utils.MathUtils.evaluateMathExpression(amountText)
+                    val amtVal = com.akshar.utils.MoneyUtils.parseAmount(amountText)
                     if (personName.isBlank()) {
                         Toast.makeText(context, "Please enter a name", Toast.LENGTH_SHORT).show()
                     } else if (amtVal == null || amtVal <= 0.0) {
@@ -1452,7 +1455,7 @@ fun AddDebtDialog(
                     }
                 }
             ) {
-                Text("Save Record")
+                Text("Save")
             }
         },
         dismissButton = {
@@ -1474,12 +1477,10 @@ fun CalculatorsTab() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Financial Calculators", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = glassCardColors(AkSpendTheme.glass.fillStrong)
@@ -1489,7 +1490,7 @@ fun CalculatorsTab() {
                     colors = glassTextFieldColors(),
                     value = principal,
                     onValueChange = { principal = it },
-                    label = { Text("Principal Amount") },
+                    label = { Text("Loan or investment amount") },
                     keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1497,7 +1498,7 @@ fun CalculatorsTab() {
                     colors = glassTextFieldColors(),
                     value = rate,
                     onValueChange = { rate = it },
-                    label = { Text("Interest Rate (%)") },
+                    label = { Text("Interest rate (% per year)") },
                     keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1505,7 +1506,7 @@ fun CalculatorsTab() {
                     colors = glassTextFieldColors(),
                     value = time,
                     onValueChange = { time = it },
-                    label = { Text("Time (Years)") },
+                    label = { Text("Time (years)") },
                     keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1541,17 +1542,70 @@ fun CalculatorsTab() {
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Calculate CI")
+                        Text("Interest total")
                     }
                 }
 
                 if (emiResult != null) {
-                    Text("Monthly EMI: ${String.format("%.2f", emiResult)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text("Monthly EMI: ${String.format("%.2f", emiResult)}", fontWeight = AkSpendTheme.emphasis, color = MaterialTheme.colorScheme.primary)
                 }
                 if (ciResult != null) {
-                    Text("Total Amount (CI): ${String.format("%.2f", ciResult)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text("Total after interest: ${String.format("%.2f", ciResult)}", fontWeight = AkSpendTheme.emphasis, color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
+    }
+}
+
+
+/** Lets the user switch the whole app between visual styles. Applies immediately. */
+@Composable
+private fun AppearancePicker() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val current = Appearance.style
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg)
+            .selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md)
+    ) {
+        AppStyle.entries.forEach { style ->
+            val selected = style == current
+            GlassCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(selected = selected, role = androidx.compose.ui.semantics.Role.RadioButton) {
+                        Appearance.select(context, style)
+                        // Redraw the home-screen widgets in the new style.
+                        scope.launch {
+                            runCatching { com.akshar.widget.QuickAddWidget().updateAll(context) }
+                            runCatching { com.akshar.widget.BudgetWidget().updateAll(context) }
+                        }
+                    },
+                contentPadding = PaddingValues(horizontal = Spacing.xl, vertical = Spacing.lg)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(style.label, style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(Spacing.xxs))
+                        Text(
+                            style.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    RadioButton(selected = selected, onClick = null)
+                }
+            }
+        }
+        Text(
+            text = "Light or dark follows your phone's setting.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = Spacing.xs)
+        )
     }
 }

@@ -1,5 +1,12 @@
 package com.akshar.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -12,7 +19,6 @@ import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Inbox
 import androidx.compose.material.icons.rounded.NorthEast
 import androidx.compose.material.icons.rounded.Savings
@@ -35,6 +41,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.akshar.TransactionRoutes
 import com.akshar.data.model.Transaction
 import com.akshar.ui.components.*
 import com.akshar.ui.theme.*
@@ -52,16 +59,23 @@ fun DashboardScreen(
 ) {
     val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
     val transactions = allTransactions.filter { it.transferId == null }
+    val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val budgets by viewModel.allBudgets.collectAsStateWithLifecycle()
     val recurringList by viewModel.allRecurringTransactions.collectAsStateWithLifecycle()
+    val insightsViewModel = rememberInsightsViewModel()
+    val forecast by insightsViewModel.forecast.collectAsStateWithLifecycle()
+    val inboxContext = androidx.compose.ui.platform.LocalContext.current
+    val pendingImports by remember {
+        com.akshar.sms.inbox.ImportInboxDatabase.getInstance(inboxContext).pendingImportDao().observeCount()
+    }.collectAsStateWithLifecycle(initialValue = 0)
 
     val selectedCountry by viewModel.selectedCountry.collectAsStateWithLifecycle()
     val currencySymbol = viewModel.getCurrencySymbol()
 
     // --- State Calculations ---
-    val totalIncome = transactions.filter { it.type == "INCOME" }.sumOf { it.amount }
-    val totalExpense = transactions.filter { it.type == "EXPENSE" }.sumOf { it.amount }
-    val currentBalance = totalIncome - totalExpense
+    val currentBalance = com.akshar.insights.MonthEndForecaster.currentBalance(
+        System.currentTimeMillis(), accounts, allTransactions
+    ).toDouble()
 
     // Today boundaries
     val startOfToday = remember {
@@ -84,17 +98,24 @@ fun DashboardScreen(
         }.timeInMillis
     }
 
-    val todayIncome = transactions.filter { it.type == "INCOME" && it.date >= startOfToday }.sumOf { it.amount }
-    val todayExpense = transactions.filter { it.type == "EXPENSE" && it.date >= startOfToday }.sumOf { it.amount }
+    val startOfTomorrow = remember(startOfToday) {
+        Calendar.getInstance().apply { timeInMillis = startOfToday; add(Calendar.DAY_OF_YEAR, 1) }.timeInMillis
+    }
+    val startOfNextMonth = remember(startOfMonth) {
+        Calendar.getInstance().apply { timeInMillis = startOfMonth; add(Calendar.MONTH, 1) }.timeInMillis
+    }
 
-    val monthIncome = transactions.filter { it.type == "INCOME" && it.date >= startOfMonth }.sumOf { it.amount }
-    val monthExpense = transactions.filter { it.type == "EXPENSE" && it.date >= startOfMonth }.sumOf { it.amount }
+    val todayIncome = transactions.filter { it.type == "INCOME" && it.date >= startOfToday && it.date < startOfTomorrow }.sumOf { it.amount }
+    val todayExpense = transactions.filter { it.type == "EXPENSE" && it.date >= startOfToday && it.date < startOfTomorrow }.sumOf { it.amount }
+
+    val monthIncome = transactions.filter { it.type == "INCOME" && it.date >= startOfMonth && it.date < startOfNextMonth }.sumOf { it.amount }
+    val monthExpense = transactions.filter { it.type == "EXPENSE" && it.date >= startOfMonth && it.date < startOfNextMonth }.sumOf { it.amount }
 
     // --- Quick Stats Calculations ---
     val recentTxs = transactions.take(10)
 
     // Average spending (daily average in the current month)
-    val expensesThisMonth = transactions.filter { it.type == "EXPENSE" && it.date >= startOfMonth }
+    val expensesThisMonth = transactions.filter { it.type == "EXPENSE" && it.date >= startOfMonth && it.date < startOfNextMonth }
     val daysInMonthElapsed = remember {
         val todayDay = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
         todayDay.coerceAtLeast(1)
@@ -110,15 +131,23 @@ fun DashboardScreen(
     val highestIncomeDayVal = incomeByDay.maxByOrNull { it.value }?.value ?: 0.0
 
     // Remaining Budget
-    val currentMonthStr = remember { SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date()) }
-    val totalBudgetLimit = budgets.filter { it.month == currentMonthStr }.sumOf { it.limitAmount }
-    val remainingBudget = (totalBudgetLimit - monthExpense).coerceAtLeast(0.0)
+    val currentMonthStr = remember { com.akshar.utils.PeriodUtils.monthKey(System.currentTimeMillis()) }
+    // Same per-category calculation as the Budgets tab: only spending in budgeted categories counts.
+    val budgetSummary = com.akshar.utils.BudgetMath.summary(com.akshar.utils.BudgetMath.activeBudgets(budgets), transactions)
+    val totalBudgetLimit = budgetSummary.totalLimit
+    val remainingBudget = budgetSummary.remaining
 
     val entrance = rememberEntranceState(itemCount = 7)
     val bottomInset = LocalFloatingBarInset.current
 
+    val listState = rememberLazyListState()
+    // The hero card has its own Add button; the floating one appears once that card scrolls away,
+    // so it never covers content on first load.
+    val showFab by remember { derivedStateOf { listState.firstVisibleItemIndex > 1 } }
+
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 start = Spacing.gutter,
@@ -141,11 +170,33 @@ fun DashboardScreen(
                     monthIncome = monthIncome,
                     monthExpense = monthExpense,
                     totalBudgetLimit = totalBudgetLimit,
+                    budgetSpent = budgetSummary.totalSpent,
                     currencySymbol = currencySymbol,
+                    onAddTransaction = onNavigateToAddTransaction,
                     onAddTransfer = { navController.navigate("addTransfer") },
-                    onOpenAccounts = { navController.navigate("accounts") },
                     modifier = Modifier.entrance(entrance, 1)
                 )
+            }
+
+            if (pendingImports > 0) {
+                item(key = "toReview") {
+                    GlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { navController.navigate(com.akshar.SmsImportRoutes.INBOX) },
+                        onClickLabel = "Open payments to review",
+                        contentPadding = PaddingValues(Spacing.lg)
+                    ) {
+                        Text(
+                            if (pendingImports == 1) "1 payment to review" else "$pendingImports payments to review",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            "Picked up from your notifications. Tap to check and save.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
 
             item(key = "today") {
@@ -159,12 +210,23 @@ fun DashboardScreen(
                 )
             }
 
+            if (forecast != com.akshar.insights.MonthEndForecast.NoData) {
+                item(key = "forecast") {
+                    MonthEndForecastCard(
+                        forecast = forecast,
+                        currencySymbol = currencySymbol,
+                        modifier = Modifier.entrance(entrance, 2)
+                    )
+                }
+            }
+
             item(key = "stats") {
                 QuickStatistics(
                     avgDailySpending = avgDailySpending,
                     highestExpenseDayVal = highestExpenseDayVal,
                     highestIncomeDayVal = highestIncomeDayVal,
                     remainingBudget = remainingBudget,
+                    hasBudget = totalBudgetLimit > 0.0,
                     currencySymbol = currencySymbol,
                     modifier = Modifier.entrance(entrance, 3)
                 )
@@ -192,26 +254,32 @@ fun DashboardScreen(
                 recentTxs = recentTxs,
                 currencySymbol = currencySymbol,
                 onNavigateToHistory = onNavigateToHistory,
-                navController = navController,
-                onDelete = { tx -> viewModel.deleteTransaction(tx) },
+                onNavigateToAddTransaction = onNavigateToAddTransaction,
+                onOpen = { tx -> navController.navigate(TransactionRoutes.edit(tx.id)) },
                 entrance = entrance
             )
         }
 
-        // Primary action floats just above the tab bar, within thumb reach.
-        ExtendedFloatingActionButton(
-            onClick = onNavigateToAddTransaction,
-            icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
-            text = { Text("Add", style = MaterialTheme.typography.labelLarge) },
-            shape = PillShape,
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp, pressedElevation = 2.dp),
+        // Once scrolled, the primary action floats just above the tab bar, within thumb reach.
+        AnimatedVisibility(
+            visible = showFab,
+            enter = fadeIn(motionSpec()) + scaleIn(motionSpec(), initialScale = 0.85f),
+            exit = fadeOut(motionSpec()) + scaleOut(motionSpec(), targetScale = 0.85f),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = Spacing.gutter, bottom = bottomInset + Spacing.xs)
-                .semantics { contentDescription = "Add transaction" }
-        )
+        ) {
+            FloatingActionButton(
+                onClick = onNavigateToAddTransaction,
+                shape = PillShape,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp, pressedElevation = 2.dp),
+                modifier = Modifier.semantics { contentDescription = "Add transaction" }
+            ) {
+                Icon(Icons.Rounded.Add, contentDescription = null)
+            }
+        }
     }
 }
 
@@ -266,9 +334,10 @@ private fun BalanceHero(
     monthIncome: Double,
     monthExpense: Double,
     totalBudgetLimit: Double,
+    budgetSpent: Double = monthExpense,
     currencySymbol: String,
+    onAddTransaction: () -> Unit,
     onAddTransfer: () -> Unit,
-    onOpenAccounts: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val finance = AkSpendTheme.finance
@@ -311,7 +380,7 @@ private fun BalanceHero(
             )
         }
         if (totalBudgetLimit > 0) {
-            val used = (monthExpense / totalBudgetLimit).toFloat().coerceIn(0f, 1f)
+            val used = (budgetSpent / totalBudgetLimit).toFloat().coerceIn(0f, 1f)
             val animatedUsed by animateFloatAsState(used, motionSpec(Durations.emphasized * 2), label = "budgetUsed")
             Spacer(modifier = Modifier.height(Spacing.lg))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -337,6 +406,23 @@ private fun BalanceHero(
         }
         Spacer(modifier = Modifier.height(Spacing.lg))
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            // Adding a transaction is the main job of the app, so it gets the filled button.
+            Button(
+                onClick = onAddTransaction,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = Spacing.touchTarget)
+                    .semantics { contentDescription = "Add transaction" },
+                shape = PillShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(Spacing.xs))
+                Text("Add", style = MaterialTheme.typography.labelLarge)
+            }
             FilledTonalButton(
                 onClick = onAddTransfer,
                 modifier = Modifier.weight(1f).heightIn(min = Spacing.touchTarget),
@@ -349,19 +435,6 @@ private fun BalanceHero(
                 Icon(Icons.Rounded.SwapHoriz, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(Spacing.xs))
                 Text("Transfer", style = MaterialTheme.typography.labelLarge)
-            }
-            FilledTonalButton(
-                onClick = onOpenAccounts,
-                modifier = Modifier.weight(1f).heightIn(min = Spacing.touchTarget),
-                shape = PillShape,
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = if (AkSpendTheme.isDark) 0.18f else 0.10f),
-                    contentColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Icon(Icons.Rounded.AccountBalance, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(Spacing.xs))
-                Text("Accounts", style = MaterialTheme.typography.labelLarge)
             }
         }
     }
@@ -419,11 +492,11 @@ fun CashflowBanner(
         }
         Spacer(Modifier.height(Spacing.lg))
         Row(Modifier.fillMaxWidth()) {
-            SummaryFigure("Earned", "+$currencySymbol${String.format("%,.0f", todayIncome)}", finance.income, Modifier.weight(1f))
-            SummaryFigure("Spent", "-$currencySymbol${String.format("%,.0f", todayExpense)}", finance.expense, Modifier.weight(1f))
+            SummaryFigure("Earned", signedMoney(todayIncome, positive = true, currencySymbol = currencySymbol), finance.income, Modifier.weight(1f))
+            SummaryFigure("Spent", signedMoney(todayExpense, positive = false, currencySymbol = currencySymbol), finance.expense, Modifier.weight(1f))
             SummaryFigure(
                 "Month net",
-                "${if (monthIncome - monthExpense >= 0) "+" else "-"}$currencySymbol${String.format("%,.0f", kotlin.math.abs(monthIncome - monthExpense))}",
+                netMoney(monthIncome - monthExpense, currencySymbol),
                 MaterialTheme.colorScheme.onSurface,
                 Modifier.weight(1f)
             )
@@ -446,6 +519,7 @@ fun QuickStatistics(
     highestExpenseDayVal: Double,
     highestIncomeDayVal: Double,
     remainingBudget: Double,
+    hasBudget: Boolean,
     currencySymbol: String,
     modifier: Modifier = Modifier
 ) {
@@ -462,7 +536,7 @@ fun QuickStatistics(
             )
             StatTile(
                 label = "Budget left",
-                value = "$currencySymbol${String.format("%,.0f", remainingBudget)}",
+                value = if (hasBudget) "$currencySymbol${String.format("%,.0f", remainingBudget)}" else "Not set",
                 icon = Icons.Rounded.Savings,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f)
@@ -595,15 +669,16 @@ fun LazyListScope.recentTransactionsSection(
     recentTxs: List<Transaction>,
     currencySymbol: String,
     onNavigateToHistory: () -> Unit,
-    navController: NavController,
-    onDelete: (Transaction) -> Unit,
+    onNavigateToAddTransaction: () -> Unit,
+    onOpen: (Transaction) -> Unit,
     entrance: EntranceState? = null
 ) {
     item(key = "recentHeader") {
         SectionHeader(
             title = "Recent activity",
-            actionLabel = "See all",
-            onAction = onNavigateToHistory,
+            // Nothing to see yet, so don't offer "See all" on an empty list.
+            actionLabel = if (recentTxs.isEmpty()) null else "See all",
+            onAction = if (recentTxs.isEmpty()) null else onNavigateToHistory,
             modifier = if (entrance != null) Modifier.entrance(entrance, 6) else Modifier
         )
     }
@@ -613,7 +688,14 @@ fun LazyListScope.recentTransactionsSection(
             EmptyState(
                 icon = Icons.Rounded.Inbox,
                 title = "No transactions yet",
-                message = "Tap Add to log your first expense or income. Everything stays on this device."
+                message = "Log your first expense or income. Everything stays on this device.",
+                action = {
+                    FilledTonalButton(onClick = onNavigateToAddTransaction, shape = PillShape) {
+                        Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(Spacing.xs))
+                        Text("Add your first entry", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
             )
         }
     } else {
@@ -626,78 +708,15 @@ fun LazyListScope.recentTransactionsSection(
             ) {
                 recentTxs.forEachIndexed { index, transaction ->
                     if (index > 0) GlassDivider()
-                    TransactionItemRow(
+                    // Same row as Activity, with the date instead of the time. Tap to edit or delete.
+                    TransactionItem(
                         transaction = transaction,
-                        onDelete = { onDelete(transaction) },
-                        currencySymbol = currencySymbol
+                        onClick = { onOpen(transaction) },
+                        currencySymbol = currencySymbol,
+                        timePattern = "d MMM"
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun TransactionItemRow(
-    transaction: Transaction,
-    onDelete: () -> Unit,
-    currencySymbol: String = "₹"
-) {
-    val finance = AkSpendTheme.finance
-    val isExpense = transaction.type == "EXPENSE"
-    val formattedDate = remember(transaction.date) {
-        SimpleDateFormat("d MMM", Locale.getDefault()).format(Date(transaction.date))
-    }
-    val amountText = "${if (isExpense) "-" else "+"}$currencySymbol${String.format("%,.2f", transaction.amount)}"
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 68.dp)
-            .padding(start = Spacing.lg, end = Spacing.xs, top = Spacing.sm, bottom = Spacing.sm),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconBadge(
-            icon = categoryIcon(transaction.category),
-            tint = categoryTint(transaction.category),
-            size = 44.dp
-        )
-        Spacer(modifier = Modifier.width(Spacing.md))
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .semantics(mergeDescendants = true) {}
-        ) {
-            Text(
-                text = transaction.description.ifEmpty { transaction.category },
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(Spacing.xxs))
-            Text(
-                text = "${transaction.category} · $formattedDate · ${transaction.paymentMethod}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        Spacer(modifier = Modifier.width(Spacing.sm))
-        Text(
-            text = amountText,
-            style = MaterialTheme.typography.titleSmall.money(),
-            color = if (isExpense) finance.expense else finance.income,
-            maxLines = 1
-        )
-        IconButton(onClick = onDelete) {
-            Icon(
-                imageVector = Icons.Rounded.DeleteOutline,
-                contentDescription = "Delete ${transaction.description.ifEmpty { transaction.category }}",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
         }
     }
 }

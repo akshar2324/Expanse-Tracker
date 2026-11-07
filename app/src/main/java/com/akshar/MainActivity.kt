@@ -2,6 +2,7 @@ package com.akshar
 
 import android.os.Bundle
 import android.util.Log
+import android.content.Intent
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.biometric.BiometricManager
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -38,7 +41,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavHostController
 import androidx.navigation.navDeepLink
 import com.akshar.ui.screens.*
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import com.akshar.ui.theme.AkSpendTheme
+import com.akshar.ui.theme.Appearance
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -80,21 +86,68 @@ import com.akshar.ui.theme.money
 import com.akshar.ui.theme.rememberGlassBlurState
 import com.akshar.ui.viewmodel.FinanceViewModel
 import com.akshar.security.BiometricCrypto
+import com.akshar.security.AppLock
+import android.os.SystemClock
+import androidx.compose.ui.semantics.clearAndSetSemantics
 
 class MainActivity : FragmentActivity() {
+
+    private companion object {
+        const val KEY_UNLOCKED = "akspend_unlocked"
+    }
     
     private var isUnlockedState = mutableStateOf(false)
+    private lateinit var appLock: AppLock
+
+    /** elapsedRealtime when the app went to the background, or null while it is in front. */
+    private var backgroundedAt: Long? = null
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        // Rotation and other configuration changes recreate the activity; an unlocked session
+        // should stay unlocked. After the process is killed in the background, it must lock again.
+        outState.putBoolean(KEY_UNLOCKED, isUnlockedState.value && isChangingConfigurations)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) backgroundedAt = SystemClock.elapsedRealtime()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val since = backgroundedAt ?: return
+        backgroundedAt = null
+        if (isUnlockedState.value && appLock.isActive &&
+            SystemClock.elapsedRealtime() - since >= AppLock.RELOCK_AFTER_MILLIS
+        ) {
+            isUnlockedState.value = false
+            if (appLock.biometricsEnabled) tryLaunchBiometric { isUnlockedState.value = true }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        AppNavigationRequests.handle(intent)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) AppNavigationRequests.handle(intent)
         enableEdgeToEdge()
-        
-        val sharedPrefs = getSharedPreferences("vault_settings", android.content.Context.MODE_PRIVATE)
-        val onboardingCompleted = sharedPrefs.getBoolean("onboarding_completed", false)
-        val vaultEnabled = sharedPrefs.getBoolean("vault_enabled", true)
-        val vaultBiometrics = sharedPrefs.getBoolean("vault_biometrics", true)
+        Appearance.load(this)
 
-        if (!onboardingCompleted) {
+        val sharedPrefs = getSharedPreferences(AppLock.PREFS, android.content.Context.MODE_PRIVATE)
+        appLock = AppLock(sharedPrefs)
+        val onboardingCompleted = sharedPrefs.getBoolean("onboarding_completed", false)
+        val vaultEnabled = appLock.isActive
+        val vaultBiometrics = appLock.biometricsEnabled
+        val restoredUnlocked = savedInstanceState?.getBoolean(KEY_UNLOCKED, false) == true
+
+        if (restoredUnlocked && onboardingCompleted) {
+            isUnlockedState.value = true
+        } else if (!onboardingCompleted) {
             isUnlockedState.value = false
         } else if (!vaultEnabled) {
             isUnlockedState.value = true
@@ -110,9 +163,12 @@ class MainActivity : FragmentActivity() {
                 val viewModel: FinanceViewModel = viewModel()
                 val isUnlocked by remember { isUnlockedState }
 
-                val dynamicPrefs = remember { getSharedPreferences("vault_settings", android.content.Context.MODE_PRIVATE) }
-                val correctPin = remember(isUnlocked) { dynamicPrefs.getString("vault_pin", "1234") ?: "1234" }
-                val useBiometrics = remember(isUnlocked) { dynamicPrefs.getBoolean("vault_biometrics", true) }
+                val dynamicPrefs = remember { getSharedPreferences(AppLock.PREFS, android.content.Context.MODE_PRIVATE) }
+                val useBiometrics = remember(isUnlocked) { appLock.biometricsEnabled }
+                // Once unlocked, the app stays composed under the lock screen, so a file picker or
+                // share sheet that outlasts the relock delay still delivers its result.
+                var hasBeenUnlocked by rememberSaveable { mutableStateOf(false) }
+                if (isUnlocked) hasBeenUnlocked = true
                 var isOnboardingCompleted by remember { mutableStateOf(dynamicPrefs.getBoolean("onboarding_completed", false)) }
 
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -125,19 +181,28 @@ class MainActivity : FragmentActivity() {
                                 isUnlockedState.value = true
                             }
                         )
-                    } else if (isUnlocked) {
-                        AppScaffold(viewModel = viewModel)
                     } else {
-                        LockScreen(
-                            correctPin = correctPin,
-                            useBiometrics = useBiometrics,
-                            onUnlockSuccess = { isUnlockedState.value = true },
-                            onTriggerBiometric = {
-                                tryLaunchBiometric {
-                                    isUnlockedState.value = true
-                                }
+                        if (hasBeenUnlocked) {
+                            Box(
+                                modifier = if (isUnlocked) Modifier.fillMaxSize()
+                                else Modifier.fillMaxSize().clearAndSetSemantics { }
+                            ) { AppScaffold(viewModel = viewModel) }
+                        }
+                        if (!isUnlocked) {
+                            // Surface is opaque and swallows touches meant for the app underneath.
+                            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                                LockScreen(
+                                    appLock = appLock,
+                                    useBiometrics = useBiometrics,
+                                    onUnlockSuccess = { isUnlockedState.value = true },
+                                    onTriggerBiometric = {
+                                        tryLaunchBiometric {
+                                            isUnlockedState.value = true
+                                        }
+                                    }
+                                )
                             }
-                        )
+                        }
                     }
                 }
             }
@@ -296,6 +361,63 @@ fun AppNavGraph(
         composable("weeklyDigest") {
             WeeklyDigestScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
         }
+        composable(
+            SmsImportRoutes.IMPORT,
+            // "Share" from a messages app opens the importer with the message text.
+            deepLinks = listOf(navDeepLink { action = android.content.Intent.ACTION_SEND; mimeType = "text/plain" })
+        ) { entry ->
+            val activity = androidx.activity.compose.LocalActivity.current
+            val sharedText = androidx.compose.runtime.saveable.rememberSaveable {
+                activity?.intent?.takeIf { it.action == android.content.Intent.ACTION_SEND }
+                    ?.getCharSequenceExtra(android.content.Intent.EXTRA_TEXT)?.toString().orEmpty()
+            }.ifBlank { null }
+            val savedOne by entry.savedStateHandle.getStateFlow(SmsImportRoutes.SAVED_KEY, false).collectAsStateWithLifecycle()
+            SmsImportScreen(
+                currencySymbol = viewModel.getCurrencySymbol(),
+                loadCategoryMemory = viewModel::categoryMemory,
+                sharedText = sharedText,
+                onBack = { navController.popBackStack() },
+                onReview = { draft -> navController.navigate(SmsImportRoutes.review(draft)) },
+                savedOne = savedOne,
+                onSavedShown = { entry.savedStateHandle[SmsImportRoutes.SAVED_KEY] = false }
+            )
+        }
+        composable(SmsImportRoutes.REVIEW, arguments = SmsImportRoutes.reviewArguments) { entry ->
+            val draft = remember(entry) { SmsImportRoutes.draftFrom(entry.arguments) }
+            val pendingId = entry.arguments?.getLong("pending") ?: 0L
+            AddTransactionScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() },
+                prefill = draft,
+                onSaved = {
+                    // Tell the screen we came from: the importer clears itself, the inbox drops the item.
+                    navController.previousBackStackEntry?.savedStateHandle?.let { handle ->
+                        handle[SmsImportRoutes.SAVED_KEY] = true
+                        if (pendingId > 0) handle[SmsImportRoutes.REVIEWED_PENDING_KEY] = pendingId
+                    }
+                    navController.popBackStack()
+                }
+            )
+        }
+        composable(LearnedCategoriesRoute) {
+            LearnedCategoriesScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+        }
+        composable(SmsImportRoutes.INBOX) { entry ->
+            val inboxViewModel = viewModel<com.akshar.sms.inbox.ImportInboxViewModel>()
+            val reviewedId by entry.savedStateHandle.getStateFlow(SmsImportRoutes.REVIEWED_PENDING_KEY, 0L).collectAsStateWithLifecycle()
+            LaunchedEffect(reviewedId) {
+                if (reviewedId > 0) {
+                    inboxViewModel.dismiss(reviewedId)
+                    entry.savedStateHandle[SmsImportRoutes.REVIEWED_PENDING_KEY] = 0L
+                }
+            }
+            ImportInboxScreen(
+                viewModel = inboxViewModel,
+                currencySymbol = viewModel.getCurrencySymbol(),
+                onBack = { navController.popBackStack() },
+                onReview = { item -> navController.navigate(SmsImportRoutes.review(item.toDraft(), pendingId = item.id)) }
+            )
+        }
         composable("csvImport") {
             val csvViewModel = viewModel<com.akshar.ui.viewmodel.CsvImportViewModel>()
             CsvImportScreen(viewModel = csvViewModel, onBack = { navController.popBackStack() })
@@ -335,7 +457,18 @@ fun AppScaffold(viewModel: FinanceViewModel) {
         }
     }
 
-    val blurState = rememberGlassBlurState()
+    // A widget tap asks for a tab; open it once the scaffold (and so the unlocked app) shows.
+    val pendingTab by AppNavigationRequests.pendingTab.collectAsState()
+    LaunchedEffect(pendingTab) {
+        pendingTab?.let { route ->
+            if (tabs.any { it.route == route }) navigateToTab(route)
+            AppNavigationRequests.consumed()
+        }
+    }
+
+    // Flat styles (Atelier) use a solid bar, so there is nothing to blur.
+    val flatStyle = AkSpendTheme.style.isFlat
+    val blurState = if (flatStyle) null else rememberGlassBlurState()
     val contentInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -368,7 +501,11 @@ fun AppScaffold(viewModel: FinanceViewModel) {
             }
         } else {
             val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-            val barInset = if (showNavigation) FloatingBarHeight + FloatingBarMargin + navBarBottom + Spacing.lg else 0.dp
+            val barInset = when {
+                !showNavigation -> 0.dp
+                flatStyle -> FlatBarHeight + navBarBottom + Spacing.lg
+                else -> FloatingBarHeight + FloatingBarMargin + navBarBottom + Spacing.lg
+            }
 
             Box(modifier = Modifier.fillMaxSize()) {
                 Box(modifier = Modifier.fillMaxSize().glassBlurSource(blurState)) {
@@ -390,12 +527,16 @@ fun AppScaffold(viewModel: FinanceViewModel) {
                     enter = fadeIn(motionSpec<Float>()) + slideInVertically(motionSpec<IntOffset>()) { it / 2 },
                     exit = fadeOut(motionSpec<Float>(Durations.quick)) + slideOutVertically(motionSpec<IntOffset>(Durations.quick)) { it / 2 }
                 ) {
-                    FloatingTabBar(
-                        tabs = tabs,
-                        currentRoute = currentRoute,
-                        onSelect = navigateToTab,
-                        blurState = blurState
-                    )
+                    if (flatStyle) {
+                        FlatTabBar(tabs = tabs, currentRoute = currentRoute, onSelect = navigateToTab)
+                    } else {
+                        FloatingTabBar(
+                            tabs = tabs,
+                            currentRoute = currentRoute,
+                            onSelect = navigateToTab,
+                            blurState = blurState
+                        )
+                    }
                 }
             }
         }
@@ -404,6 +545,90 @@ fun AppScaffold(viewModel: FinanceViewModel) {
 
 private val FloatingBarHeight = 68.dp
 private val FloatingBarMargin = 12.dp
+private val FlatBarHeight = 64.dp
+
+/**
+ * Atelier's tab bar: a solid strip in the page colour with a single hairline above it. The
+ * active tab is marked by ink colour and a small accent dot rather than a filled pill.
+ */
+@Composable
+private fun FlatTabBar(
+    tabs: List<NavigationTabItem>,
+    currentRoute: String?,
+    onSelect: (String) -> Unit,
+) {
+    val glass = AkSpendTheme.glass
+    val hairline = MaterialTheme.colorScheme.outlineVariant
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(glass.base)
+            .drawBehind { drawLine(hairline, Offset(0f, 0f), Offset(size.width, 0f), strokeWidth = 1.dp.toPx()) }
+            .navigationBarsPadding(),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            modifier = Modifier
+                .widthIn(max = 560.dp)
+                .fillMaxWidth()
+                .height(FlatBarHeight)
+                .padding(horizontal = Spacing.sm)
+                .selectableGroup(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            tabs.forEach { tab ->
+                FlatTabBarItem(
+                    tab = tab,
+                    selected = currentRoute == tab.route,
+                    onClick = { onSelect(tab.route) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FlatTabBarItem(
+    tab: NavigationTabItem,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val contentColor by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        motionSpec(),
+        label = "flatTabContent"
+    )
+    val dotColor by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.secondary else Color.Transparent,
+        motionSpec(),
+        label = "flatTabDot"
+    )
+    Column(
+        modifier = modifier
+            .fillMaxHeight()
+            .selectable(selected = selected, role = Role.Tab, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = tab.icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(
+            text = tab.label,
+            style = MaterialTheme.typography.labelSmall,
+            color = contentColor,
+            maxLines = 1
+        )
+        Spacer(Modifier.height(4.dp))
+        Box(Modifier.size(4.dp).clip(CircleShape).background(dotColor))
+    }
+}
 
 /** Capsule tab bar that floats over content and frosts whatever scrolls underneath it. */
 @Composable
@@ -520,12 +745,66 @@ private fun GlassNavigationRail(
     }
 }
 
+/** More → Learned categories: view and clear merchant → category mappings. */
+const val LearnedCategoriesRoute = "learned_categories"
+
 // Routes for the add/edit transaction screen. ADD also backs the widget deep link.
 object TransactionRoutes {
     const val ADD = "add_transaction"
     const val EDIT = "add_transaction/{transactionId}"
 
     fun edit(transactionId: Long) = "add_transaction/$transactionId"
+}
+
+/** Bank SMS import: the paste/share screen and the prefilled review form it opens. */
+object SmsImportRoutes {
+    const val IMPORT = "sms_import"
+    const val INBOX = "import_inbox"
+    const val SAVED_KEY = "sms_import_saved"
+    const val REVIEWED_PENDING_KEY = "import_inbox_reviewed"
+    const val REVIEW = "sms_review?amount={amount}&expense={expense}&desc={desc}&date={date}" +
+        "&category={category}&method={method}&confident={confident}&ref={ref}&pending={pending}"
+
+    val reviewArguments = listOf(
+        androidx.navigation.navArgument("amount") { type = androidx.navigation.NavType.StringType; defaultValue = "" },
+        androidx.navigation.navArgument("expense") { type = androidx.navigation.NavType.BoolType; defaultValue = true },
+        androidx.navigation.navArgument("desc") { type = androidx.navigation.NavType.StringType; defaultValue = "" },
+        androidx.navigation.navArgument("date") { type = androidx.navigation.NavType.LongType; defaultValue = 0L },
+        androidx.navigation.navArgument("category") { type = androidx.navigation.NavType.StringType; defaultValue = "Other" },
+        androidx.navigation.navArgument("method") { type = androidx.navigation.NavType.StringType; nullable = true; defaultValue = null },
+        androidx.navigation.navArgument("confident") { type = androidx.navigation.NavType.BoolType; defaultValue = true },
+        androidx.navigation.navArgument("ref") { type = androidx.navigation.NavType.StringType; nullable = true; defaultValue = null },
+        androidx.navigation.navArgument("pending") { type = androidx.navigation.NavType.LongType; defaultValue = 0L },
+    )
+
+    fun review(draft: com.akshar.sms.SmsDraft, pendingId: Long = 0L): String {
+        fun enc(value: String) = android.net.Uri.encode(value)
+        return buildString {
+            append("sms_review?amount=").append(enc(draft.amount))
+            append("&expense=").append(draft.isExpense)
+            append("&desc=").append(enc(draft.description))
+            append("&date=").append(draft.dateMillis)
+            append("&category=").append(enc(draft.category))
+            draft.paymentMethod?.let { append("&method=").append(enc(it)) }
+            append("&confident=").append(draft.confident)
+            draft.referenceKey?.let { append("&ref=").append(enc(it)) }
+            if (pendingId > 0) append("&pending=").append(pendingId)
+        }
+    }
+
+    fun draftFrom(args: Bundle?): com.akshar.sms.SmsDraft? {
+        val amount = args?.getString("amount")?.takeIf { it.isNotBlank() } ?: return null
+        return com.akshar.sms.SmsDraft(
+            amount = amount,
+            isExpense = args.getBoolean("expense", true),
+            description = args.getString("desc").orEmpty(),
+            dateMillis = args.getLong("date").takeIf { it > 0 } ?: System.currentTimeMillis(),
+            category = args.getString("category") ?: "Other",
+            paymentMethod = args.getString("method"),
+            confident = args.getBoolean("confident", true),
+            referenceKey = args.getString("ref"),
+        )
+    }
 }
 
 data class NavigationTabItem(
@@ -535,28 +814,54 @@ data class NavigationTabItem(
     val selectedIcon: androidx.compose.ui.graphics.vector.ImageVector = icon
 )
 
+private fun formatWait(seconds: Long): String =
+    if (seconds < 60) "$seconds s" else "${(seconds + 59) / 60} min"
+
 @Composable
 fun LockScreen(
-    correctPin: String,
+    appLock: AppLock,
     useBiometrics: Boolean,
     onUnlockSuccess: () -> Unit,
     onTriggerBiometric: () -> Unit
 ) {
     var pinInput by remember { mutableStateOf("") }
     var showError by remember { mutableStateOf(false) }
+    var triesLeft by remember { mutableStateOf<Int?>(null) }
+    var waitUntil by remember { mutableStateOf(appLock.waitingUntil()) }
+    var secondsLeft by remember { mutableStateOf(0L) }
+
+    // Count down a lockout once a second, then open the keypad again.
+    LaunchedEffect(waitUntil) {
+        val until = waitUntil ?: return@LaunchedEffect
+        while (true) {
+            val left = until - System.currentTimeMillis()
+            if (left <= 0) break
+            secondsLeft = (left + 999) / 1000
+            kotlinx.coroutines.delay(minOf(left, 1_000L))
+        }
+        waitUntil = null
+        showError = false
+    }
 
     fun handleNumberClick(num: String) {
-        if (pinInput.length < 4) {
+        if (waitUntil != null) return
+        if (pinInput.length < AppLock.PIN_LENGTH) {
             pinInput += num
             showError = false
         }
-        if (pinInput.length == 4) {
-            if (pinInput == correctPin) {
-                onUnlockSuccess()
-            } else {
-                showError = true
-                pinInput = ""
+        if (pinInput.length == AppLock.PIN_LENGTH) {
+            when (val result = appLock.tryUnlock(pinInput)) {
+                AppLock.Attempt.Unlocked -> onUnlockSuccess()
+                is AppLock.Attempt.Wrong -> {
+                    showError = true
+                    triesLeft = result.triesBeforeWait
+                }
+                is AppLock.Attempt.Waiting -> {
+                    showError = true
+                    waitUntil = result.untilMillis
+                }
             }
+            pinInput = ""
         }
     }
 
@@ -640,8 +945,9 @@ fun LockScreen(
                     Spacer(modifier = Modifier.height(Spacing.lg))
                     Text(
                         text = when {
+                            waitUntil != null -> "Too many wrong tries. Try again in ${formatWait(secondsLeft)}."
+                            showError && triesLeft == 1 -> "That passcode didn't match. One more wrong try locks the keypad for a while."
                             showError -> "That passcode didn't match. Try again."
-                            correctPin == "1234" -> "Default passcode is 1234. You can change it in More › Vault."
                             else -> "Enter your 4-digit passcode"
                         },
                         color = if (showError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
