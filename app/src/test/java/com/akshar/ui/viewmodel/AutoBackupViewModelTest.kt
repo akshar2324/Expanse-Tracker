@@ -70,7 +70,8 @@ class AutoBackupViewModelTest {
         subject.restoreState.first { it is JsonRestoreState.NeedsPassword }
         val wrong = "wrong password".toCharArray()
         subject.submitRestorePassword(wrong)
-        val retry = subject.restoreState.first { it is JsonRestoreState.NeedsPassword } as JsonRestoreState.NeedsPassword
+        // Wait for the result of this attempt, not the prompt that was already showing.
+        val retry = subject.restoreState.first { it is JsonRestoreState.NeedsPassword && it.wrongPassword } as JsonRestoreState.NeedsPassword
         assertTrue(retry.wrongPassword)
         assertTrue(wrong.all { it == '\u0000' })
         subject.submitRestorePassword("correct password".toCharArray())

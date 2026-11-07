@@ -170,7 +170,13 @@ class AutoBackupViewModel(application: Application) : AndroidViewModel(applicati
         _restoreState.value = JsonRestoreState.Working
         restoreJob = viewModelScope.launch {
             try {
-                val json = withContext(Dispatchers.Default) { BackupFiles.openBackup(encrypted, password) }
+                // Wipe the typed password as soon as decryption is done, before any state change
+                // can let the screen (or a test) move on while it is still in memory.
+                val json = try {
+                    withContext(Dispatchers.Default) { BackupFiles.openBackup(encrypted, password) }
+                } finally {
+                    password.fill('\u0000')
+                }
                 prepare(json)
                 pendingEncrypted = null
             } catch (e: CancellationException) {
@@ -180,8 +186,6 @@ class AutoBackupViewModel(application: Application) : AndroidViewModel(applicati
             } catch (e: Exception) {
                 pendingEncrypted = null
                 _restoreState.value = JsonRestoreState.Error("That file is not an AkSpend backup.")
-            } finally {
-                password.fill('\u0000')
             }
         }
     }
