@@ -12,6 +12,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import com.github.takahirom.roborazzi.RoborazziOptions
+import com.github.takahirom.roborazzi.RoborazziTaskType
 import com.github.takahirom.roborazzi.captureRoboImage
 import android.graphics.BitmapFactory
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -43,9 +45,12 @@ class SoftSurfaceRedrawTest {
             }
         }
         rule.waitForIdle()
+        // Always record: without the record flag Roborazzi writes nothing, and a stale file from an
+        // earlier run must never stand in for this one.
         fun shot(name: String) = java.io.File("build/outputs/roborazzi/soft-redraw-$name.png").let { file ->
-            rule.onNodeWithTag("root").captureRoboImage(file.path)
-            BitmapFactory.decodeFile(file.path)
+            file.delete()
+            rule.onNodeWithTag("root").captureRoboImage(file.path, RoborazziOptions(taskType = RoborazziTaskType.Record))
+            checkNotNull(BitmapFactory.decodeFile(file.path)) { "no capture written for $name" }
         }
         val flush = shot("flush")
         pressed = true
