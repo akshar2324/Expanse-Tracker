@@ -149,6 +149,7 @@ fun ToolsScreen(
         ) {
 
             when (activeSubTool) {
+                "MONTHLY_REPORT" -> MonthlyReportScreen()
                 "WEEKLY_DIGEST" -> {
                     WeeklyDigestScreen(viewModel = viewModel, onBack = { activeSubTool = null })
                 }
@@ -1067,6 +1068,7 @@ private val moreTools = listOf(
     MoreTool("ACCOUNTS", "Accounts", "Balances, transfers, reconciling", Icons.Rounded.AccountBalance),
     MoreTool("RECURRING", "Reminders", "Bills and income that repeat", Icons.Rounded.EventRepeat),
     MoreTool("DEBTS", "Borrow & lend", "Money owed to and by you", Icons.Rounded.Handshake),
+    MoreTool("MONTHLY_REPORT", "Monthly report", "A PDF summary for one month, shared by you", Icons.Rounded.Assessment),
     MoreTool("REPORTS", "Reports", "Daily to yearly summaries", Icons.Rounded.Assessment),
     MoreTool("CALCULATORS", "Calculators", "EMI, SIP and quick maths", Icons.Rounded.Calculate),
     MoreTool("BACKUP", "Backup & restore", "Export or restore your data file", Icons.Rounded.Backup),
