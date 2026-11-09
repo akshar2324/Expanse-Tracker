@@ -48,6 +48,7 @@ import com.akshar.data.activity.DatePreset
 import com.akshar.data.activity.SavedActivityFilter
 import com.akshar.data.model.Transaction
 import com.akshar.TransactionRoutes
+import com.akshar.ui.viewmodel.ActivityActionsViewModel
 import com.akshar.ui.viewmodel.ActivityViewModel
 import com.akshar.ui.viewmodel.FinanceViewModel
 import java.text.SimpleDateFormat
@@ -61,6 +62,22 @@ fun HistoryScreen(
     modifier: Modifier = Modifier,
     activityViewModel: ActivityViewModel = viewModel(factory = ActivityViewModel.Factory),
 ) {
+    val actions: ActivityActionsViewModel = viewModel(factory = ActivityActionsViewModel.Factory)
+    val notices by actions.notices.collectAsStateWithLifecycle()
+    val snackbarHost = remember { SnackbarHostState() }
+    val notice = notices.firstOrNull()
+    LaunchedEffect(notice?.id) {
+        if (notice != null) {
+            val result = snackbarHost.showSnackbar(
+                message = notice.message,
+                actionLabel = if (notice.rows.isNotEmpty()) "Undo" else null,
+                withDismissAction = true,
+                duration = SnackbarDuration.Long,
+            )
+            actions.resolve(notice.id, result == SnackbarResult.ActionPerformed)
+        }
+    }
+
     val filter by activityViewModel.filter.collectAsStateWithLifecycle()
     val results by activityViewModel.results.collectAsStateWithLifecycle()
     val amountRange by activityViewModel.amountRange.collectAsStateWithLifecycle()
@@ -88,187 +105,198 @@ fun HistoryScreen(
     val activeSaved = savedFilters.firstOrNull { it.filter == filter }
     val finance = AkSpendTheme.finance
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize().testTag("activity-list"),
-        contentPadding = PaddingValues(
-            start = Spacing.gutter,
-            end = Spacing.gutter,
-            bottom = LocalFloatingBarInset.current + Spacing.lg
-        ),
-        verticalArrangement = Arrangement.spacedBy(Spacing.md)
-    ) {
-        item(key = "header") {
-            val activeCount = filter.activeCount
-            ScreenHeader(
-                title = "Activity",
-                subtitle = "Every expense, income and transfer",
-                insetHorizontally = false,
-                actions = {
-                    GlassIconButton(
-                        icon = if (showFilters) Icons.Rounded.FilterListOff else Icons.Rounded.Tune,
-                        contentDescription = buildString {
-                            append(if (showFilters) "Hide filters" else "Show filters")
-                            if (activeCount > 0) append(", $activeCount active")
+    Box(modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().testTag("activity-list"),
+            contentPadding = PaddingValues(
+                start = Spacing.gutter,
+                end = Spacing.gutter,
+                bottom = LocalFloatingBarInset.current + Spacing.lg
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            item(key = "header") {
+                val activeCount = filter.activeCount
+                ScreenHeader(
+                    title = "Activity",
+                    subtitle = "Every expense, income and transfer",
+                    insetHorizontally = false,
+                    actions = {
+                        GlassIconButton(
+                            icon = if (showFilters) Icons.Rounded.FilterListOff else Icons.Rounded.Tune,
+                            contentDescription = buildString {
+                                append(if (showFilters) "Hide filters" else "Show filters")
+                                if (activeCount > 0) append(", $activeCount active")
+                            },
+                            onClick = { showFilters = !showFilters },
+                            tint = if (activeCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                )
+            }
+
+            item(key = "search") {
+                OutlinedTextField(
+                    value = filter.query,
+                    onValueChange = activityViewModel::setQuery,
+                    placeholder = { Text("Search description, category or payment") },
+                    leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (filter.query.isNotEmpty()) {
+                            IconButton(onClick = { activityViewModel.setQuery("") }) {
+                                Icon(Icons.Rounded.Close, contentDescription = "Clear search")
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = PillShape,
+                    colors = glassTextFieldColors()
+                )
+            }
+
+            if (savedFilters.isNotEmpty()) {
+                item(key = "saved") {
+                    SavedFiltersRow(
+                        saved = savedFilters,
+                        active = activeSaved,
+                        onApply = { saved ->
+                            if (saved == activeSaved) activityViewModel.clearFilters() else activityViewModel.applySaved(saved)
                         },
-                        onClick = { showFilters = !showFilters },
-                        tint = if (activeCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        onDelete = { saved ->
+                            confirmDelete.request(
+                                title = "Delete “${saved.name}”?",
+                                message = "The saved filter is removed. Your transactions are not affected."
+                            ) { activityViewModel.deleteSaved(saved.name) }
+                        }
                     )
                 }
-            )
-        }
+            }
 
-        item(key = "search") {
-            OutlinedTextField(
-                value = filter.query,
-                onValueChange = activityViewModel::setQuery,
-                placeholder = { Text("Search description, category or payment") },
-                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (filter.query.isNotEmpty()) {
-                        IconButton(onClick = { activityViewModel.setQuery("") }) {
-                            Icon(Icons.Rounded.Close, contentDescription = "Clear search")
+            item(key = "filters") {
+                AnimatedVisibility(
+                    visible = showFilters,
+                    enter = expandVertically(motionSpec()) + fadeIn(motionSpec()),
+                    exit = shrinkVertically(motionSpec(Durations.quick)) + fadeOut(motionSpec(Durations.quick))
+                ) {
+                    FiltersPanel(
+                        filter = filter,
+                        amountError = amountRange.error,
+                        categories = categories,
+                        paymentMethods = paymentMethods,
+                        accounts = accounts.map { it.id to it.name },
+                        activityViewModel = activityViewModel,
+                        onCustomRange = {
+                            focusManager.clearFocus()
+                            showDateRangePicker = true
+                        },
+                        onSave = {
+                            focusManager.clearFocus()
+                            showSaveDialog = true
                         }
-                    }
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                modifier = Modifier.fillMaxWidth(),
-                shape = PillShape,
-                colors = glassTextFieldColors()
-            )
-        }
-
-        if (savedFilters.isNotEmpty()) {
-            item(key = "saved") {
-                SavedFiltersRow(
-                    saved = savedFilters,
-                    active = activeSaved,
-                    onApply = { saved ->
-                        if (saved == activeSaved) activityViewModel.clearFilters() else activityViewModel.applySaved(saved)
-                    },
-                    onDelete = { saved ->
-                        confirmDelete.request(
-                            title = "Delete “${saved.name}”?",
-                            message = "The saved filter is removed. Your transactions are not affected."
-                        ) { activityViewModel.deleteSaved(saved.name) }
-                    }
-                )
-            }
-        }
-
-        item(key = "filters") {
-            AnimatedVisibility(
-                visible = showFilters,
-                enter = expandVertically(motionSpec()) + fadeIn(motionSpec()),
-                exit = shrinkVertically(motionSpec(Durations.quick)) + fadeOut(motionSpec(Durations.quick))
-            ) {
-                FiltersPanel(
-                    filter = filter,
-                    amountError = amountRange.error,
-                    categories = categories,
-                    paymentMethods = paymentMethods,
-                    accounts = accounts.map { it.id to it.name },
-                    activityViewModel = activityViewModel,
-                    onCustomRange = {
-                        focusManager.clearFocus()
-                        showDateRangePicker = true
-                    },
-                    onSave = {
-                        focusManager.clearFocus()
-                        showSaveDialog = true
-                    }
-                )
-            }
-        }
-
-        if (hasAnyTransactions == true) {
-            item(key = "summary") {
-                ResultsSummary(
-                    count = totals.count,
-                    spent = signedMoney(totals.spent.toDouble(), positive = false, currencySymbol = currencySymbol, decimals = 2),
-                    received = signedMoney(totals.received.toDouble(), positive = true, currencySymbol = currencySymbol, decimals = 2),
-                    filtering = filter.isFiltering,
-                    onClear = activityViewModel::clearFilters
-                )
-            }
-        }
-
-        if (results.loaded && transactions.isEmpty() && hasAnyTransactions != null) {
-            item(key = "empty") {
-                val nothingLogged = hasAnyTransactions == false
-                EmptyState(
-                    icon = if (nothingLogged) Icons.Rounded.Inbox else Icons.Rounded.SearchOff,
-                    title = if (nothingLogged) "Nothing here yet" else "No matches",
-                    message = if (nothingLogged) "Transactions you add will appear here, newest first."
-                    else "Nothing matches your search and filters. Clear them to see everything again.",
-                    action = {
-                        FilledTonalButton(
-                            onClick = {
-                                if (nothingLogged) navController.navigate(TransactionRoutes.ADD)
-                                else activityViewModel.clearFilters()
-                            },
-                            shape = PillShape,
-                            modifier = Modifier.heightIn(min = Spacing.touchTarget)
-                        ) {
-                            Text(
-                                if (nothingLogged) "Add transaction" else "Clear filters",
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                        }
-                    }
-                )
-            }
-        } else {
-            groups.forEach { (day, dayTransactions) ->
-                if (dayTransactions.isEmpty()) return@forEach
-                if (day.isNotEmpty()) {
-                    item(key = "day-$day") {
-                        val dayTotals = remember(dayTransactions) { ActivityTotals.of(dayTransactions) }
-                        val net = (dayTotals.received - dayTotals.spent).toDouble()
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = Spacing.sm, start = Spacing.xs, end = Spacing.xs),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = day,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.weight(1f, fill = false).semantics { heading() }
-                            )
-                            Text(
-                                text = netMoney(net, currencySymbol),
-                                style = MaterialTheme.typography.labelLarge.money(),
-                                color = if (net >= 0) finance.income else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    )
                 }
-                item(key = "group-$day-${dayTransactions.first().id}") {
-                    GlassCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(vertical = Spacing.xs)
-                    ) {
-                        dayTransactions.forEachIndexed { index, transaction ->
-                            if (index > 0) GlassDivider()
-                            TransactionItem(
-                                transaction = transaction,
-                                currencySymbol = currencySymbol,
-                                timePattern = if (groupByDay) "h:mm a" else "d MMM yyyy",
+            }
+
+            if (hasAnyTransactions == true) {
+                item(key = "summary") {
+                    ResultsSummary(
+                        count = totals.count,
+                        spent = signedMoney(totals.spent.toDouble(), positive = false, currencySymbol = currencySymbol, decimals = 2),
+                        received = signedMoney(totals.received.toDouble(), positive = true, currencySymbol = currencySymbol, decimals = 2),
+                        filtering = filter.isFiltering,
+                        onClear = activityViewModel::clearFilters
+                    )
+                }
+            }
+
+            if (results.loaded && transactions.isEmpty() && hasAnyTransactions != null) {
+                item(key = "empty") {
+                    val nothingLogged = hasAnyTransactions == false
+                    EmptyState(
+                        icon = if (nothingLogged) Icons.Rounded.Inbox else Icons.Rounded.SearchOff,
+                        title = if (nothingLogged) "Nothing here yet" else "No matches",
+                        message = if (nothingLogged) "Transactions you add will appear here, newest first."
+                        else "Nothing matches your search and filters. Clear them to see everything again.",
+                        action = {
+                            FilledTonalButton(
                                 onClick = {
-                                    if (transaction.transferId != null) {
-                                        navController.navigate("addTransfer/${transaction.transferId}")
-                                    } else {
-                                        navController.navigate(TransactionRoutes.edit(transaction.id))
+                                    if (nothingLogged) navController.navigate(TransactionRoutes.ADD)
+                                    else activityViewModel.clearFilters()
+                                },
+                                shape = PillShape,
+                                modifier = Modifier.heightIn(min = Spacing.touchTarget)
+                            ) {
+                                Text(
+                                    if (nothingLogged) "Add transaction" else "Clear filters",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                        }
+                    )
+                }
+            } else {
+                groups.forEach { (day, dayTransactions) ->
+                    if (dayTransactions.isEmpty()) return@forEach
+                    if (day.isNotEmpty()) {
+                        item(key = "day-$day") {
+                            val dayTotals = remember(dayTransactions) { ActivityTotals.of(dayTransactions) }
+                            val net = (dayTotals.received - dayTotals.spent).toDouble()
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = Spacing.sm, start = Spacing.xs, end = Spacing.xs),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = day,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f, fill = false).semantics { heading() }
+                                )
+                                Text(
+                                    text = netMoney(net, currencySymbol),
+                                    style = MaterialTheme.typography.labelLarge.money(),
+                                    color = if (net >= 0) finance.income else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    item(key = "group-$day-${dayTransactions.first().id}") {
+                        GlassCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(vertical = Spacing.xs)
+                        ) {
+                            dayTransactions.forEachIndexed { index, transaction ->
+                                if (index > 0) GlassDivider()
+                                key(transaction.id) {
+                                    val edit = {
+                                        if (transaction.transferId != null) {
+                                            navController.navigate("addTransfer/${transaction.transferId}")
+                                        } else {
+                                            navController.navigate(TransactionRoutes.edit(transaction.id))
+                                        }
+                                    }
+                                    ActivitySwipeRow(onEdit = edit, onDelete = { actions.delete(transaction.id) }) { rowModifier ->
+                                        TransactionItem(
+                                            transaction = transaction,
+                                            modifier = rowModifier,
+                                            currencySymbol = currencySymbol,
+                                            timePattern = if (groupByDay) "h:mm a" else "d MMM yyyy",
+                                            onClick = edit,
+                                        )
                                     }
                                 }
-                            )
+                            }
                         }
                     }
                 }
             }
         }
+
+        SnackbarHost(snackbarHost, Modifier.align(Alignment.BottomCenter)
+            .padding(bottom = LocalFloatingBarInset.current + Spacing.md))
     }
 
     if (showSaveDialog) {
@@ -766,6 +794,7 @@ fun TransactionItem(
     currencySymbol: String = "₹",
     // Activity groups rows by day, so it shows the time; lists without day headers show the date.
     timePattern: String = "h:mm a",
+    modifier: Modifier = Modifier,
 ) {
     val formatter = remember(timePattern) { SimpleDateFormat(timePattern, Locale.getDefault()) }
     val isExpense = transaction.type == "EXPENSE"
@@ -773,6 +802,7 @@ fun TransactionItem(
     val finance = AkSpendTheme.finance
 
     GlassListRow(
+        modifier = modifier,
         title = transaction.description.ifBlank { transaction.category },
         subtitle = listOfNotNull(
             if (isTransfer) "Transfer" else transaction.category,
