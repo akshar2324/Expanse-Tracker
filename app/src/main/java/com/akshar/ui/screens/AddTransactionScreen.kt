@@ -183,6 +183,7 @@ fun AddTransactionScreen(
     }
 
     val scope = rememberCoroutineScope()
+    val haptics = rememberAppHaptics()
     var checkingDuplicate by remember { mutableStateOf(false) }
     var duplicate by remember { mutableStateOf<DuplicateMatch?>(null) }
     var commitAfterCheck by remember { mutableStateOf(false) }
@@ -198,6 +199,7 @@ fun AddTransactionScreen(
             existing = editingTransaction,
             referenceKey = if (editingTransaction == null) prefill?.referenceKey else null
         )
+        haptics.confirm()
         onSaved()
     }
 
@@ -207,6 +209,7 @@ fun AddTransactionScreen(
         val amt = parsedAmount()
         if (amt == null) {
             amountError = "Please enter a valid amount greater than zero."
+            haptics.reject()
             return
         }
         // Only imported entries are checked; hand-typed ones never nag.
@@ -390,6 +393,7 @@ fun AddTransactionScreen(
                             TextButton(
                                 onClick = {
                                     confirmDelete = false
+                                    haptics.heavy()
                                     viewModel.deleteTransaction(existing)
                                     onNavigateBack()
                                 },
