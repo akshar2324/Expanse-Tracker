@@ -34,7 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.akshar.ui.components.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -57,7 +57,11 @@ import com.akshar.ui.theme.Durations
 import com.akshar.ui.theme.PillShape
 import com.akshar.ui.theme.Spacing
 import com.akshar.ui.theme.eyebrow
+import com.akshar.ui.theme.SoftDepth
 import com.akshar.ui.theme.glassPanel
+import com.akshar.ui.theme.softInset
+import com.akshar.ui.theme.softRaised
+import androidx.compose.ui.graphics.lerp
 
 /**
  * Extra bottom space a scrolling screen adds so its last item can scroll clear of the floating
@@ -238,11 +242,32 @@ fun IconBadge(
     Box(
         modifier = modifier
             .size(size)
-            .clip(CircleShape)
-            .background(tint.copy(alpha = if (AkSpendTheme.isDark) 0.20f else 0.13f)),
+            .badgeBackground(tint),
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(size * 0.5f))
+    }
+}
+
+/**
+ * A softly tinted patch for grouped content (stat pills, tips, small tags). In Soft it is a
+ * well pressed into the surface in the page colour, so text keeps its AA contrast.
+ */
+@Composable
+fun Modifier.tintedWell(shape: Shape, tint: Color, alpha: Float = if (AkSpendTheme.isDark) 0.14f else 0.09f): Modifier {
+    val soft = AkSpendTheme.soft
+    return if (soft != null) this.softInset(shape, soft, distance = SoftDepth.small).clip(shape)
+    else this.clip(shape).background(tint.copy(alpha = alpha))
+}
+
+/** Tinted circle behind a badge; in Soft a small well pressed into the surface. */
+@Composable
+private fun Modifier.badgeBackground(tint: Color): Modifier {
+    val soft = AkSpendTheme.soft
+    return if (soft != null) {
+        this.softInset(CircleShape, soft, fill = lerp(soft.background, tint, if (soft.isDark) 0.16f else 0.10f)).clip(CircleShape)
+    } else {
+        this.clip(CircleShape).background(tint.copy(alpha = if (AkSpendTheme.isDark) 0.20f else 0.13f))
     }
 }
 
@@ -252,8 +277,7 @@ fun MonogramBadge(text: String, tint: Color, modifier: Modifier = Modifier, size
     Box(
         modifier = modifier
             .size(size)
-            .clip(CircleShape)
-            .background(tint.copy(alpha = if (AkSpendTheme.isDark) 0.20f else 0.13f)),
+            .badgeBackground(tint),
         contentAlignment = Alignment.Center
     ) {
         Text(text = text, style = MaterialTheme.typography.labelLarge, color = tint)
@@ -272,12 +296,16 @@ fun GlassSegmentedControl(
     modifier: Modifier = Modifier,
 ) {
     val glass = AkSpendTheme.glass
+    val soft = glass.soft
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .height(Spacing.touchTarget + Spacing.xs)
-            .glassPanel(PillShape, glass, glass.fill)
-            .padding(Spacing.xxs)
+            .then(
+                // Soft: the track is pressed into the page and the thumb sits raised in it.
+                if (soft != null) Modifier.softInset(PillShape, soft, fill = soft.track).clip(PillShape).padding(Spacing.xs)
+                else Modifier.glassPanel(PillShape, glass, glass.fill).padding(Spacing.xxs)
+            )
     ) {
         val segmentWidth = maxWidth / options.size
         val thumbOffset by animateDpAsState(segmentWidth * selectedIndex, motionSpec(), label = "segment")
@@ -286,7 +314,10 @@ fun GlassSegmentedControl(
                 .offset { IntOffset(thumbOffset.roundToPx(), 0) }
                 .width(segmentWidth)
                 .fillMaxHeight()
-                .glassPanel(PillShape, glass, MaterialTheme.colorScheme.primary)
+                .then(
+                    if (soft != null) Modifier.softRaised(PillShape, soft, fill = soft.accent, distance = SoftDepth.small)
+                    else Modifier.glassPanel(PillShape, glass, MaterialTheme.colorScheme.primary)
+                )
         )
         Row(Modifier.fillMaxWidth().fillMaxHeight().selectableGroup()) {
             options.forEachIndexed { index, label ->
@@ -406,7 +437,31 @@ fun GlassListRow(
 
 /** Outlined text field colours that sit well on glass: translucent fill, AA-contrast outline. */
 @Composable
-fun glassTextFieldColors() = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+fun glassTextFieldColors(): androidx.compose.material3.TextFieldColors {
+    AkSpendTheme.soft?.let { return softTextFieldColors(it) }
+    return frostedTextFieldColors()
+}
+
+/** Soft fields are wells pressed into the page: no outline until focused or in error. */
+@Composable
+fun softTextFieldColors(soft: com.akshar.ui.theme.SoftColors) = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = Color.Transparent,
+    unfocusedContainerColor = Color.Transparent,
+    disabledContainerColor = Color.Transparent,
+    errorContainerColor = Color.Transparent,
+    unfocusedBorderColor = Color.Transparent,
+    disabledBorderColor = Color.Transparent,
+    focusedBorderColor = soft.accent,
+    errorBorderColor = soft.expense,
+    focusedTextColor = soft.text,
+    unfocusedTextColor = soft.text,
+    focusedLabelColor = soft.accent,
+    unfocusedLabelColor = soft.muted,
+    cursorColor = soft.accent,
+)
+
+@Composable
+private fun frostedTextFieldColors() = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
     focusedContainerColor = AkSpendTheme.glass.fillStrong,
     unfocusedContainerColor = AkSpendTheme.glass.fill,
     disabledContainerColor = AkSpendTheme.glass.fill,

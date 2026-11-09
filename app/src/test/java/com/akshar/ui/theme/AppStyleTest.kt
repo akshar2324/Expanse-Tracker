@@ -20,8 +20,16 @@ class AppStyleTest {
     }
 
     @Test
-    fun `only Atelier is flat`() {
+    fun `only glass uses blur and colour pools`() {
         assertTrue(AppStyle.ATELIER.isFlat)
+        assertTrue(AppStyle.SOFT.isFlat)
         assertFalse(AppStyle.GLASS.isFlat)
+    }
+
+    @Test
+    fun `soft palette keys round trip and unknown keys fall back to Lavender`() {
+        SoftPalette.entries.forEach { assertEquals(it, SoftPalette.fromKey(it.key)) }
+        assertEquals(SoftPalette.LAVENDER, SoftPalette.fromKey(null))
+        assertEquals(SoftPalette.LAVENDER, SoftPalette.fromKey("neon"))
     }
 }

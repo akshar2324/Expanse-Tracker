@@ -78,6 +78,10 @@ import com.akshar.ui.components.IconBadge
 import com.akshar.ui.components.LocalFloatingBarInset
 import com.akshar.ui.components.motionSpec
 import com.akshar.ui.theme.Durations
+import com.akshar.ui.theme.SoftDepth
+import androidx.compose.foundation.LocalIndication
+import com.akshar.ui.theme.softSurface
+import androidx.compose.animation.core.animateFloatAsState
 import com.akshar.ui.theme.GlassBackdrop
 import com.akshar.ui.theme.GlassBlurState
 import com.akshar.ui.theme.PillShape
@@ -480,6 +484,8 @@ fun AppScaffold(viewModel: FinanceViewModel) {
 
     // Flat styles (Atelier) use a solid bar, so there is nothing to blur.
     val flatStyle = AkSpendTheme.style.isFlat
+    // Soft has no blur either, but keeps the floating capsule bar as a raised shape.
+    val softStyle = AkSpendTheme.soft != null
     val blurState = if (flatStyle) null else rememberGlassBlurState()
     val contentInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
 
@@ -489,7 +495,7 @@ fun AppScaffold(viewModel: FinanceViewModel) {
         val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         val barInset = when {
             isWide || !showNavigation -> 0.dp
-            flatStyle -> (if (largeText) 80.dp else FlatBarHeight) + navBarBottom + Spacing.lg
+            flatStyle && !softStyle -> (if (largeText) 80.dp else FlatBarHeight) + navBarBottom + Spacing.lg
             else -> (if (largeText) 88.dp else FloatingBarHeight) + FloatingBarMargin + navBarBottom + Spacing.lg
         }
 
@@ -525,7 +531,7 @@ fun AppScaffold(viewModel: FinanceViewModel) {
                 enter = fadeIn(motionSpec<Float>()) + slideInVertically(motionSpec<IntOffset>()) { it / 2 },
                 exit = fadeOut(motionSpec<Float>(Durations.quick)) + slideOutVertically(motionSpec<IntOffset>(Durations.quick)) { it / 2 }
             ) {
-                if (flatStyle) {
+                if (flatStyle && !softStyle) {
                     FlatTabBar(tabs = tabs, currentRoute = currentRoute, onSelect = navigateToTab)
                 } else {
                     FloatingTabBar(
@@ -654,7 +660,10 @@ private fun FloatingTabBar(
                 .widthIn(max = 520.dp)
                 .fillMaxWidth()
                 .height(if (largeText) 88.dp else FloatingBarHeight)
-                .shadow(18.dp, PillShape, ambientColor = glass.shadow, spotColor = glass.shadow)
+                .then(
+                    if (glass.soft != null) Modifier
+                    else Modifier.shadow(18.dp, PillShape, ambientColor = glass.shadow, spotColor = glass.shadow)
+                )
                 .glassBarBackground(blurState, PillShape, glass)
                 .padding(6.dp)
                 .selectableGroup(),
@@ -679,11 +688,14 @@ private fun TabBarItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val soft = AkSpendTheme.soft
     val indicator by animateColorAsState(
-        if (selected) MaterialTheme.colorScheme.primary.copy(alpha = if (AkSpendTheme.isDark) 0.22f else 0.13f) else Color.Transparent,
+        if (selected && soft == null) MaterialTheme.colorScheme.primary.copy(alpha = if (AkSpendTheme.isDark) 0.22f else 0.13f) else Color.Transparent,
         motionSpec(),
         label = "tabIndicator"
     )
+    // In Soft the selected tab is pressed into the bar instead of tinted.
+    val pressedIn by animateFloatAsState(if (selected) -1f else 0f, motionSpec(), label = "tabPressed")
     val largeText = LocalDensity.current.fontScale >= 1.5f
     val contentColor by animateColorAsState(
         if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -693,9 +705,17 @@ private fun TabBarItem(
     Column(
         modifier = modifier
             .fillMaxHeight()
+            .then(if (soft != null) Modifier.softSurface(PillShape, soft, distance = SoftDepth.well) { pressedIn } else Modifier)
             .clip(PillShape)
             .background(indicator)
-            .selectable(selected = selected, role = Role.Tab, onClick = onClick)
+            // Soft shows touch by pressing the tab in, so it skips the ripple overlay.
+            .selectable(
+                selected = selected,
+                interactionSource = null,
+                indication = if (soft != null) null else LocalIndication.current,
+                role = Role.Tab,
+                onClick = onClick,
+            )
             .semantics { if (largeText && !selected) text = AnnotatedString(tab.label) },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center

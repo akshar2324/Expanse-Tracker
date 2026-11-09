@@ -24,6 +24,15 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import com.akshar.ui.components.AlertDialog
+import com.akshar.ui.components.Card
+import com.akshar.ui.components.OutlinedTextField
+import com.akshar.ui.components.RadioButton
+import com.akshar.ui.components.Switch
+import com.akshar.ui.components.FilterChip
+import com.akshar.ui.components.IconButton
+import com.akshar.ui.components.TextButton
+import com.akshar.ui.components.Button
 import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
@@ -1601,6 +1610,7 @@ private fun AppearancePicker() {
                 }
             }
         }
+        if (AkSpendTheme.style == AppStyle.SOFT) SoftColoursSection()
         Text(
             text = "Light or dark follows your phone's setting.",
             style = MaterialTheme.typography.bodySmall,

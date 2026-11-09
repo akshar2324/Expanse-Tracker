@@ -1,5 +1,6 @@
 package com.akshar.ui.screens
 
+import com.akshar.ui.components.tintedWell
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,6 +20,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import com.akshar.ui.components.LinearProgressIndicator
+import com.akshar.ui.components.AlertDialog
+import com.akshar.ui.components.OutlinedTextField
+import com.akshar.ui.components.Slider
+import com.akshar.ui.components.Switch
+import com.akshar.ui.components.IconButton
+import com.akshar.ui.components.TextButton
+import com.akshar.ui.components.Button
 import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
@@ -287,8 +296,7 @@ fun BudgetRow(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
-                            .clip(PillShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                            .tintedWell(PillShape, MaterialTheme.colorScheme.primary, alpha = 0.1f)
                             .padding(horizontal = Spacing.sm, vertical = Spacing.xxs)
                     )
                 }

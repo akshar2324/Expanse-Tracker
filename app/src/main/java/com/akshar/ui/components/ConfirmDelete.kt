@@ -1,10 +1,10 @@
 package com.akshar.ui.components
 
-import androidx.compose.material3.AlertDialog
+import com.akshar.ui.components.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.akshar.ui.components.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue

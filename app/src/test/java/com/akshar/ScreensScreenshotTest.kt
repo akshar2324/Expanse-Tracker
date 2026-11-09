@@ -38,6 +38,7 @@ import com.akshar.data.model.RecurringTransaction
 import com.akshar.data.model.SavingsGoal
 import com.akshar.data.model.Transaction
 import com.akshar.ui.theme.AkSpendTheme
+import com.akshar.ui.theme.AppStyle
 import com.akshar.ui.viewmodel.FinanceViewModel
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -106,15 +107,15 @@ abstract class ScreensScreenshotBase {
     composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/light-14-activity-saved-large-fonts.png")
   }
 
-  protected fun captureMainScreens(dark: Boolean, fontScale: Float = 1f) {
+  protected fun captureMainScreens(dark: Boolean, fontScale: Float = 1f, style: AppStyle = AppStyle.Default) {
     Locale.setDefault(Locale.US)
     if (dark) RuntimeEnvironment.setQualifiers("+night")
     val app = ApplicationProvider.getApplicationContext<ExpenseTrackerApp>()
     seed(app)
     val viewModel = FinanceViewModel(app)
-    val mode = (if (fontScale > 1f) "large-font-" else "") + if (dark) "dark" else "light"
+    val mode = stylePrefix(style) + (if (fontScale > 1f) "large-font-" else "") + if (dark) "dark" else "light"
 
-    composeTestRule.setContent { AkSpendTheme(darkTheme = dark) {
+    composeTestRule.setContent { AkSpendTheme(darkTheme = dark, style = style) {
       val density = androidx.compose.ui.platform.LocalDensity.current
       androidx.compose.runtime.CompositionLocalProvider(
         androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(density.density, fontScale)
@@ -126,6 +127,20 @@ abstract class ScreensScreenshotBase {
       composeTestRule.onAllNodes(hasText(tab) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab))[0].performClick()
       settle()
       composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-${index + 1}-${tab.lowercase()}.png")
+    }
+
+    if (style == AppStyle.SOFT) {
+      // More › Appearance, with the Soft palette picker and the custom colour controls.
+      composeTestRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Appearance"))
+      composeTestRule.onNodeWithText("Appearance").performClick()
+      settle()
+      composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-5b-appearance.png")
+      composeTestRule.onNodeWithText("Your colours").performScrollTo().performClick()
+      settle()
+      composeTestRule.onNodeWithText("Accent").performScrollTo()
+      composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-5c-appearance-custom.png")
+      composeTestRule.onAllNodesWithContentDescription("Back")[0].performClick()
+      settle()
     }
 
     // Pushed screens reached from Home: they hide the tab bar and show a back button.
@@ -164,13 +179,13 @@ abstract class ScreensScreenshotBase {
     settle()
   }
 
-  protected fun captureStandalone(dark: Boolean, fontScale: Float = 1f) {
+  protected fun captureStandalone(dark: Boolean, fontScale: Float = 1f, style: AppStyle = AppStyle.Default) {
     Locale.setDefault(Locale.US)
     if (dark) RuntimeEnvironment.setQualifiers("+night")
     val app = ApplicationProvider.getApplicationContext<ExpenseTrackerApp>()
     seed(app)
     val viewModel = FinanceViewModel(app)
-    val mode = (if (fontScale > 1f) "large-font-" else "") + if (dark) "dark" else "light"
+    val mode = stylePrefix(style) + (if (fontScale > 1f) "large-font-" else "") + if (dark) "dark" else "light"
     runBlocking {
       val inbox = com.akshar.sms.inbox.ImportInboxDatabase.getInstance(app).pendingImportDao()
       inbox.clear()
@@ -189,7 +204,7 @@ abstract class ScreensScreenshotBase {
     var screen by mutableStateOf("add")
 
     composeTestRule.setContent {
-      AkSpendTheme(darkTheme = dark) {
+      AkSpendTheme(darkTheme = dark, style = style) {
         val density = androidx.compose.ui.platform.LocalDensity.current
         androidx.compose.runtime.CompositionLocalProvider(
           androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(density.density, fontScale)
@@ -233,6 +248,8 @@ abstract class ScreensScreenshotBase {
       composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-$name.png")
     }
   }
+
+  private fun stylePrefix(style: AppStyle) = if (style == AppStyle.Default) "" else "${style.key}-"
 
   /** Lets Room deliver on its own threads while the test clock runs the one-shot animations. */
   private fun settle() {
@@ -320,4 +337,14 @@ class ScreensStandaloneScreenshotTest : ScreensScreenshotBase() {
 class ScreensStandaloneLargeFontScreenshotTest : ScreensScreenshotBase() {
   @Test fun standaloneScreens_largeFont_light() = captureStandalone(dark = false, fontScale = 2f)
   @Test fun standaloneScreens_largeFont_dark() = captureStandalone(dark = true, fontScale = 2f)
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [36])
+class ScreensSoftScreenshotTest : ScreensScreenshotBase() {
+  @Test fun soft_mainScreens_light() = captureMainScreens(dark = false, style = AppStyle.SOFT)
+  @Test fun soft_mainScreens_dark() = captureMainScreens(dark = true, style = AppStyle.SOFT)
+  @Test fun soft_standaloneScreens_light() = captureStandalone(dark = false, style = AppStyle.SOFT)
+  @Test fun soft_standaloneScreens_dark() = captureStandalone(dark = true, style = AppStyle.SOFT)
 }
