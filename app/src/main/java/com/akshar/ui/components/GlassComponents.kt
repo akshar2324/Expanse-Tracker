@@ -389,10 +389,12 @@ fun GlassListRow(
             leading()
             Spacer(Modifier.width(Spacing.md))
         }
+        // Large text gets a second line instead of cutting off the category and payment method.
+        val lines = if (androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f) 2 else 1
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = lines, overflow = TextOverflow.Ellipsis)
             if (subtitle != null) {
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = lines, overflow = TextOverflow.Ellipsis)
             }
         }
         if (trailing != null) {

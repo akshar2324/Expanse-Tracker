@@ -342,7 +342,7 @@ private fun BalanceHero(
 ) {
     val largeText = androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f
     val finance = AkSpendTheme.finance
-    val shown = rememberCountUp(currentBalance)
+    val shown = rememberCountUp(currentBalance, key = "home-net-balance")
     val finalText = "$currencySymbol${String.format("%,.2f", currentBalance)}"
     GlassCard(
         modifier = modifier.fillMaxWidth(),

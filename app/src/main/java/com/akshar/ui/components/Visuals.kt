@@ -25,7 +25,10 @@ import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Work
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -95,14 +98,48 @@ fun Modifier.entrance(state: EntranceState, index: Int): Modifier = graphicsLaye
     translationY = (1f - p) * 20.dp.toPx()
 }
 
-/** Animates a number from 0 to [target] once when first shown; instant with reduced motion. */
+/**
+ * Animates a number up to [target]: from 0 the first time this [key] is shown in the process,
+ * then only from the old value to the new one when the value changes. Returning to a screen
+ * shows the settled value straight away instead of counting up again. Instant with reduced motion.
+ */
 @Composable
-fun rememberCountUp(target: Double): Double {
+fun rememberCountUp(target: Double, key: String = "default"): Double {
     val reducedMotion = AkSpendTheme.reducedMotion
-    val anim = remember { Animatable(if (reducedMotion) 1f else 0f) }
-    LaunchedEffect(reducedMotion) {
-        if (reducedMotion) anim.snapTo(1f)
-        else anim.animateTo(1f, tween(Durations.emphasized * 2, easing = FastOutSlowInEasing))
+    val initialFrom = remember(key) { CountUpMemory.lastShown(key) ?: 0.0 }
+    var from by remember(key) { mutableDoubleStateOf(initialFrom) }
+    var to by remember(key) { mutableDoubleStateOf(target) }
+    val progress = remember(key) { Animatable(if (reducedMotion || initialFrom == target) 1f else 0f) }
+    LaunchedEffect(key, target, reducedMotion) {
+        val shownNow = if (progress.value >= 1f) to else from + (to - from) * progress.value
+        to = target
+        val start = CountUpMemory.start(key, shownNow, target)
+        if (start == null || reducedMotion) {
+            progress.snapTo(1f)
+        } else {
+            from = start
+            progress.snapTo(0f)
+            progress.animateTo(1f, tween(Durations.emphasized * 2, easing = FastOutSlowInEasing))
+        }
     }
-    return target * anim.value
+    // The settled value is always the exact target, never an interpolated approximation.
+    return if (progress.value >= 1f) to else from + (to - from) * progress.value
+}
+
+/** The value each count-up last settled on, kept for the life of the process. */
+internal object CountUpMemory {
+    private val settled = HashMap<String, Double>()
+
+    @Synchronized
+    fun lastShown(key: String): Double? = settled[key]
+
+    /** Records [target] for [key] and returns where to animate from, or null when nothing changes. */
+    @Synchronized
+    fun start(key: String, shownNow: Double, target: Double): Double? {
+        settled[key] = target
+        return shownNow.takeIf { it != target }
+    }
+
+    @Synchronized
+    fun reset() = settled.clear()
 }

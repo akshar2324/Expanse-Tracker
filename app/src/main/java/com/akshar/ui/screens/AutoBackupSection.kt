@@ -67,6 +67,7 @@ import com.akshar.ui.theme.AkSpendTheme
 import com.akshar.ui.viewmodel.AutoBackupViewModel
 import com.akshar.ui.viewmodel.FinanceViewModel
 import com.akshar.ui.viewmodel.JsonRestoreState
+import com.akshar.utils.countLabel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -141,13 +142,23 @@ private fun AutoBackupCard(
             BackupStatus(settings, folderAccessible)
 
             if (settings.enabled || settings.folderUri != null) {
-                Text("How often", style = MaterialTheme.typography.labelLarge)
-                val frequencies = AutoBackupFrequency.entries
-                GlassSegmentedControl(
-                    options = frequencies.map { it.label },
-                    selectedIndex = frequencies.indexOf(settings.frequency),
-                    onSelect = { autoBackup.setFrequency(frequencies[it]) }
-                )
+                if (settings.enabled) {
+                    Text("How often", style = MaterialTheme.typography.labelLarge)
+                    val frequencies = AutoBackupFrequency.entries
+                    GlassSegmentedControl(
+                        options = frequencies.map { it.label },
+                        selectedIndex = frequencies.indexOf(settings.frequency),
+                        onSelect = { autoBackup.setFrequency(frequencies[it]) }
+                    )
+                } else {
+                    // A folder is chosen but the schedule is off: say so, rather than showing a
+                    // schedule that looks active. The options below still apply to "Back up now".
+                    Text(
+                        "Automatic backups are off. You can still back up to this folder with Back up now.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -250,8 +261,21 @@ private fun BackupStatus(settings: AutoBackupSettings, folderAccessible: Boolean
     }
 }
 
-private fun relative(time: Long): String =
-    DateUtils.getRelativeTimeSpanString(time, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
+private fun relative(time: Long): String = relativeBackupTime(time, System.currentTimeMillis())
+
+/** "Just now" for the last minute (DateUtils would say "0 minutes ago"), then "5 minutes ago" and so on. */
+internal fun relativeBackupTime(time: Long, now: Long): String =
+    if (now - time in 0 until DateUtils.MINUTE_IN_MILLIS) "Just now"
+    else DateUtils.getRelativeTimeSpanString(time, now, DateUtils.MINUTE_IN_MILLIS).toString()
+
+internal fun restoreConfirmation(transactionCount: Int, accountCount: Int): String {
+    val contents = buildList {
+        add(countLabel(transactionCount, "transaction"))
+        if (accountCount > 0) add(countLabel(accountCount, "account"))
+    }.joinToString(" and ")
+    return "This backup has $contents. Everything in the app now, including budgets, goals and " +
+        "reminders, will be replaced by it. This can't be undone."
+}
 
 @Composable
 private fun SetBackupPasswordDialog(onDismiss: () -> Unit, onConfirm: (CharArray) -> Unit) {
@@ -354,7 +378,7 @@ private fun JsonRestoreCard(financeViewModel: FinanceViewModel, autoBackup: Auto
             onDismissRequest = autoBackup::clearRestore,
             title = { Text("Replace all data?") },
             text = {
-                Text("This backup has ${state.transactionCount} transactions. Everything currently in the app will be replaced. This can't be undone.")
+                Text(restoreConfirmation(state.transactionCount, state.accountCount))
             },
             confirmButton = {
                 TextButton(onClick = {

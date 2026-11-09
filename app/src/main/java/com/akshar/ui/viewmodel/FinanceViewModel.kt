@@ -449,7 +449,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 repository.replaceAllData(snapshot)
-                _backupStatus.value = "Data Restored Successfully!"
+                _backupStatus.value = "Backup restored."
             } catch (e: Exception) {
                 Log.e("FinanceViewModel", "Restore failed", e)
                 _backupStatus.value = "Failed to restore backup: ${e.message}"
@@ -509,7 +509,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(chooser)
 
-                _backupStatus.value = "Backup File Exported!"
+                _backupStatus.value = "Backup file ready to share."
             } catch (e: Exception) {
                 Log.e("FinanceViewModel", "Failed to export physical database", e)
                 _backupStatus.value = "Failed to export backup file: ${e.message}"
@@ -563,7 +563,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     throw e
                 }
 
-                _backupStatus.value = "Database Restored Successfully! Restarting app..."
+                _backupStatus.value = "Backup restored. Restarting AkSpend…"
 
                 // 4. Restart the process. The Application keeps a repository bound to the old,
                 //    now closed database, so relaunching the activity alone is not enough.
