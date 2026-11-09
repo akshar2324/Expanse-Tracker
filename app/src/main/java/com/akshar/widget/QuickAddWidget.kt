@@ -6,7 +6,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.action.actionStartActivity
+import androidx.glance.appwidget.action.actionStartActivity
+import com.akshar.AppNavigationRequests
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.cornerRadius
@@ -27,7 +28,6 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.text.FontFamily
-import com.akshar.MainActivity
 import com.akshar.ui.theme.AppStyle
 import com.akshar.ui.theme.Appearance
 import com.akshar.ui.theme.AtelierDarkColorScheme
@@ -104,7 +104,8 @@ class QuickAddWidget : GlanceAppWidget() {
                         .height(48.dp)
                         .cornerRadius(24.dp)
                         .background(accent)
-                        .clickable(actionStartActivity<MainActivity>())
+                        // Opens the Add form itself, not just the app, as the button says.
+                        .clickable(actionStartActivity(AppNavigationRequests.openIntent(context, AppNavigationRequests.ADD_TRANSACTION)))
                         .semantics { contentDescription = "Open AkSpend to add a transaction" },
                     contentAlignment = Alignment.Center
                 ) {
