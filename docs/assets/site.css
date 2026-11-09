@@ -1,5 +1,5 @@
-/* AkSpend landing page. Light by default, dark when the phone or computer is in dark mode,
-   matching the app's own light and dark themes. */
+/* AkSpend landing page. Light or dark follows the device unless the visitor picks one;
+   the inline script in <head> sets data-mode="light|dark" before first paint. */
 
 @font-face { font-family: "Inter"; src: url("fonts/inter-regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 @font-face { font-family: "Inter"; src: url("fonts/inter-semibold.woff2") format("woff2"); font-weight: 600; font-display: swap; }
@@ -7,9 +7,9 @@
 
 @font-face { font-family: "Instrument Serif"; src: url("fonts/instrument-serif.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 
-/* Two app styles, matching the app's More > Appearance: Liquid glass and Atelier.
-   Each has light and dark values; light or dark follows the device, as in the app.
-   Colours come from app/src/main/java/com/akshar/ui/theme (Color.kt, Atelier.kt). */
+/* Three app styles, matching the app's More > Appearance: Soft (the default), Atelier and
+   Liquid glass. Each has light and dark values. Colours come from
+   app/src/main/java/com/akshar/ui/theme (Soft.kt, Atelier.kt, Color.kt). */
 :root {
   --radius: 20px;
   --gutter: clamp(16px, 4vw, 40px);
@@ -52,8 +52,7 @@
     radial-gradient(42vw 42vw at 96% 18%, rgba(170, 225, 210, 0.55), transparent 70%),
     radial-gradient(46vw 46vw at 70% 92%, rgba(201, 191, 255, 0.45), transparent 70%);
 }
-@media (prefers-color-scheme: dark) {
-  :root, :root[data-style="glass"] {
+:root[data-mode="dark"], :root[data-style="glass"][data-mode="dark"] {
     --bg: #151210;
     --bg-2: #1c1815;
     --surface: rgba(34, 30, 27, 0.6);
@@ -82,7 +81,6 @@
       radial-gradient(40vw 40vw at 8% 6%, rgba(30, 76, 69, 0.55), transparent 70%),
       radial-gradient(42vw 42vw at 96% 18%, rgba(90, 75, 168, 0.28), transparent 70%),
       radial-gradient(46vw 46vw at 70% 92%, rgba(125, 78, 46, 0.25), transparent 70%);
-  }
 }
 
 /* Atelier, light: ivory and ink, one bronze accent, hairlines, serif display. */
@@ -118,8 +116,7 @@
   --display-track: -0.015em;
   --radius: 16px;
 }
-@media (prefers-color-scheme: dark) {
-  :root[data-style="atelier"] {
+:root[data-style="atelier"][data-mode="dark"] {
     --bg: #0c0c0c;
     --bg-2: #121211;
     --surface: #161615;
@@ -143,7 +140,69 @@
     --panel-btn: #c8ae7e;
     --on-panel-btn: #0c0c0c;
     --orb: 200, 174, 126;
-  }
+}
+
+/* Soft (Lavender), light: neumorphism. Everything is the page colour, raised with a white
+   highlight up-left and a lavender shade down-right, or pressed in with the pair reversed.
+   Text colours are the app's guarded values (4.5:1 on the page and in wells). */
+:root[data-style="soft"] {
+  --bg: #e6e3ef;
+  --bg-2: #d3cfe0;
+  --surface: #e6e3ef;
+  --surface-solid: #e6e3ef;
+  --ink: #26243a;
+  --ink-2: #58566d;
+  --ink-3: #58566d;
+  --line: transparent;
+  --rule: rgba(38, 36, 58, 0.12);
+  --accent: #5e49b0;
+  --accent-2: #6e56cf;
+  --accent-soft: #d3cfe0;
+  --accent-text: #5e49b0;
+  --on-accent: #ffffff;
+  --btn: #5e49b0;
+  --on-btn: #ffffff;
+  --bezel: #26243a;
+  --blur: none;
+  --hi: #ffffff;
+  --lo: #b9b3cf;
+  --raise: -7px -7px 16px var(--hi), 7px 7px 16px var(--lo);
+  --raise-sm: -4px -4px 10px var(--hi), 4px 4px 10px var(--lo);
+  --press: inset 4px 4px 9px var(--lo), inset -4px -4px 9px var(--hi);
+  --shadow: var(--raise);
+  --shadow-lg: -14px -14px 30px var(--hi), 16px 16px 34px var(--lo);
+  --panel: #e6e3ef;
+  --on-panel: #26243a;
+  --panel-btn: #5e49b0;
+  --on-panel-btn: #ffffff;
+  --orb: 94, 73, 176;
+  --pools: none;
+  --radius: 24px;
+}
+:root[data-style="soft"][data-mode="dark"] {
+  --bg: #2a2d34;
+  --bg-2: #23262c;
+  --surface: #2a2d34;
+  --surface-solid: #2a2d34;
+  --ink: #eceaf3;
+  --ink-2: #a9a6ba;
+  --ink-3: #a9a6ba;
+  --rule: rgba(236, 234, 243, 0.1);
+  --accent: #a796f2;
+  --accent-2: #b8aaf5;
+  --accent-soft: #23262c;
+  --accent-text: #a796f2;
+  --on-accent: #1b1531;
+  --btn: #a796f2;
+  --on-btn: #1b1531;
+  --bezel: #1c1e23;
+  --hi: #363a43;
+  --lo: #1c1e23;
+  --panel: #2a2d34;
+  --on-panel: #eceaf3;
+  --panel-btn: #a796f2;
+  --on-panel-btn: #1b1531;
+  --orb: 167, 150, 242;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -339,6 +398,8 @@ main { max-width: calc(var(--max) + 2 * var(--gutter)); margin: 0 auto; padding:
 }
 .style-pick button:hover { color: var(--ink); }
 .style-pick button[aria-checked="true"] { background: var(--btn); color: var(--on-btn); }
+.style-picks { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.style-picks .style-pick { margin-top: 0; }
 .style-note { margin-top: 10px; font-size: 13px; color: var(--ink-3); }
 
 /* ---------- Atelier details (flat, hairline, serif) ---------- */
@@ -360,6 +421,29 @@ main { max-width: calc(var(--max) + 2 * var(--gutter)); margin: 0 auto; padding:
 [data-style="atelier"] .download-panel { border-color: var(--rule); }
 [data-style="atelier"] .phone { padding: 6px; border-radius: 30px; }
 [data-style="atelier"] .phone img { border-radius: 25px; }
+
+/* ---------- Soft details (raised and pressed) ---------- */
+[data-style="soft"] .topbar { background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: 0 8px 18px -14px var(--lo); }
+[data-style="soft"] .card, [data-style="soft"] .compare { border: 0; box-shadow: var(--raise); }
+[data-style="soft"] .compare-head { background: var(--bg); box-shadow: var(--press); }
+[data-style="soft"] .compare-row { border-top-color: var(--rule); }
+[data-style="soft"] .btn { transition: box-shadow .2s, transform .2s, filter .2s; }
+[data-style="soft"] .btn:hover { transform: none; }
+[data-style="soft"] .btn-primary, [data-style="soft"] .btn-light { box-shadow: var(--raise-sm); }
+[data-style="soft"] .btn-ghost, [data-style="soft"] .btn-outline-light { border: 0; background: var(--bg); color: var(--accent-text); box-shadow: var(--raise-sm); }
+[data-style="soft"] .btn:active, [data-style="soft"] .btn-ghost:active { box-shadow: var(--press); }
+[data-style="soft"] .nav a:hover { background: var(--bg); box-shadow: var(--press); }
+[data-style="soft"] .hero .eyebrow, [data-style="soft"] .icon, [data-style="soft"] .step-n,
+[data-style="soft"] .checks li::before { background: var(--bg); box-shadow: var(--press); }
+[data-style="soft"] .icon { border-radius: 14px; }
+[data-style="soft"] .chip { border: 0; background: var(--bg); box-shadow: var(--raise-sm); }
+[data-style="soft"] .phone { box-shadow: var(--shadow-lg); }
+[data-style="soft"] .download-panel { border: 0; box-shadow: var(--raise); }
+[data-style="soft"] .safety { background: var(--bg); box-shadow: var(--press); }
+[data-style="soft"] .style-pick { border: 0; background: var(--bg); box-shadow: var(--press); }
+[data-style="soft"] .style-pick button[aria-checked="true"] { box-shadow: var(--raise-sm); }
+[data-style="soft"] .footer { border-top: 0; box-shadow: 0 -1px 0 var(--lo), 0 -2px 0 var(--hi); }
+[data-style="soft"] :focus-visible { outline-offset: 4px; }
 
 /* ---------- footer ---------- */
 .footer {

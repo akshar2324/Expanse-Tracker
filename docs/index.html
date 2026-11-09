@@ -6,8 +6,7 @@
   <title>AkSpend · Private, offline expense tracker for Android</title>
   <meta name="description" content="AkSpend is a free, open-source expense tracker for Android. No account and no internet permission: everything you log stays on your phone.">
   <meta name="color-scheme" content="light dark">
-  <meta name="theme-color" content="#f7f2ea" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#11100e" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#e6e3ef">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://akshar2324.github.io/Expanse-Tracker/">
   <meta property="og:title" content="AkSpend · Your money. Only yours.">
@@ -23,12 +22,20 @@
   <link rel="preload" href="assets/fonts/instrument-serif.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/site.css">
   <script>
-    // Pick the app style before first paint so nothing flashes. Light/dark always follows the device.
+    // Pick the app style and light/dark before first paint so nothing flashes.
+    // Soft is the default style; light/dark follows the device unless the visitor chose one.
     (function () {
-      var root = document.documentElement, style = "atelier";
+      var root = document.documentElement, style = "soft", mode = "auto";
       root.classList.add("js");
-      try { var saved = localStorage.getItem("akspend-style"); if (saved === "atelier" || saved === "glass") style = saved; } catch (e) {}
+      try {
+        var saved = localStorage.getItem("akspend-style");
+        if (saved === "soft" || saved === "atelier" || saved === "glass") style = saved;
+        var savedMode = localStorage.getItem("akspend-mode");
+        if (savedMode === "light" || savedMode === "dark") mode = savedMode;
+      } catch (e) {}
+      var dark = mode === "dark" || (mode === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
       root.setAttribute("data-style", style);
+      root.setAttribute("data-mode", dark ? "dark" : "light");
     })();
   </script>
 </head>
@@ -69,19 +76,28 @@
           <li>No internet permission</li>
           <li>MIT licensed</li>
         </ul>
-        <div class="style-pick" role="radiogroup" aria-labelledby="style-label">
-          <span id="style-label">App style</span>
-          <button type="button" role="radio" data-style="atelier" aria-checked="true">Atelier</button>
-          <button type="button" role="radio" data-style="glass" aria-checked="false">Liquid glass</button>
+        <div class="style-picks">
+          <div class="style-pick" role="radiogroup" aria-labelledby="style-label">
+            <span id="style-label">App style</span>
+            <button type="button" role="radio" data-style="soft" aria-checked="true">Soft</button>
+            <button type="button" role="radio" data-style="atelier" aria-checked="false">Atelier</button>
+            <button type="button" role="radio" data-style="glass" aria-checked="false">Liquid glass</button>
+          </div>
+          <div class="style-pick" role="radiogroup" aria-labelledby="mode-label">
+            <span id="mode-label">Theme</span>
+            <button type="button" role="radio" data-mode="auto" aria-checked="true">Auto</button>
+            <button type="button" role="radio" data-mode="light" aria-checked="false">Light</button>
+            <button type="button" role="radio" data-mode="dark" aria-checked="false">Dark</button>
+          </div>
         </div>
-        <p class="style-note">Switch to see each look the app offers. Light or dark follows your device.</p>
+        <p class="style-note">Switch to see each look the app offers. Auto follows your device, as the app does.</p>
       </div>
 
       <div class="hero-art">
         <canvas class="orb" aria-hidden="true"></canvas>
         <div class="phone-wrap">
         <figure class="phone phone-hero">
-          <img data-shot="home" src="screenshots/atelier/atelier-light-1-home.jpg" alt="AkSpend home screen in the Atelier style: net balance of ₹36,021.00 with Add and Transfer buttons" width="450" height="928" fetchpriority="high">
+          <img data-shot="home" src="screenshots/soft/light-1-home.jpg" alt="AkSpend home screen in the Soft style: net balance with money in and out, a monthly budget dial, and Add and Transfer buttons" width="450" height="928" fetchpriority="high">
         </figure>
         <div class="chip chip-a" aria-hidden="true">
           <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2.5"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg>
@@ -104,7 +120,7 @@
       <ol class="how">
         <li class="reveal">
           <figure class="phone">
-            <img data-shot="log" src="screenshots/atelier/atelier-light-2-activity.jpg" alt="Activity in the Atelier style: today's expenses and income with category and payment method" width="450" height="928" loading="lazy">
+            <img data-shot="log" src="screenshots/soft/light-2-activity.jpg" alt="Activity in the Soft style: expenses and income grouped by day with category and payment method" width="450" height="928" loading="lazy">
           </figure>
           <span class="step-n">1</span>
           <h3>Log a spend in two taps</h3>
@@ -112,7 +128,7 @@
         </li>
         <li class="reveal">
           <figure class="phone">
-            <img data-shot="insights" src="screenshots/atelier/atelier-light-4-insights.jpg" alt="Insights in the Atelier style: spending forecast and spending by category" width="450" height="928" loading="lazy">
+            <img data-shot="insights" src="screenshots/soft/light-4-insights.jpg" alt="Insights in the Soft style: spending forecast and spending by category" width="450" height="928" loading="lazy">
           </figure>
           <span class="step-n">2</span>
           <h3>See where it went</h3>
@@ -120,7 +136,7 @@
         </li>
         <li class="reveal">
           <figure class="phone">
-            <img data-shot="budgets" src="screenshots/atelier/atelier-light-3-budgets.jpg" alt="Budgets in the Atelier style, before any budget is set, with a New budget button" width="450" height="928" loading="lazy">
+            <img data-shot="budgets" src="screenshots/soft/light-3-budgets.jpg" alt="Budgets in the Soft style: money left to spend and progress for each category budget" width="450" height="928" loading="lazy">
           </figure>
           <span class="step-n">3</span>
           <h3>Stay under budget</h3>
