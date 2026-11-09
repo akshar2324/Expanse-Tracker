@@ -26,6 +26,11 @@ import com.akshar.utils.PeriodUtils
 
 class FinanceRepository(private val financeDao: FinanceDao, private val database: AppDatabase) {
 
+    /** One consistent ledger/budget snapshot for an on-device monthly report. */
+    suspend fun monthlyReport(month: String): com.akshar.reports.MonthlyReport = database.withTransaction {
+        com.akshar.reports.MonthlyReports.build(month, financeDao.getTransactionsList(), financeDao.getBudgetsList())
+    }
+
     // --- Transactions ---
     val allTransactions: Flow<List<Transaction>> = financeDao.getAllTransactions()
 
