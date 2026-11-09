@@ -128,7 +128,7 @@ object AkSpendTheme {
 
 @Composable
 fun AkSpendTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = Appearance.themeMode.isDark(isSystemInDarkTheme()),
     style: AppStyle = Appearance.style,
     softPalette: SoftPalette = Appearance.softPalette,
     softBaseHue: Float = Appearance.softBaseHue,

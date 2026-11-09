@@ -13,10 +13,20 @@ class AppStyleTest {
     }
 
     @Test
-    fun `missing or unknown keys fall back to Atelier`() {
-        assertEquals(AppStyle.ATELIER, AppStyle.fromKey(null))
-        assertEquals(AppStyle.ATELIER, AppStyle.fromKey("midnight"))
-        assertEquals(AppStyle.ATELIER, AppStyle.Default)
+    fun `missing or unknown keys fall back to Soft`() {
+        assertEquals(AppStyle.SOFT, AppStyle.fromKey(null))
+        assertEquals(AppStyle.SOFT, AppStyle.fromKey("midnight"))
+        assertEquals(AppStyle.SOFT, AppStyle.Default)
+    }
+
+    @Test
+    fun `theme mode resolves light and dark`() {
+        ThemeMode.entries.forEach { assertEquals(it, ThemeMode.fromKey(it.key)) }
+        assertEquals(ThemeMode.SYSTEM, ThemeMode.fromKey(null))
+        assertTrue(ThemeMode.SYSTEM.isDark(systemDark = true))
+        assertFalse(ThemeMode.SYSTEM.isDark(systemDark = false))
+        assertFalse(ThemeMode.LIGHT.isDark(systemDark = true))
+        assertTrue(ThemeMode.DARK.isDark(systemDark = false))
     }
 
     @Test

@@ -166,7 +166,17 @@ class MainActivity : FragmentActivity() {
         }
 
         setContent {
-            AkSpendTheme {
+            // The in-app Light/Dark choice can differ from the phone's, so the status and
+            // navigation bar icons follow the app's theme rather than the system's.
+            val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
+            val appDark = Appearance.themeMode.isDark(systemDark)
+            androidx.compose.runtime.LaunchedEffect(appDark) {
+                val transparent = android.graphics.Color.TRANSPARENT
+                val bars = if (appDark) androidx.activity.SystemBarStyle.dark(transparent)
+                else androidx.activity.SystemBarStyle.light(transparent, transparent)
+                enableEdgeToEdge(statusBarStyle = bars, navigationBarStyle = bars)
+            }
+            AkSpendTheme(darkTheme = appDark) {
                 val viewModel: FinanceViewModel = viewModel()
                 val isUnlocked by remember { isUnlockedState }
 

@@ -31,6 +31,8 @@ import com.akshar.ui.theme.GlassBackdrop
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.test.core.app.ApplicationProvider
 import com.akshar.data.model.Account
 import com.akshar.data.model.Budget
@@ -129,7 +131,7 @@ abstract class ScreensScreenshotBase {
       composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-${index + 1}-${tab.lowercase()}.png")
     }
 
-    if (style == AppStyle.SOFT) {
+    if (style == AppStyle.SOFT && fontScale == 1f) {
       // More › Appearance, with the Soft palette picker and the custom colour controls.
       composeTestRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Appearance"))
       composeTestRule.onNodeWithText("Appearance").performClick()
@@ -249,6 +251,58 @@ abstract class ScreensScreenshotBase {
     }
   }
 
+  protected fun captureTour(dark: Boolean) {
+    Locale.setDefault(Locale.US)
+    if (dark) RuntimeEnvironment.setQualifiers("+night")
+    val app = ApplicationProvider.getApplicationContext<ExpenseTrackerApp>()
+    seed(app)
+    val viewModel = FinanceViewModel(app)
+    val mode = if (dark) "dark" else "light"
+    composeTestRule.setContent { AkSpendTheme(darkTheme = dark) { AppScaffold(viewModel = viewModel) } }
+    settle()
+    val dir = "build/outputs/roborazzi/tour"
+
+    fun pages(name: String, count: Int = 4) {
+      repeat(count) { page ->
+        composeTestRule.onRoot().captureRoboImage(filePath = "$dir/$mode-$name-p${page + 1}.png")
+        if (page < count - 1) {
+          composeTestRule.onRoot().performTouchInput { swipeUp(startY = bottom * 0.75f, endY = bottom * 0.3f) }
+          settle()
+        }
+      }
+    }
+    fun tab(name: String) {
+      composeTestRule.onAllNodes(hasText(name) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab))[0].performClick()
+      settle()
+    }
+
+    tabs.forEachIndexed { i, name -> tab(name); pages("${i + 1}-${name.lowercase()}") }
+    tab("Budgets")
+    runCatching { composeTestRule.onNodeWithText("Savings goals").performClick(); settle(); pages("3b-savings-goals", 2) }
+    tab("Insights")
+    listOf("Income", "Cash flow").forEach { sub ->
+      runCatching {
+        composeTestRule.onAllNodesWithText(sub)[0].performSemanticsAction(SemanticsActions.OnClick); settle()
+        pages("4-insights-${sub.lowercase().replace(' ', '-')}", 3)
+      }
+    }
+    listOf(
+      "Weekly digest", "Auto-import", "Import bank SMS", "Import CSV", "Accounts", "Reminders",
+      "Borrow & lend", "Reports", "Calculators", "Backup & restore", "Vault & passcode",
+      "Appearance", "Region & currency", "Learned categories",
+    ).forEachIndexed { i, tool ->
+      tab("More")
+      runCatching {
+        // Click by action: once scrolled into view the row can sit under the floating tab bar.
+        composeTestRule.onNodeWithText(tool).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        settle()
+        pages("5-more-${(i + 1).toString().padStart(2, '0')}-${tool.lowercase().replace(Regex("[^a-z]+"), "-")}", 3)
+        composeTestRule.onAllNodesWithContentDescription("Back")[0].performClick()
+        settle()
+      }
+    }
+  }
+
   private fun stylePrefix(style: AppStyle) = if (style == AppStyle.Default) "" else "${style.key}-"
 
   /** Lets Room deliver on its own threads while the test clock runs the one-shot animations. */
@@ -342,9 +396,16 @@ class ScreensStandaloneLargeFontScreenshotTest : ScreensScreenshotBase() {
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [36])
-class ScreensSoftScreenshotTest : ScreensScreenshotBase() {
-  @Test fun soft_mainScreens_light() = captureMainScreens(dark = false, style = AppStyle.SOFT)
-  @Test fun soft_mainScreens_dark() = captureMainScreens(dark = true, style = AppStyle.SOFT)
-  @Test fun soft_standaloneScreens_light() = captureStandalone(dark = false, style = AppStyle.SOFT)
-  @Test fun soft_standaloneScreens_dark() = captureStandalone(dark = true, style = AppStyle.SOFT)
+class ScreensAtelierScreenshotTest : ScreensScreenshotBase() {
+  @Test fun atelier_mainScreens_light() = captureMainScreens(dark = false, style = AppStyle.ATELIER)
+  @Test fun atelier_standaloneScreens_light() = captureStandalone(dark = false, style = AppStyle.ATELIER)
+}
+
+/** Every tab and More tool, scrolled page by page, so spacing can be reviewed below the fold. */
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [36])
+class ScreensTourScreenshotTest : ScreensScreenshotBase() {
+  @Test fun tour_light() = captureTour(dark = false)
+  @Test fun tour_dark() = captureTour(dark = true)
 }

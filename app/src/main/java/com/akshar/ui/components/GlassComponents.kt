@@ -327,7 +327,14 @@ fun GlassSegmentedControl(
                         .weight(1f)
                         .fillMaxHeight()
                         .clip(PillShape)
-                        .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(index) }),
+                        // Soft's sliding raised thumb is the feedback, so it skips the ripple overlay.
+                        .selectable(
+                            selected = selected,
+                            interactionSource = null,
+                            indication = if (soft != null) null else androidx.compose.foundation.LocalIndication.current,
+                            role = Role.Tab,
+                            onClick = { onSelect(index) },
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(

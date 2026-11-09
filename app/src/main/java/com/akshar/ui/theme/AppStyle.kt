@@ -11,6 +11,11 @@ import androidx.compose.runtime.setValue
  * swapped at runtime without touching screen code.
  */
 enum class AppStyle(val key: String, val label: String, val description: String) {
+    SOFT(
+        key = "soft",
+        label = "Soft",
+        description = "Raised and pressed shapes in calm colour",
+    ),
     ATELIER(
         key = "atelier",
         label = "Atelier",
@@ -20,19 +25,32 @@ enum class AppStyle(val key: String, val label: String, val description: String)
         key = "glass",
         label = "Liquid glass",
         description = "Frosted panels over soft colour",
-    ),
-    SOFT(
-        key = "soft",
-        label = "Soft",
-        description = "Raised and pressed shapes in calm colour",
     );
 
     /** Flat styles draw a plain background and solid bars instead of blur and colour pools. */
     val isFlat: Boolean get() = this != GLASS
 
     companion object {
-        val Default = ATELIER
+        val Default = SOFT
         fun fromKey(key: String?): AppStyle = entries.firstOrNull { it.key == key } ?: Default
+    }
+}
+
+/** Whether the app follows the phone's light/dark setting or is fixed to one. */
+enum class ThemeMode(val key: String, val label: String) {
+    SYSTEM("system", "Match phone"),
+    LIGHT("light", "Light"),
+    DARK("dark", "Dark");
+
+    fun isDark(systemDark: Boolean): Boolean = when (this) {
+        SYSTEM -> systemDark
+        LIGHT -> false
+        DARK -> true
+    }
+
+    companion object {
+        val Default = SYSTEM
+        fun fromKey(key: String?): ThemeMode = entries.firstOrNull { it.key == key } ?: Default
     }
 }
 
@@ -43,12 +61,17 @@ enum class AppStyle(val key: String, val label: String, val description: String)
 object Appearance {
     private const val PREFS = "appearance_settings"
     private const val KEY_STYLE = "style"
+    private const val KEY_THEME_MODE = "theme_mode"
     private const val KEY_SOFT_PALETTE = "soft_palette"
     private const val KEY_SOFT_BASE_HUE = "soft_base_hue"
     private const val KEY_SOFT_ACCENT_HUE = "soft_accent_hue"
     private var loaded = false
 
     var style: AppStyle by mutableStateOf(AppStyle.Default)
+        private set
+
+    /** Light, dark, or following the phone. */
+    var themeMode: ThemeMode by mutableStateOf(ThemeMode.Default)
         private set
 
     /** Which Soft palette is used when [style] is [AppStyle.SOFT]. */
@@ -65,10 +88,16 @@ object Appearance {
         if (loaded) return
         val p = prefs(context)
         style = AppStyle.fromKey(p.getString(KEY_STYLE, null))
+        themeMode = ThemeMode.fromKey(p.getString(KEY_THEME_MODE, null))
         softPalette = SoftPalette.fromKey(p.getString(KEY_SOFT_PALETTE, null))
         softBaseHue = SoftColorMath.normalizeHue(p.getFloat(KEY_SOFT_BASE_HUE, SoftPalettes.DEFAULT_BASE_HUE))
         softAccentHue = SoftColorMath.safeAccentHue(p.getFloat(KEY_SOFT_ACCENT_HUE, SoftPalettes.DEFAULT_ACCENT_HUE))
         loaded = true
+    }
+
+    fun selectThemeMode(context: Context, mode: ThemeMode) {
+        themeMode = mode
+        prefs(context).edit().putString(KEY_THEME_MODE, mode.key).apply()
     }
 
     fun selectSoftPalette(context: Context, palette: SoftPalette) {
