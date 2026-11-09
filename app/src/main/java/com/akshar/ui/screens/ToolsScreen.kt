@@ -616,6 +616,7 @@ fun ToolsScreen(
                             .padding(horizontal = Spacing.gutter, vertical = Spacing.lg),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        BudgetAlertsSection()
                         Card(
                             colors = glassCardColors(AkSpendTheme.glass.fillStrong),
                             modifier = Modifier.fillMaxWidth()
@@ -1072,7 +1073,7 @@ private val moreTools = listOf(
     MoreTool("BACKUP", "Backup & restore", "Export or restore your data file", Icons.Rounded.Backup),
     MoreTool("VAULT", "Vault & passcode", "App lock and fingerprint", Icons.Rounded.Shield),
     MoreTool("APPEARANCE", "Appearance", "Choose the look of the app", Icons.Rounded.Palette),
-    MoreTool("SETTINGS", "Region & currency", "Currency symbol and payment methods", Icons.Rounded.Public),
+    MoreTool("SETTINGS", "Settings", "Budget alerts, region and currency", Icons.Rounded.Public),
     MoreTool("LEARNED_CATEGORIES", "Learned categories", "Shops and payees you've categorised", Icons.Rounded.Psychology),
 )
 
