@@ -158,6 +158,22 @@ private class WidgetColors(
                 over = ColorProvider(day = LightFinanceColors.expense, night = DarkFinanceColors.expense),
                 serif = false,
             )
+            AppStyle.SOFT -> {
+                // Widgets cannot draw blurred shadows, so Soft widgets use the palette's colours flat.
+                val day = Appearance.softColors(dark = false)
+                val night = Appearance.softColors(dark = true)
+                WidgetColors(
+                    panel = ColorProvider(day = day.background, night = night.background),
+                    title = ColorProvider(day = day.text, night = night.text),
+                    text = ColorProvider(day = day.text, night = night.text),
+                    muted = ColorProvider(day = day.muted, night = night.muted),
+                    track = ColorProvider(day = day.track, night = night.track),
+                    bar = ColorProvider(day = day.accent, night = night.accent),
+                    warning = ColorProvider(day = LightFinanceColors.warning, night = DarkFinanceColors.warning),
+                    over = ColorProvider(day = day.expense, night = night.expense),
+                    serif = false,
+                )
+            }
         }
     }
 }

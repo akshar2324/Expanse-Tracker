@@ -102,6 +102,8 @@ data class GlassColors(
     val edge: Color,
     val sheen: Color,
     val shadow: Color,
+    /** Set only in the Soft style: panels then draw as raised neumorphic shapes. */
+    val soft: SoftColors? = null,
 )
 
 val LightGlassColors = GlassColors(

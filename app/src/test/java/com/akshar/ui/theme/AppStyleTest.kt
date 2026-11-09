@@ -13,15 +13,33 @@ class AppStyleTest {
     }
 
     @Test
-    fun `missing or unknown keys fall back to Atelier`() {
-        assertEquals(AppStyle.ATELIER, AppStyle.fromKey(null))
-        assertEquals(AppStyle.ATELIER, AppStyle.fromKey("midnight"))
-        assertEquals(AppStyle.ATELIER, AppStyle.Default)
+    fun `missing or unknown keys fall back to Soft`() {
+        assertEquals(AppStyle.SOFT, AppStyle.fromKey(null))
+        assertEquals(AppStyle.SOFT, AppStyle.fromKey("midnight"))
+        assertEquals(AppStyle.SOFT, AppStyle.Default)
     }
 
     @Test
-    fun `only Atelier is flat`() {
+    fun `theme mode resolves light and dark`() {
+        ThemeMode.entries.forEach { assertEquals(it, ThemeMode.fromKey(it.key)) }
+        assertEquals(ThemeMode.SYSTEM, ThemeMode.fromKey(null))
+        assertTrue(ThemeMode.SYSTEM.isDark(systemDark = true))
+        assertFalse(ThemeMode.SYSTEM.isDark(systemDark = false))
+        assertFalse(ThemeMode.LIGHT.isDark(systemDark = true))
+        assertTrue(ThemeMode.DARK.isDark(systemDark = false))
+    }
+
+    @Test
+    fun `only glass uses blur and colour pools`() {
         assertTrue(AppStyle.ATELIER.isFlat)
+        assertTrue(AppStyle.SOFT.isFlat)
         assertFalse(AppStyle.GLASS.isFlat)
+    }
+
+    @Test
+    fun `soft palette keys round trip and unknown keys fall back to Lavender`() {
+        SoftPalette.entries.forEach { assertEquals(it, SoftPalette.fromKey(it.key)) }
+        assertEquals(SoftPalette.LAVENDER, SoftPalette.fromKey(null))
+        assertEquals(SoftPalette.LAVENDER, SoftPalette.fromKey("neon"))
     }
 }

@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -166,7 +167,15 @@ fun Modifier.glassPanel(
     glass: GlassColors,
     fill: Color = glass.fill,
     rimWidth: Dp = 1.dp,
-): Modifier = this
+): Modifier {
+    // In the Soft style every panel is a raised neumorphic shape in the page colour.
+    glass.soft?.let { soft ->
+        return this.softRaised(shape, soft, fill = fill.compositeOver(soft.background)).clip(shape)
+    }
+    return this.frostedPanel(shape, glass, fill, rimWidth)
+}
+
+private fun Modifier.frostedPanel(shape: Shape, glass: GlassColors, fill: Color, rimWidth: Dp): Modifier = this
     .clip(shape)
     .background(fill)
     .drawWithCache {

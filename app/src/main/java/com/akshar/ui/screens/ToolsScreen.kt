@@ -1,5 +1,10 @@
 package com.akshar.ui.screens
 
+import com.akshar.ui.theme.PillShape
+import com.akshar.ui.components.WrapRow
+import com.akshar.ui.components.tintedWell
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import com.akshar.utils.launchFilePicker
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,6 +29,15 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import com.akshar.ui.components.AlertDialog
+import com.akshar.ui.components.Card
+import com.akshar.ui.components.OutlinedTextField
+import com.akshar.ui.components.RadioButton
+import com.akshar.ui.components.Switch
+import com.akshar.ui.components.FilterChip
+import com.akshar.ui.components.IconButton
+import com.akshar.ui.components.TextButton
+import com.akshar.ui.components.Button
 import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
@@ -203,23 +217,31 @@ fun ToolsScreen(
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Column {
+                                            Column(Modifier.weight(1f)) {
                                                 Text(
                                                     text = recurring.description,
                                                     fontWeight = AkSpendTheme.emphasis,
                                                     style = MaterialTheme.typography.bodyLarge
                                                 )
-                                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                    SuggestionChip(
-                                                        onClick = {},
-                                                        label = { Text(recurring.frequency) }
-                                                    )
-                                                    SuggestionChip(
-                                                        onClick = {},
-                                                        label = { Text(recurring.category) }
-                                                    )
+                                                Spacer(Modifier.height(Spacing.xs))
+                                                // Read-only tags, not buttons: they describe the reminder.
+                                                WrapRow(horizontalSpacing = Spacing.sm, verticalSpacing = Spacing.xs) {
+                                                    listOf(
+                                                        recurring.frequency.lowercase().replaceFirstChar { it.uppercase() },
+                                                        recurring.category,
+                                                    ).forEach { tag ->
+                                                        Text(
+                                                            text = tag,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.primary,
+                                                            modifier = Modifier
+                                                                .tintedWell(PillShape, MaterialTheme.colorScheme.primary, alpha = 0.1f)
+                                                                .padding(horizontal = Spacing.sm, vertical = Spacing.xxs)
+                                                        )
+                                                    }
                                                 }
                                             }
+                                            Spacer(Modifier.width(Spacing.md))
 
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Text(
@@ -653,7 +675,8 @@ fun ToolsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp)
-                                    .border(if (active) 1.5.dp else 0.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                                    // A 0dp border still draws a hairline, so only the active card gets one.
+                                    .then(if (active) Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)) else Modifier)
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -801,43 +824,12 @@ fun ToolsScreen(
                             Text("Add a record")
                         }
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(40.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            listOf(
-                                "ALL" to "All",
-                                "LENT" to "Lent",
-                                "BORROWED" to "Borrowed",
-                                "RESOLVED" to "Settled"
-                            ).forEach { (fCode, fName) ->
-                                val active = debtsFilter == fCode
-                                val textCol = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                                val bg = if (active) MaterialTheme.colorScheme.primary else Color.Transparent
-
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1.0f)
-                                        .fillMaxHeight()
-                                        .clickable { debtsFilter = fCode }
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(bg),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = fName,
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            fontWeight = AkSpendTheme.emphasis,
-                                            color = textCol
-                                        )
-                                    )
-                                }
-                            }
-                        }
+                        val debtFilters = listOf("ALL" to "All", "LENT" to "Lent", "BORROWED" to "Borrowed", "RESOLVED" to "Settled")
+                        GlassSegmentedControl(
+                            options = debtFilters.map { it.second },
+                            selectedIndex = debtFilters.indexOfFirst { it.first == debtsFilter }.coerceAtLeast(0),
+                            onSelect = { debtsFilter = debtFilters[it].first }
+                        )
 
                         if (filteredDebts.isEmpty()) {
                             EmptyState(
@@ -1568,10 +1560,26 @@ private fun AppearancePicker() {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg)
-            .selectableGroup(),
+            .padding(horizontal = Spacing.gutter, vertical = Spacing.lg),
         verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
+        Text(
+            "Light or dark",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.semantics { heading() }
+        )
+        val modes = com.akshar.ui.theme.ThemeMode.entries
+        GlassSegmentedControl(
+            options = modes.map { it.label },
+            selectedIndex = modes.indexOf(Appearance.themeMode),
+            onSelect = { Appearance.selectThemeMode(context, modes[it]) }
+        )
+        Text(
+            "Style",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = Spacing.sm).semantics { heading() }
+        )
+        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         AppStyle.entries.forEach { style ->
             val selected = style == current
             GlassCard(
@@ -1601,11 +1609,7 @@ private fun AppearancePicker() {
                 }
             }
         }
-        Text(
-            text = "Light or dark follows your phone's setting.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = Spacing.xs)
-        )
+        }
+        if (AkSpendTheme.style == AppStyle.SOFT) SoftColoursSection()
     }
 }

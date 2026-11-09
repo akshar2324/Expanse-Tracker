@@ -1,5 +1,6 @@
 package com.akshar.ui.screens
 
+import com.akshar.ui.components.tintedWell
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -27,6 +28,10 @@ import androidx.compose.material.icons.rounded.Timelapse
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.navigation.NavController
 import androidx.compose.material3.*
+import com.akshar.ui.components.HorizontalDivider
+import com.akshar.ui.components.FloatingActionButton
+import com.akshar.ui.components.FilledTonalButton
+import com.akshar.ui.components.Button
 import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
@@ -478,8 +483,7 @@ private fun FlowPill(
 ) {
     Row(
         modifier = modifier
-            .clip(MaterialTheme.shapes.medium)
-            .background(tint.copy(alpha = if (AkSpendTheme.isDark) 0.14f else 0.09f))
+            .tintedWell(MaterialTheme.shapes.medium, tint)
             .padding(horizontal = Spacing.md, vertical = Spacing.sm)
             .semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically
