@@ -462,9 +462,18 @@ fun AppScaffold(viewModel: FinanceViewModel) {
 
     // A widget tap asks for a tab; open it once the scaffold (and so the unlocked app) shows.
     val pendingTab by AppNavigationRequests.pendingTab.collectAsState()
-    LaunchedEffect(pendingTab) {
+    // The NavHost sits inside BoxWithConstraints, so its graph is only set at the first layout,
+    // after this effect would first run. Wait for a back stack entry before navigating, or a
+    // request made at cold start (widget, tile) would crash with "graph has not been set".
+    val navReady = navBackStackEntry != null
+    LaunchedEffect(pendingTab, navReady) {
+        if (!navReady) return@LaunchedEffect
         pendingTab?.let { route ->
-            if (tabs.any { it.route == route }) navigateToTab(route)
+            when {
+                tabs.any { it.route == route } -> navigateToTab(route)
+                route == AppNavigationRequests.ADD_TRANSACTION && currentRoute != TransactionRoutes.ADD ->
+                    navController.navigate(TransactionRoutes.ADD) { launchSingleTop = true }
+            }
             AppNavigationRequests.consumed()
         }
     }
@@ -748,7 +757,7 @@ const val LearnedCategoriesRoute = "learned_categories"
 
 // Routes for the add/edit transaction screen. ADD also backs the widget deep link.
 object TransactionRoutes {
-    const val ADD = "add_transaction"
+    const val ADD = AppNavigationRequests.ADD_TRANSACTION
     const val EDIT = "add_transaction/{transactionId}"
 
     fun edit(transactionId: Long) = "add_transaction/$transactionId"
