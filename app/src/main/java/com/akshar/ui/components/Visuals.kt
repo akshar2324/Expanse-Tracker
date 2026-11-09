@@ -95,14 +95,3 @@ fun Modifier.entrance(state: EntranceState, index: Int): Modifier = graphicsLaye
     translationY = (1f - p) * 20.dp.toPx()
 }
 
-/** Animates a number from 0 to [target] once when first shown; instant with reduced motion. */
-@Composable
-fun rememberCountUp(target: Double): Double {
-    val reducedMotion = AkSpendTheme.reducedMotion
-    val anim = remember { Animatable(if (reducedMotion) 1f else 0f) }
-    LaunchedEffect(reducedMotion) {
-        if (reducedMotion) anim.snapTo(1f)
-        else anim.animateTo(1f, tween(Durations.emphasized * 2, easing = FastOutSlowInEasing))
-    }
-    return target * anim.value
-}

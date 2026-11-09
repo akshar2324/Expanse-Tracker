@@ -31,7 +31,7 @@ sealed class JsonRestoreState {
     /** The file is encrypted; [wrongPassword] is true after a failed attempt. */
     data class NeedsPassword(val wrongPassword: Boolean = false) : JsonRestoreState()
     /** Decoded and validated; waiting for the user to confirm replacing their data. */
-    data class Ready(val json: String, val transactionCount: Int) : JsonRestoreState()
+    data class Ready(val json: String, val transactionCount: Int, val accountCount: Int = 0) : JsonRestoreState()
     data class Error(val message: String) : JsonRestoreState()
 }
 
@@ -198,8 +198,8 @@ class AutoBackupViewModel(application: Application) : AndroidViewModel(applicati
 
     private suspend fun prepare(json: String) {
         // Validate off the main thread before offering to replace anything.
-        val count = withContext(Dispatchers.Default) { BackupCodec.decode(json).transactions.size }
-        _restoreState.value = JsonRestoreState.Ready(json, count)
+        val snapshot = withContext(Dispatchers.Default) { BackupCodec.decode(json) }
+        _restoreState.value = JsonRestoreState.Ready(json, snapshot.transactions.size, snapshot.accounts.size)
     }
 
     private suspend fun readText(uri: Uri): String = withContext(Dispatchers.IO) {

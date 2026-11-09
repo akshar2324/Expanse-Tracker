@@ -7,7 +7,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -34,7 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -342,8 +340,7 @@ private fun BalanceHero(
 ) {
     val largeText = androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f
     val finance = AkSpendTheme.finance
-    val shown = rememberCountUp(currentBalance)
-    val finalText = "$currencySymbol${String.format("%,.2f", currentBalance)}"
+    val balanceText = "$currencySymbol${String.format("%,.2f", currentBalance)}"
     GlassCard(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
@@ -356,12 +353,13 @@ private fun BalanceHero(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(Spacing.xs))
-        Text(
-            text = "$currencySymbol${String.format("%,.2f", shown)}",
+        // Rolls only the digits that change, so the balance is always a real amount on screen.
+        RollingMoneyText(
+            text = balanceText,
+            value = currentBalance,
             style = MaterialTheme.typography.displayMedium.money(),
             color = if (currentBalance >= 0) MaterialTheme.colorScheme.onSurface else finance.expense,
-            maxLines = 1,
-            modifier = Modifier.semantics { contentDescription = "Net balance $finalText" }
+            accessibilityLabel = "Net balance $balanceText"
         )
         Spacer(modifier = Modifier.height(Spacing.lg))
         HeroPair(
@@ -386,29 +384,33 @@ private fun BalanceHero(
             }
         )
         if (totalBudgetLimit > 0) {
-            val used = (budgetSpent / totalBudgetLimit).toFloat().coerceIn(0f, 1f)
-            val animatedUsed by animateFloatAsState(used, motionSpec(Durations.emphasized * 2), label = "budgetUsed")
-            Spacer(modifier = Modifier.height(Spacing.lg))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Monthly budget", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(
-                    "${(used * 100).toInt()}% used",
-                    style = MaterialTheme.typography.labelMedium.money(),
-                    color = if (used >= 0.9f) finance.expense else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            val used = (budgetSpent / totalBudgetLimit).toFloat()
+            val over = used >= 0.9f
+            val left = totalBudgetLimit - budgetSpent
+            val leftText = if (left >= 0) {
+                "$currencySymbol${String.format("%,.0f", left)} left of $currencySymbol${String.format("%,.0f", totalBudgetLimit)}"
+            } else {
+                "$currencySymbol${String.format("%,.0f", -left)} over $currencySymbol${String.format("%,.0f", totalBudgetLimit)}"
             }
-            Spacer(modifier = Modifier.height(Spacing.xs))
-            LinearProgressIndicator(
-                progress = { animatedUsed },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(PillShape),
-                color = if (used >= 0.9f) finance.expense else MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                strokeCap = StrokeCap.Round,
-                drawStopIndicator = {}
-            )
+            Spacer(modifier = Modifier.height(Spacing.lg))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                BudgetDial(
+                    usedFraction = used,
+                    color = if (over) finance.expense else MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                    size = if (largeText) 88.dp else 64.dp,
+                    accessibilityLabel = "Monthly budget ${budgetPercentLabel(used)} used. $leftText"
+                )
+                Spacer(Modifier.width(Spacing.md))
+                Column(Modifier.weight(1f)) {
+                    Text("Monthly budget", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        leftText,
+                        style = MaterialTheme.typography.titleSmall.money(),
+                        color = if (left < 0) finance.expense else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
         }
         Spacer(modifier = Modifier.height(Spacing.lg))
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {

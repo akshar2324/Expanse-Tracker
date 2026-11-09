@@ -56,7 +56,11 @@ fun AddTransactionScreen(
     onSaved: () -> Unit = onNavigateBack
 ) {
     val context = LocalContext.current
-    val selectorColumns = if (androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f) 1 else 3
+    // Large text: options wrap at their own width, so short names share a line and long ones get room.
+    val largeText = androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f
+    // A phone on its side: a pinned title and Save button would leave almost no room for the form.
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val compactHeight = configuration.screenHeightDp < 480 && configuration.screenWidthDp > configuration.screenHeightDp
     var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
 
     // --- State Holding (saveable so input survives rotation and process death) ---
@@ -170,11 +174,16 @@ fun AddTransactionScreen(
 
     val amountFocus = remember { FocusRequester() }
     // New entries start with the keyboard on the amount: it's the one field every entry needs.
+    // Only once: after rotation or a text size change the keyboard stays the way the user left it.
+    var autoFocused by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
+        if (autoFocused) return@LaunchedEffect
+        autoFocused = true
         if (transactionId == null && prefill == null) runCatching { amountFocus.requestFocus() }
     }
 
     val scope = rememberCoroutineScope()
+    val haptics = rememberAppHaptics()
     var checkingDuplicate by remember { mutableStateOf(false) }
     var duplicate by remember { mutableStateOf<DuplicateMatch?>(null) }
     var commitAfterCheck by remember { mutableStateOf(false) }
@@ -190,6 +199,7 @@ fun AddTransactionScreen(
             existing = editingTransaction,
             referenceKey = if (editingTransaction == null) prefill?.referenceKey else null
         )
+        haptics.confirm()
         onSaved()
     }
 
@@ -199,6 +209,7 @@ fun AddTransactionScreen(
         val amt = parsedAmount()
         if (amt == null) {
             amountError = "Please enter a valid amount greater than zero."
+            haptics.reject()
             return
         }
         // Only imported entries are checked; hand-typed ones never nag.
@@ -269,12 +280,7 @@ fun AddTransactionScreen(
         )
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .imePadding()
-            .navigationBarsPadding()
-    ) {
+    val header: @Composable () -> Unit = {
         ScreenHeader(
             title = if (transactionId != null) "Edit transaction" else "Add transaction",
             subtitle = when {
@@ -284,262 +290,52 @@ fun AddTransactionScreen(
             },
             onBack = onNavigateBack
         )
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Spacing.gutter)
-                .padding(bottom = Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+    }
+
+    @Composable
+    fun OptionChip(label: String, selected: Boolean, fill: Color, textColor: Color, modifier: Modifier, onSelect: () -> Unit) {
+        Box(
+            modifier = modifier
+                .heightIn(min = Spacing.touchTarget)
+                .glassPanel(PillShape, glass, fill)
+                .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+                .padding(horizontal = if (largeText) Spacing.lg else 4.dp),
+            contentAlignment = Alignment.Center
         ) {
-
-            // --- Type Slider (Income vs Expense Toggle) ---
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .glassPanel(PillShape, glass)
-                    .selectableGroup(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .padding(4.dp)
-                        .clip(PillShape)
-                        .background(if (isExpense) fillAccent else Color.Transparent)
-                        .selectable(selected = isExpense, role = Role.Tab) { isExpense = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Expense",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = if (isExpense) onFillAccent else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .padding(4.dp)
-                        .clip(PillShape)
-                        .background(if (!isExpense) fillAccent else Color.Transparent)
-                        .selectable(selected = !isExpense, role = Role.Tab) { isExpense = false },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Income",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = if (!isExpense) onFillAccent else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            // --- Amount Field (Numeric with Validation) ---
-            OutlinedTextField(
-                colors = glassTextFieldColors(),
-                value = amountStr,
-                onValueChange = {
-                    amountStr = it
-                    amountError = null
-                },
-                label = { Text("Amount") },
-                placeholder = { Text("0", style = MaterialTheme.typography.displaySmall.money()) },
-                leadingIcon = {
-                    Text(
-                        text = currencySymbol,
-                        style = MaterialTheme.typography.headlineMedium.money(),
-                        color = accent,
-                        modifier = Modifier.padding(start = Spacing.md)
-                    )
-                },
-                isError = amountError != null,
-                supportingText = {
-                    if (amountError != null) {
-                        Text(text = amountError!!, color = MaterialTheme.colorScheme.error)
-                    } else {
-                        Text("Tip: you can type sums like 120+45")
-                    }
-                },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
-                singleLine = true,
-                textStyle = MaterialTheme.typography.displaySmall.money().copy(color = accent),
-                shape = MaterialTheme.shapes.large,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(amountFocus)
-            )
-
-            // --- Main Category Selector ---
             Text(
-                text = "Category",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                color = textColor,
+                maxLines = if (largeText) 2 else 1,
+                overflow = TextOverflow.Ellipsis
             )
-            
-            // Give long category names room when the owner increases text size.
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Keep each selected option readable without reducing the requested font scale.
-                currentCategories.chunked(selectorColumns).forEach { rowList ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        rowList.forEach { category ->
-                            val selected = category == categorySelected
-                            val chipColor = if (selected) fillAccent else glass.fill
-                            val textColor = if (selected) onFillAccent else MaterialTheme.colorScheme.onSurface
-
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .heightIn(min = Spacing.touchTarget)
-                                    .glassPanel(PillShape, glass, chipColor)
-                                    .selectable(selected = selected, role = Role.RadioButton) {
-                                        categorySelected = category
-                                        categoryTouched = true
-                                        categoryFromMemory = false
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = category,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = textColor,
-                                    maxLines = if (selectorColumns == 1) 2 else 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                        // Fill structural blank spaces to preserve even alignment
-                        val blanks = selectorColumns - rowList.size
-                        if (blanks > 0) {
-                            repeat(blanks) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-                }
-            }
-
-            // --- Description / Note Field ---
-            OutlinedTextField(
-                colors = glassTextFieldColors(),
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Description") },
-                placeholder = { Text("e.g. Lunch, salary, bills, fuel...") },
-                supportingText = if (categoryFromMemory) {
-                    { Text("Category set from what you picked for this before.") }
-                } else null,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // --- Date Picker Dialog Access button ---
-            GlassCard(
-                contentPadding = PaddingValues(0.dp),
-                onClickLabel = "Change date",
-                onClick = {
-                    val cal = Calendar.getInstance().apply { timeInMillis = dateSelected }
-                    DatePickerDialog(
-                        context,
-                        { _: DatePicker, y: Int, m: Int, d: Int ->
-                            val selectedCal = Calendar.getInstance().apply {
-                                set(Calendar.YEAR, y)
-                                set(Calendar.MONTH, m)
-                                set(Calendar.DAY_OF_MONTH, d)
-                            }
-                            dateSelected = selectedCal.timeInMillis
-                        },
-                        cal.get(Calendar.YEAR),
-                        cal.get(Calendar.MONTH),
-                        cal.get(Calendar.DAY_OF_MONTH)
-                    ).show()
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.CalendarMonth,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Date",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = dateFormatter.format(Date(dateSelected)),
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontWeight = AkSpendTheme.emphasis
-                                )
-                            )
-                        }
-                    }
-                    Text(
-                        text = "Change",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-
-            // --- Payment Method Selector (Horizontal List) ---
-            Text(
-                text = "Paid with",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                paymentMethods.chunked(selectorColumns).forEach { rowMethods ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        rowMethods.forEach { method ->
-                            val isSelected = method == paymentMethod
-                            val surface = if (isSelected) MaterialTheme.colorScheme.primary else glass.fill
-
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .heightIn(min = Spacing.touchTarget)
-                                    .glassPanel(PillShape, glass, surface)
-                                    .selectable(selected = isSelected, role = Role.RadioButton) { paymentMethod = method }
-                                    .padding(horizontal = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = method,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                                    maxLines = if (selectorColumns == 1) 2 else 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
         }
+    }
 
-        // --- Save button: pinned under the form so it's always reachable, even with the keyboard up ---
+    /** Three equal columns normally; with large text, chips sized to their label that wrap. */
+    @Composable
+    fun <T> OptionGrid(options: List<T>, chip: @Composable (T, Modifier) -> Unit) {
+        if (largeText) {
+            WrapRow(horizontalSpacing = 8.dp, verticalSpacing = 8.dp) {
+                options.forEach { chip(it, Modifier.widthIn(min = 96.dp)) }
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                options.chunked(3).forEach { rowList ->
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        rowList.forEach { chip(it, Modifier.weight(1f)) }
+                        // Fill structural blank spaces to preserve even alignment
+                        repeat(3 - rowList.size) { Spacer(modifier = Modifier.weight(1f)) }
+                    }
+                }
+            }
+        }
+    }
+
+    // --- Save button: pinned under the form so it's always reachable, even with the keyboard up.
+    // On a short landscape screen it scrolls with the form instead (see compactHeight).
+    @Composable
+    fun SaveArea() {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -597,6 +393,7 @@ fun AddTransactionScreen(
                             TextButton(
                                 onClick = {
                                     confirmDelete = false
+                                    haptics.heavy()
                                     viewModel.deleteTransaction(existing)
                                     onNavigateBack()
                                 },
@@ -610,6 +407,226 @@ fun AddTransactionScreen(
                 }
             }
         }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .imePadding()
+            .navigationBarsPadding()
+    ) {
+        if (!compactHeight) header()
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+        ) {
+            if (compactHeight) header()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.gutter)
+                    .padding(bottom = Spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+            ) {
+
+                // --- Type Slider (Income vs Expense Toggle) ---
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .glassPanel(PillShape, glass)
+                        .selectableGroup(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(4.dp)
+                            .clip(PillShape)
+                            .background(if (isExpense) fillAccent else Color.Transparent)
+                            .selectable(selected = isExpense, role = Role.Tab) { isExpense = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Expense",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (isExpense) onFillAccent else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(4.dp)
+                            .clip(PillShape)
+                            .background(if (!isExpense) fillAccent else Color.Transparent)
+                            .selectable(selected = !isExpense, role = Role.Tab) { isExpense = false },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Income",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (!isExpense) onFillAccent else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // --- Amount Field (Numeric with Validation) ---
+                OutlinedTextField(
+                    colors = glassTextFieldColors(),
+                    value = amountStr,
+                    onValueChange = {
+                        amountStr = it
+                        amountError = null
+                    },
+                    label = { Text("Amount") },
+                    placeholder = { Text("0", style = MaterialTheme.typography.displaySmall.money()) },
+                    leadingIcon = {
+                        Text(
+                            text = currencySymbol,
+                            style = MaterialTheme.typography.headlineMedium.money(),
+                            color = accent,
+                            modifier = Modifier.padding(start = Spacing.md)
+                        )
+                    },
+                    isError = amountError != null,
+                    supportingText = {
+                        if (amountError != null) {
+                            Text(text = amountError!!, color = MaterialTheme.colorScheme.error)
+                        } else {
+                            Text("Tip: you can type sums like 120+45")
+                        }
+                    },
+                    // The phone pad has digits, "." and "+" (for sums like 120+45) and no word suggestions.
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.displaySmall.money().copy(color = accent),
+                    shape = MaterialTheme.shapes.large,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(amountFocus)
+                )
+
+                // --- Main Category Selector ---
+                Text(
+                    text = "Category",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            
+                OptionGrid(currentCategories) { category, chipModifier ->
+                    val selected = category == categorySelected
+                    OptionChip(
+                        label = category,
+                        selected = selected,
+                        fill = if (selected) fillAccent else glass.fill,
+                        textColor = if (selected) onFillAccent else MaterialTheme.colorScheme.onSurface,
+                        modifier = chipModifier
+                    ) {
+                        categorySelected = category
+                        categoryTouched = true
+                        categoryFromMemory = false
+                    }
+                }
+
+                // --- Description / Note Field ---
+                OutlinedTextField(
+                    colors = glassTextFieldColors(),
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description") },
+                    placeholder = { Text("e.g. Lunch, salary, bills, fuel...") },
+                    supportingText = if (categoryFromMemory) {
+                        { Text("Category set from what you picked for this before.") }
+                    } else null,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // --- Date Picker Dialog Access button ---
+                GlassCard(
+                    contentPadding = PaddingValues(0.dp),
+                    onClickLabel = "Change date",
+                    onClick = {
+                        val cal = Calendar.getInstance().apply { timeInMillis = dateSelected }
+                        DatePickerDialog(
+                            context,
+                            { _: DatePicker, y: Int, m: Int, d: Int ->
+                                val selectedCal = Calendar.getInstance().apply {
+                                    set(Calendar.YEAR, y)
+                                    set(Calendar.MONTH, m)
+                                    set(Calendar.DAY_OF_MONTH, d)
+                                }
+                                dateSelected = selectedCal.timeInMillis
+                            },
+                            cal.get(Calendar.YEAR),
+                            cal.get(Calendar.MONTH),
+                            cal.get(Calendar.DAY_OF_MONTH)
+                        ).show()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.CalendarMonth,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Date",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = dateFormatter.format(Date(dateSelected)),
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontWeight = AkSpendTheme.emphasis
+                                    )
+                                )
+                            }
+                        }
+                        Text(
+                            text = "Change",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                // --- Payment Method Selector (Horizontal List) ---
+                Text(
+                    text = "Paid with",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            
+                OptionGrid(paymentMethods) { method, chipModifier ->
+                    val isSelected = method == paymentMethod
+                    OptionChip(
+                        label = method,
+                        selected = isSelected,
+                        fill = if (isSelected) MaterialTheme.colorScheme.primary else glass.fill,
+                        textColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                        modifier = chipModifier
+                    ) { paymentMethod = method }
+                }
+            }
+            if (compactHeight) SaveArea()
+        }
+        if (!compactHeight) SaveArea()
     }
 }
 

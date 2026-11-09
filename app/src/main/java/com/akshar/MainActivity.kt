@@ -503,7 +503,8 @@ fun AppScaffold(viewModel: FinanceViewModel) {
                         GlassNavigationRail(tabs = tabs, currentRoute = currentRoute, onSelect = navigateToTab)
                     }
                     Box(
-                        modifier = Modifier.weight(1f).fillMaxHeight().windowInsetsPadding(contentInsets),
+                        // The window is never panned (adjustResize), so every screen makes room for the keyboard here.
+                        modifier = Modifier.weight(1f).fillMaxHeight().windowInsetsPadding(contentInsets).imePadding(),
                         contentAlignment = Alignment.TopCenter
                     ) {
                         CompositionLocalProvider(LocalFloatingBarInset provides barInset) {
