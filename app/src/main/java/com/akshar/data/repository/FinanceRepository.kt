@@ -61,6 +61,25 @@ class FinanceRepository(private val financeDao: FinanceDao, private val database
         financeDao.deleteTransaction(transaction)
     }
 
+    /** Capture the stored rows and delete them in one transaction; transfer legs stay together. */
+    suspend fun deleteActivityTransaction(id: Long): List<Transaction> = database.withTransaction {
+        val stored = financeDao.getTransactionById(id) ?: return@withTransaction emptyList()
+        val rows = stored.transferId?.let { financeDao.getTransactionsByTransferId(it) } ?: listOf(stored)
+        if (stored.transferId != null) financeDao.deleteTransactionsByTransferId(stored.transferId)
+        else financeDao.deleteTransactionById(id)
+        rows
+    }
+
+    /** Undo copies the original stored values without recalculating money or assigning new IDs. */
+    suspend fun restoreActivityTransactions(rows: List<Transaction>) = database.withTransaction {
+        // Refuse to overwrite a later edit or a recreated transfer.
+        check(rows.all { it.id != 0L && financeDao.getTransactionById(it.id) == null })
+        rows.mapNotNull { it.transferId }.distinct().forEach {
+            check(financeDao.getTransactionsByTransferId(it).isEmpty())
+        }
+        financeDao.insertTransactions(rows)
+    }
+
     suspend fun deleteTransactionById(id: Long) {
         financeDao.deleteTransactionById(id)
     }
