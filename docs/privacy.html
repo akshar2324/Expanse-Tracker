@@ -1,179 +1,182 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Privacy Policy - AkSpend</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Privacy Policy · AkSpend</title>
+  <meta name="description" content="What the AkSpend Android app stores, where it stores it, and what you can do about it.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%235e49b0'/%3E%3Cpath d='M16 24h28a4 4 0 0 1 4 4v16a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V24zm0 0 22-8v8' fill='none' stroke='%23ffffff' stroke-width='4' stroke-linejoin='round'/%3E%3Ccircle cx='40' cy='36' r='3' fill='%23ffffff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/site.css">
+  <script>
+    // Same style and light/dark choice as the home page, set before first paint.
+    (function () {
+      var root = document.documentElement, style = "soft", mode = "auto";
+      try {
+        var saved = localStorage.getItem("akspend-style");
+        if (saved === "soft" || saved === "atelier" || saved === "glass") style = saved;
+        var savedMode = localStorage.getItem("akspend-mode");
+        if (savedMode === "light" || savedMode === "dark") mode = savedMode;
+      } catch (e) {}
+      var dark = mode === "dark" || (mode === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      root.setAttribute("data-style", style);
+      root.setAttribute("data-mode", dark ? "dark" : "light");
+    })();
+  </script>
 </head>
-<body class="bg-slate-900 text-slate-300 min-h-screen flex flex-col">
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
 
-    <!-- Navigation Header -->
-    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
-        <div class="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-            <a href="index.html" class="flex items-center space-x-2">
-                <svg class="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <span class="text-xl font-bold tracking-tight text-white">AkSpend</span>
-            </a>
-            <a href="index.html" class="text-sm text-slate-400 hover:text-emerald-400 transition-colors">Home Page &rarr;</a>
-        </div>
-    </header>
+  <header class="topbar">
+    <a class="brand" href="index.html" aria-label="AkSpend home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" class="brand-bg"/><path d="M8 12h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-10zm0 0 11-4v4" class="brand-line"/><circle cx="20" cy="18" r="1.6" class="brand-dot"/></svg>
+      <span>AkSpend</span>
+    </a>
+    <a class="btn btn-ghost btn-sm back" href="index.html">Home page &rarr;</a>
+  </header>
 
-    <!-- Main Content Panel -->
-    <main class="flex-grow max-w-4xl mx-auto px-6 py-12">
-        <article class="bg-slate-900/50 rounded-2xl border border-slate-800 p-8 sm:p-12 shadow-xl">
-            <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-2">Privacy Policy</h1>
-            <p class="text-sm text-slate-400 mb-8">Last updated: November 6, 2026</p>
+  <main id="main" class="legal">
+    <article class="card">
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: November 6, 2026</p>
 
-            <div class="space-y-8 leading-relaxed text-slate-300">
-
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-3">1. The short version</h2>
-                    <div class="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50">
-                        <ul class="list-disc list-inside space-y-1">
-                            <li>AkSpend has no account, no servers and no internet permission. It cannot send your data anywhere.</li>
-                            <li>Everything you enter stays on your phone. It leaves only when you export or share it yourself.</li>
-                            <li>There are no ads, analytics, crash reporting or tracking.</li>
-                            <li>Reading payment notifications is optional and off until you allow it. Message text is never saved.</li>
-                        </ul>
-                    </div>
-                    <p class="mt-3">
-                        This policy explains what the AkSpend Android app stores, where, and what you can do about it. "We" means the developer of AkSpend.
-                    </p>
-                </section>
-
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-3">2. What AkSpend stores on your phone</h2>
-                    <p>AkSpend keeps the following in its private app storage on your device:</p>
-                    <ul class="list-disc list-inside mt-2 space-y-1 text-slate-400 text-sm">
-                        <li>Transactions, accounts and transfers, budgets, savings goals, debts, recurring payments and reconciliations.</li>
-                        <li>CSV import settings, categories it learned from merchants you categorized, and saved Activity filters.</li>
-                        <li>App settings, such as your currency region and theme.</li>
-                        <li>Your app lock passcode, stored only as a salted one-way hash, and the count of wrong tries.</li>
-                        <li>If you turn on encrypted automatic backups, the backup password, encrypted with a key held in the Android Keystore.</li>
-                    </ul>
-                    <p class="mt-3">
-                        Android keeps this storage private to AkSpend; other apps can't read it. On phones with a screen lock, Android's device encryption also protects it. AkSpend opts out of Android's automatic cloud backup, so this data is not copied to Google Drive.
-                    </p>
-                    <p class="mt-3">
-                        We never receive any of this data. AkSpend has no internet permission, so it has no way to send it.
-                    </p>
-                </section>
-
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-3">3. Bank SMS and payment notifications</h2>
-                    <div class="mt-4 space-y-4">
-                        <div class="p-4 rounded-xl border border-slate-800 bg-slate-950/40">
-                            <h3 class="text-emerald-400 font-semibold mb-1">A. Pasting or sharing a bank SMS</h3>
-                            <p class="text-sm">
-                                You can paste a bank SMS into AkSpend or share one to it from your messages app. AkSpend reads only the text you give it, on your phone, and fills in a transaction for you to check before saving. AkSpend does not have SMS permission and cannot read your inbox.
-                            </p>
-                        </div>
-                        <div class="p-4 rounded-xl border border-slate-800 bg-slate-950/40">
-                            <h3 class="text-emerald-400 font-semibold mb-1">B. Auto-import from notifications (optional)</h3>
-                            <p class="text-sm">
-                                If you choose to turn on auto-import, Android asks you to give AkSpend <em>notification access</em>. With it, AkSpend reads new notifications from a built-in list of messaging, bank and UPI payment apps, ignores every other app, and looks for payment messages on your phone.
-                            </p>
-                            <ul class="list-disc list-inside mt-2 space-y-1 text-sm text-slate-400">
-                                <li><strong>Saved:</strong> amount, whether money came in or went out, the merchant or description, date, a suggested category, the last digits of the account when the message shows them, the app the message came from, and a one-way fingerprint used to skip duplicates.</li>
-                                <li><strong>Not saved:</strong> the message text, sender details, and any notification that isn't a payment, such as personal chats and OTPs.</li>
-                                <li>Nothing is added to your records until you review it. Items you don't review are deleted after 60 days.</li>
-                                <li>You can pause auto-import in the app, or remove notification access at any time in Android Settings › Notifications › Device &amp; app notifications.</li>
-                            </ul>
-                        </div>
-                    </div>
-                </section>
-
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-3">4. Permissions</h2>
-                    <ul class="list-disc list-inside mt-2 space-y-1 text-slate-400 text-sm">
-                        <li><strong>Notification access</strong> (optional): only for auto-import, as described above.</li>
-                        <li><strong>Biometrics</strong>: to unlock the app with your fingerprint or face if you turn that on. Android handles the biometric check; AkSpend never sees your fingerprint or face data.</li>
-                        <li><strong>Run at startup, keep awake, and foreground service</strong>: these come with Android's WorkManager library and let AkSpend run scheduled work, such as automatic backups, on your phone.</li>
-                        <li><strong>View network state</strong>: also added by WorkManager. AkSpend has no internet permission and never connects to the network.</li>
-                    </ul>
-                    <p class="mt-3">AkSpend does not ask for internet, SMS, contacts, location, camera, microphone or file-wide storage access.</p>
-                </section>
-
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-3">5. Backups, exports and sharing</h2>
-                    <ul class="list-disc list-inside mt-2 space-y-1 text-slate-400 text-sm">
-                        <li>You can export a JSON backup, a database file or a CSV report. Android asks where to save it, or which app to share it with. Once shared, that app's own privacy policy applies.</li>
-                        <li>Automatic backups are off unless you turn them on. They are written only to a folder you pick. You can protect them with a password (AES-256-GCM, key derived with PBKDF2-HMAC-SHA256). If the folder you pick syncs to a cloud service, that service receives the file under its own terms.</li>
-                        <li>Restoring a backup reads only the file you choose, and checks it before replacing anything.</li>
-                    </ul>
-                </section>
-
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-3">6. Home screen widgets</h2>
-                    <p>
-                        The budget widget shows this period's spending on your home screen. While the app lock is on, it hides all amounts.
-                    </p>
-                </section>
-
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-3">7. Third parties</h2>
-                    <p>
-                        AkSpend contains no advertising, analytics, crash reporting or tracking code, and shares data with no one. Google Play may collect information about app installs under Google's own privacy policy.
-                    </p>
-                </section>
-
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-3">8. Keeping and deleting your data</h2>
-                    <ul class="list-disc list-inside mt-2 space-y-1 text-slate-400 text-sm">
-                        <li>You can delete any entry in the app at any time.</li>
-                        <li>Uninstalling AkSpend, or clearing its storage in Android Settings, permanently deletes everything it stored.</li>
-                        <li>Backups and exports you saved stay wherever you put them until you delete them.</li>
-                        <li>We hold no copy, so we cannot recover data for you after you lose your phone. Keep a backup if that matters to you.</li>
-                    </ul>
-                </section>
-
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-3">9. Children</h2>
-                    <p>
-                        AkSpend is not directed at children under 13. It collects no personal information from anyone, including children.
-                    </p>
-                </section>
-
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-3">10. Changes to this policy</h2>
-                    <p>
-                        If AkSpend changes how it handles data, this page will be updated and the date at the top will change. Significant changes will also be described in the app's release notes.
-                    </p>
-                </section>
-
-                <section>
-                    <h2 class="text-xl font-bold text-white mb-3">11. Contact</h2>
-                    <p>
-                        Questions about privacy or security:
-                    </p>
-                    <p class="mt-2 text-emerald-400 font-medium">
-                        Email: <a href="mailto:axar2324@gmail.com" class="underline hover:text-emerald-300">axar2324@gmail.com</a>
-                    </p>
-                </section>
-
+        <section>
+            <h2>1. The short version</h2>
+            <div class="callout">
+                <ul>
+                    <li>AkSpend has no account, no servers and no internet permission. It cannot send your data anywhere.</li>
+                    <li>Everything you enter stays on your phone. It leaves only when you export or share it yourself.</li>
+                    <li>There are no ads, analytics, crash reporting or tracking.</li>
+                    <li>Reading payment notifications is optional and off until you allow it. Message text is never saved.</li>
+                </ul>
             </div>
-        </article>
-    </main>
+            <p>
+                This policy explains what the AkSpend Android app stores, where, and what you can do about it. "We" means the developer of AkSpend.
+            </p>
+        </section>
 
-    <!-- Footer -->
-    <footer class="border-t border-slate-800 bg-slate-950 py-8">
-        <div class="max-w-4xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between text-sm text-slate-500">
-            <p>&copy; 2026 AkSpend. All rights reserved.</p>
-            <div class="flex space-x-6 mt-4 sm:mt-0">
-                <a href="privacy.html" class="hover:text-slate-300 transition-colors underline">Privacy Policy</a>
-                <a href="terms.html" class="hover:text-slate-300 transition-colors underline">Terms of Service</a>
+        <section>
+            <h2>2. What AkSpend stores on your phone</h2>
+            <p>AkSpend keeps the following in its private app storage on your device:</p>
+            <ul>
+                <li>Transactions, accounts and transfers, budgets, savings goals, debts, recurring payments and reconciliations.</li>
+                <li>CSV import settings, categories it learned from merchants you categorized, and saved Activity filters.</li>
+                <li>App settings, such as your currency region and theme.</li>
+                <li>Your app lock passcode, stored only as a salted one-way hash, and the count of wrong tries.</li>
+                <li>If you turn on encrypted automatic backups, the backup password, encrypted with a key held in the Android Keystore.</li>
+            </ul>
+            <p>
+                Android keeps this storage private to AkSpend; other apps can't read it. On phones with a screen lock, Android's device encryption also protects it. AkSpend opts out of Android's automatic cloud backup, so this data is not copied to Google Drive.
+            </p>
+            <p>
+                We never receive any of this data. AkSpend has no internet permission, so it has no way to send it.
+            </p>
+        </section>
+
+        <section>
+            <h2>3. Bank SMS and payment notifications</h2>
+            <div>
+                <div class="callout">
+                    <h3>A. Pasting or sharing a bank SMS</h3>
+                    <p>
+                        You can paste a bank SMS into AkSpend or share one to it from your messages app. AkSpend reads only the text you give it, on your phone, and fills in a transaction for you to check before saving. AkSpend does not have SMS permission and cannot read your inbox.
+                    </p>
+                </div>
+                <div class="callout">
+                    <h3>B. Auto-import from notifications (optional)</h3>
+                    <p>
+                        If you choose to turn on auto-import, Android asks you to give AkSpend <em>notification access</em>. With it, AkSpend reads new notifications from a built-in list of messaging, bank and UPI payment apps, ignores every other app, and looks for payment messages on your phone.
+                    </p>
+                    <ul>
+                        <li><strong>Saved:</strong> amount, whether money came in or went out, the merchant or description, date, a suggested category, the last digits of the account when the message shows them, the app the message came from, and a one-way fingerprint used to skip duplicates.</li>
+                        <li><strong>Not saved:</strong> the message text, sender details, and any notification that isn't a payment, such as personal chats and OTPs.</li>
+                        <li>Nothing is added to your records until you review it. Items you don't review are deleted after 60 days.</li>
+                        <li>You can pause auto-import in the app, or remove notification access at any time in Android Settings › Notifications › Device &amp; app notifications.</li>
+                    </ul>
+                </div>
             </div>
-        </div>
-    </footer>
+        </section>
 
+        <section>
+            <h2>4. Permissions</h2>
+            <ul>
+                <li><strong>Notification access</strong> (optional): only for auto-import, as described above.</li>
+                <li><strong>Biometrics</strong>: to unlock the app with your fingerprint or face if you turn that on. Android handles the biometric check; AkSpend never sees your fingerprint or face data.</li>
+                <li><strong>Run at startup, keep awake, and foreground service</strong>: these come with Android's WorkManager library and let AkSpend run scheduled work, such as automatic backups, on your phone.</li>
+                <li><strong>View network state</strong>: also added by WorkManager. AkSpend has no internet permission and never connects to the network.</li>
+            </ul>
+            <p>AkSpend does not ask for internet, SMS, contacts, location, camera, microphone or file-wide storage access.</p>
+        </section>
+
+        <section>
+            <h2>5. Backups, exports and sharing</h2>
+            <ul>
+                <li>You can export a JSON backup, a database file or a CSV report. Android asks where to save it, or which app to share it with. Once shared, that app's own privacy policy applies.</li>
+                <li>Automatic backups are off unless you turn them on. They are written only to a folder you pick. You can protect them with a password (AES-256-GCM, key derived with PBKDF2-HMAC-SHA256). If the folder you pick syncs to a cloud service, that service receives the file under its own terms.</li>
+                <li>Restoring a backup reads only the file you choose, and checks it before replacing anything.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>6. Home screen widgets</h2>
+            <p>
+                The budget widget shows this period's spending on your home screen. While the app lock is on, it hides all amounts.
+            </p>
+        </section>
+
+        <section>
+            <h2>7. Third parties</h2>
+            <p>
+                AkSpend contains no advertising, analytics, crash reporting or tracking code, and shares data with no one. Google Play may collect information about app installs under Google's own privacy policy.
+            </p>
+        </section>
+
+        <section>
+            <h2>8. Keeping and deleting your data</h2>
+            <ul>
+                <li>You can delete any entry in the app at any time.</li>
+                <li>Uninstalling AkSpend, or clearing its storage in Android Settings, permanently deletes everything it stored.</li>
+                <li>Backups and exports you saved stay wherever you put them until you delete them.</li>
+                <li>We hold no copy, so we cannot recover data for you after you lose your phone. Keep a backup if that matters to you.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>9. Children</h2>
+            <p>
+                AkSpend is not directed at children under 13. It collects no personal information from anyone, including children.
+            </p>
+        </section>
+
+        <section>
+            <h2>10. Changes to this policy</h2>
+            <p>
+                If AkSpend changes how it handles data, this page will be updated and the date at the top will change. Significant changes will also be described in the app's release notes.
+            </p>
+        </section>
+
+        <section>
+            <h2>11. Contact</h2>
+            <p>
+                Questions about privacy or security:
+            </p>
+            <p>
+                Email: <a href="mailto:axar2324@gmail.com">axar2324@gmail.com</a>
+            </p>
+        </section>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <a class="brand brand-sm" href="index.html">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" class="brand-bg"/><path d="M8 12h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-10zm0 0 11-4v4" class="brand-line"/><circle cx="20" cy="18" r="1.6" class="brand-dot"/></svg>
+      <span>AkSpend</span>
+    </a>
+    <nav aria-label="Legal">
+      <a href="privacy.html">Privacy Policy</a>
+      <a href="terms.html">Terms of Service</a>
+    </nav>
+    <span class="muted">&copy; 2026 AkSpend. All rights reserved.</span>
+  </footer>
 </body>
 </html>
