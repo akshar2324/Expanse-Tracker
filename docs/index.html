@@ -17,7 +17,7 @@
   <meta property="og:image:alt" content="AkSpend: Your money. Only yours. The app's home screen beside the headline.">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="canonical" href="https://akshar2324.github.io/Expanse-Tracker/">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230F5F54'/%3E%3Cpath d='M16 24h28a4 4 0 0 1 4 4v16a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V24zm0 0 22-8v8' fill='none' stroke='%23F7F2EA' stroke-width='4' stroke-linejoin='round'/%3E%3Ccircle cx='40' cy='36' r='3' fill='%23F7F2EA'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%235e49b0'/%3E%3Cpath d='M16 24h28a4 4 0 0 1 4 4v16a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V24zm0 0 22-8v8' fill='none' stroke='%23ffffff' stroke-width='4' stroke-linejoin='round'/%3E%3Ccircle cx='40' cy='36' r='3' fill='%23ffffff'/%3E%3C/svg%3E">
   <link rel="preload" href="assets/fonts/inter-bold.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/instrument-serif.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/site.css">
@@ -36,6 +36,18 @@
       var dark = mode === "dark" || (mode === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
       root.setAttribute("data-style", style);
       root.setAttribute("data-mode", dark ? "dark" : "light");
+      // The WebGL scenes are an extra. Skip them for reduced motion, data saver, or no WebGL
+      // (add ?static to the address to see the page without them).
+      try {
+        var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+          (navigator.connection && navigator.connection.saveData) || /[?&]static\b/.test(location.search);
+        var probe = document.createElement("canvas");
+        var ctx = !still && window.WebGLRenderingContext && (probe.getContext("webgl2") || probe.getContext("webgl"));
+        if (ctx) {
+          root.classList.add("gl");
+          var lose = ctx.getExtension("WEBGL_lose_context"); if (lose) lose.loseContext();
+        }
+      } catch (e) {}
     })();
   </script>
 </head>
@@ -94,20 +106,22 @@
       </div>
 
       <div class="hero-art">
-        <canvas class="orb" aria-hidden="true"></canvas>
+        <div class="dial" aria-hidden="true"></div>
+        <canvas class="scene" data-scene="hero" aria-hidden="true"></canvas>
         <div class="phone-wrap">
-        <figure class="phone phone-hero">
-          <img data-shot="home" src="screenshots/soft/light-1-home.jpg" alt="AkSpend home screen in the Soft style: net balance with money in and out, a monthly budget dial, and Add and Transfer buttons" width="450" height="928" fetchpriority="high">
-        </figure>
-        <div class="chip chip-a" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2.5"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg>
-          Fingerprint lock
+          <figure class="phone phone-3d phone-hero">
+            <img data-shot="home" src="screenshots/soft/light-1-home.jpg" alt="AkSpend home screen in the Soft style: net balance with money in and out, a monthly budget dial, and Add and Transfer buttons" width="450" height="928" fetchpriority="high">
+          </figure>
+          <div class="chip chip-a" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2.5"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg>
+            Fingerprint lock
+          </div>
+          <div class="chip chip-b" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 12.5 9 17.5 20 6.5"/></svg>
+            Works with no signal
+          </div>
         </div>
-        <div class="chip chip-b" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M4 12.5 9 17.5 20 6.5"/></svg>
-          Works with no signal
-        </div>
-        </div>
+        <p class="spin-hint" aria-hidden="true">Drag the phone to spin it</p>
       </div>
     </section>
 
@@ -117,9 +131,16 @@
         <p class="eyebrow">How it works</p>
         <h2 id="how-title">Log it, see it, stay on budget.</h2>
       </div>
-      <ol class="how">
+      <div class="how">
+        <div class="how-stage" aria-hidden="true">
+          <div class="stage-well"></div>
+          <div class="stage-slot"></div>
+          <canvas class="scene" data-scene="stage"></canvas>
+          <div class="stage-dots"><i></i><i></i><i></i></div>
+        </div>
+      <ol class="how-steps">
         <li class="reveal">
-          <figure class="phone">
+          <figure class="phone phone-3d">
             <img data-shot="log" src="screenshots/soft/light-2-activity.jpg" alt="Activity in the Soft style: expenses and income grouped by day with category and payment method" width="450" height="928" loading="lazy">
           </figure>
           <span class="step-n">1</span>
@@ -127,7 +148,7 @@
           <p>Add it in the app or from the home-screen widget. Pick the account it came from; moving money between your own accounts never counts as income.</p>
         </li>
         <li class="reveal">
-          <figure class="phone">
+          <figure class="phone phone-3d">
             <img data-shot="insights" src="screenshots/soft/light-4-insights.jpg" alt="Insights in the Soft style: spending forecast and spending by category" width="450" height="928" loading="lazy">
           </figure>
           <span class="step-n">2</span>
@@ -135,7 +156,7 @@
           <p>Insights shows spending by category, the last seven days and a month-end forecast, all worked out on the phone.</p>
         </li>
         <li class="reveal">
-          <figure class="phone">
+          <figure class="phone phone-3d">
             <img data-shot="budgets" src="screenshots/soft/light-3-budgets.jpg" alt="Budgets in the Soft style: money left to spend and progress for each category budget" width="450" height="928" loading="lazy">
           </figure>
           <span class="step-n">3</span>
@@ -143,6 +164,7 @@
           <p>Set weekly or monthly limits per category, watch them fill, and get a heads-up before you go over.</p>
         </li>
       </ol>
+      </div>
     </section>
 
     <!-- FEATURES -->
@@ -152,32 +174,32 @@
         <h2 id="features-title">What else is inside</h2>
       </div>
       <ul class="grid">
-        <li class="card reveal">
+        <li class="card tilt reveal">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 14.5h2"/></svg>
           <h3>Many accounts, one total</h3>
           <p>Cash, bank, wallet, savings and credit cards. Transfers move money between them without counting as income or spending, and reconciliation keeps balances true.</p>
         </li>
-        <li class="card reveal">
+        <li class="card tilt reveal">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 15v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3"/></svg>
           <h3>Bring your statements</h3>
           <p>Import bank or wallet CSVs in a staged review. Duplicates are caught by row fingerprint.</p>
         </li>
-        <li class="card reveal">
+        <li class="card tilt reveal">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2.5"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg>
           <h3>Biometric lock</h3>
           <p>Fingerprint or face unlock, backed by the Android keystore.</p>
         </li>
-        <li class="card reveal">
+        <li class="card tilt reveal">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6z"/><path d="M9 13h6M9 16.5h6M14.5 4v3.5H18"/></svg>
           <h3>Backups you hold</h3>
           <p>Export a JSON backup or the raw database and restore it whenever you like. Android cloud backup is switched off.</p>
         </li>
-        <li class="card reveal">
+        <li class="card tilt reveal">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
           <h3>A weekly digest</h3>
           <p>Top categories, unusual spends and a month-end forecast, plus savings goals alongside your budgets.</p>
         </li>
-        <li class="card reveal">
+        <li class="card tilt reveal">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7M20 4v4.5h-4.5"/></svg>
           <h3>Recurring, loans and a widget</h3>
           <p>Recurring transactions, money you've lent or borrowed, a quick-add home-screen widget, and light and dark themes that follow your phone.</p>
@@ -193,7 +215,7 @@
         <p>There is no AkSpend server. Your ledger is a database on your phone, and it only leaves when you export it yourself.</p>
         <p class="fineprint">The <a href="https://github.com/akshar2324/Expanse-Tracker" rel="noopener">source code</a> is public, and the app's manifest asks for no internet permission. Read the <a href="privacy.html">privacy policy</a>.</p>
       </div>
-      <div class="compare reveal" role="table" aria-label="AkSpend compared with a typical finance app">
+      <div class="compare tilt reveal" role="table" aria-label="AkSpend compared with a typical finance app">
         <div class="compare-row compare-head" role="row">
           <span role="columnheader"></span><span role="columnheader">Typical app</span><span role="columnheader">AkSpend</span>
         </div>
@@ -213,22 +235,22 @@
         <p class="section-lede">AkSpend is getting ready for Google Play. Help test it for 14 days before launch. Joining takes about two minutes, and it's free.</p>
       </div>
       <ol class="steps steps-4">
-        <li class="card reveal">
+        <li class="card tilt reveal">
           <span class="step-n">1</span>
           <h3>Join the Google Group</h3>
           <p>Open <a href="https://groups.google.com/g/testers-community" rel="noopener">testers-community</a> and tap <strong>Join group</strong>.</p>
         </li>
-        <li class="card reveal">
+        <li class="card tilt reveal">
           <span class="step-n">2</span>
           <h3>Use your Play account</h3>
           <p>Join with the same Google account that's signed in to the Play Store on your phone.</p>
         </li>
-        <li class="card reveal">
+        <li class="card tilt reveal">
           <span class="step-n">3</span>
           <h3>Open AkSpend on Play</h3>
           <p>On your phone, open the <a href="https://play.google.com/store/apps/details?id=com.akshar.akspend" rel="noopener">Google Play listing</a>. Not there yet? Wait a few minutes after joining and try again.</p>
         </li>
-        <li class="card reveal">
+        <li class="card tilt reveal">
           <span class="step-n">4</span>
           <h3>Install and keep it</h3>
           <p>Install it like any app and keep it on your phone for 14 days. Updates arrive through Play.</p>
@@ -251,6 +273,8 @@
     <!-- DOWNLOAD + INSTALL -->
     <section id="download" class="section" aria-labelledby="download-title">
       <div class="download-panel reveal">
+        <span class="ring ring-a" aria-hidden="true"></span>
+        <span class="ring ring-b" aria-hidden="true"></span>
         <h2 id="download-title">Take your money offline.</h2>
         <p>Free and open source, and a 4 MB download. Install it and start logging.</p>
         <div class="cta-row">
@@ -265,17 +289,17 @@
       <div id="install" class="install">
         <h3 class="install-title">Installing takes about a minute</h3>
         <ol class="steps">
-          <li class="card reveal">
+          <li class="card tilt reveal">
             <span class="step-n">1</span>
             <h4>Download the APK</h4>
             <p>On your Android phone, tap <strong>Download APK</strong>. It opens the latest release on GitHub. Tap the file ending in <code>.apk</code>.</p>
           </li>
-          <li class="card reveal">
+          <li class="card tilt reveal">
             <span class="step-n">2</span>
             <h4>Allow this one install</h4>
             <p>Android asks before installing apps from outside the Play Store. Tap <strong>Settings</strong>, turn on <strong>Allow from this source</strong> for your browser, then go back.</p>
           </li>
-          <li class="card reveal">
+          <li class="card tilt reveal">
             <span class="step-n">3</span>
             <h4>Install and open</h4>
             <p>Tap <strong>Install</strong>, then <strong>Open</strong>. There's no sign-up: you're logging your first expense straight away. You can turn the browser permission off again afterwards.</p>

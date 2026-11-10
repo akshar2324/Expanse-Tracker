@@ -1,5 +1,6 @@
-// AkSpend landing page: scroll reveals and the particle orb behind the hero phone.
-// Everything here is optional; the page reads the same without it.
+// AkSpend site: scroll reveals, the app style switch, cards that lean towards the pointer,
+// and the loader for the WebGL phone scenes (stage.js). Everything here is optional; the
+// page reads the same without it.
 
 (function () {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -103,89 +104,40 @@
   darkMq.addEventListener?.("change", () => applyStyle(root.getAttribute("data-style"), false));
   applyStyle(root.getAttribute("data-style"), false);
 
-  // ---------- particle orb ----------
-  const canvas = document.querySelector(".orb");
-  if (!canvas || !canvas.getContext) return;
-  const ctx = canvas.getContext("2d");
-
-  const small = window.matchMedia("(max-width: 820px)").matches;
-  const COUNT = small ? 650 : 1100;
-  const pts = [];
-  const golden = Math.PI * (3 - Math.sqrt(5));
-  for (let i = 0; i < COUNT; i++) {
-    // Even spread over a sphere, with a few points pulled inside for depth.
-    const y = 1 - (i / (COUNT - 1)) * 2;
-    const ring = Math.sqrt(1 - y * y);
-    const shell = Math.random() < 0.82 ? 1 : 0.45 + Math.random() * 0.45;
-    pts.push({
-      x: Math.cos(golden * i) * ring * shell,
-      y: y * shell,
-      z: Math.sin(golden * i) * ring * shell,
-      s: 0.6 + Math.random() * 1.3,
-      tw: Math.random() * Math.PI * 2,
+  // ---------- cards lean towards the pointer ----------
+  if (!reduced.matches && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+    document.querySelectorAll(".tilt").forEach((el) => {
+      let raf = 0;
+      el.addEventListener("pointermove", (e) => {
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => {
+          const r = el.getBoundingClientRect();
+          const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+          const y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+          el.classList.add("is-tilting");
+          el.style.setProperty("--ry", ((x - 0.5) * 9).toFixed(2) + "deg");
+          el.style.setProperty("--rx", ((0.5 - y) * 9).toFixed(2) + "deg");
+          el.style.setProperty("--mx", (x * 100).toFixed(1) + "%");
+          el.style.setProperty("--my", (y * 100).toFixed(1) + "%");
+        });
+      });
+      el.addEventListener("pointerleave", () => {
+        cancelAnimationFrame(raf);
+        el.classList.remove("is-tilting");
+        el.style.removeProperty("--rx"); el.style.removeProperty("--ry");
+      });
     });
   }
 
-  let w = 0, h = 0, dpr = 1, rgb = "15, 95, 84";
-  function readColor() {
-    rgb = getComputedStyle(document.documentElement).getPropertyValue("--orb").trim() || rgb;
+  // ---------- WebGL phone scenes ----------
+  // The inline script in <head> adds "gl" when WebGL is there and motion is allowed. Three.js
+  // is only fetched in that case; if anything fails the page drops back to the CSS phones.
+  if (root.classList.contains("gl")) {
+    const fallBack = () => root.classList.remove("gl", "gl-ready");
+    import("./stage.js").then((stage) => {
+      const stop = stage.start({ onFail: fallBack });
+      styleListeners.push(stage.restyle);
+      reduced.addEventListener?.("change", () => { if (reduced.matches) { stop(); fallBack(); } });
+    }).catch(fallBack);
   }
-  function resize() {
-    const r = canvas.getBoundingClientRect();
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    w = r.width; h = r.height;
-    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }
-
-  let angle = 0.6, tilt = 0.35, px = 0, py = 0, t = 0;
-  function draw() {
-    ctx.clearRect(0, 0, w, h);
-    const R = Math.min(w, h) * 0.42;
-    const cx = w / 2, cy = h / 2;
-    const ca = Math.cos(angle), sa = Math.sin(angle);
-    const tt = tilt + py * 0.15, ct = Math.cos(tt), st = Math.sin(tt);
-    for (let i = 0; i < pts.length; i++) {
-      const p = pts[i];
-      const x1 = p.x * ca + p.z * sa;
-      const z1 = -p.x * sa + p.z * ca;
-      const y2 = p.y * ct - z1 * st;
-      const z2 = p.y * st + z1 * ct;
-      const depth = (z2 + 1) / 2; // 0 back, 1 front
-      const a = (0.12 + 0.62 * depth) * (0.75 + 0.25 * Math.sin(t * 1.6 + p.tw));
-      ctx.fillStyle = "rgba(" + rgb + "," + a.toFixed(3) + ")";
-      ctx.beginPath();
-      ctx.arc(cx + x1 * R, cy + y2 * R, p.s * (0.55 + 0.6 * depth), 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  let running = false, visible = true, last = 0;
-  function frame(now) {
-    if (!running) return;
-    const dt = Math.min((now - (last || now)) / 1000, 0.05);
-    last = now; t += dt;
-    angle += dt * (0.12 + px * 0.05);
-    draw();
-    requestAnimationFrame(frame);
-  }
-  function start() {
-    if (running || reduced.matches || !visible || document.hidden) return;
-    running = true; last = 0; requestAnimationFrame(frame);
-  }
-  function stop() { running = false; }
-
-  readColor(); resize(); draw();
-  window.addEventListener("resize", () => { resize(); draw(); });
-  styleListeners.push(() => { readColor(); draw(); });
-  window.addEventListener("pointermove", (e) => {
-    px = (e.clientX / window.innerWidth) * 2 - 1;
-    py = (e.clientY / window.innerHeight) * 2 - 1;
-  }, { passive: true });
-  document.addEventListener("visibilitychange", () => (document.hidden ? stop() : start()));
-  reduced.addEventListener?.("change", () => (reduced.matches ? stop() : start()));
-  if ("IntersectionObserver" in window) {
-    new IntersectionObserver(([e]) => { visible = e.isIntersecting; visible ? start() : stop(); }).observe(canvas);
-  }
-  start();
 })();
