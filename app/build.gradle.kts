@@ -82,6 +82,8 @@ android {
           CommandLineArgumentProvider { listOf("-javaagent:${agentJar.singleFile.absolutePath}") }
         )
         test.jvmArgs("-Djdk.attach.allowAttachSelf=true", "-XX:+EnableDynamicAgentLoading")
+        // Robolectric 4.17 intercepts JDK file-descriptor APIs through SharedSecrets.
+        test.jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED")
       }
     }
   }
