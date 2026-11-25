@@ -97,6 +97,7 @@ val LocalFinanceColors = staticCompositionLocalOf { LightFinanceColors }
 val LocalGlassColors = staticCompositionLocalOf { LightGlassColors }
 val LocalIsDarkTheme = staticCompositionLocalOf { false }
 val LocalAppStyle = staticCompositionLocalOf { AppStyle.Default }
+val LocalSoftColors = staticCompositionLocalOf<SoftColors?> { null }
 
 /** True when the user switched animations off (animator duration scale 0). */
 val LocalReducedMotion = staticCompositionLocalOf { false }
@@ -111,27 +112,43 @@ object AkSpendTheme {
         @Composable @ReadOnlyComposable get() = LocalIsDarkTheme.current
     val style: AppStyle
         @Composable @ReadOnlyComposable get() = LocalAppStyle.current
-    /** Weight for emphasised labels: bold in glass, a calmer medium in Atelier. */
+    /** Neumorphic palette, set only while the Soft style is active. */
+    val soft: SoftColors?
+        @Composable @ReadOnlyComposable get() = LocalSoftColors.current
+    /** Weight for emphasised labels: bold in glass, a calmer medium in Atelier, semibold in Soft. */
     val emphasis: FontWeight
-        @Composable @ReadOnlyComposable get() =
-            if (LocalAppStyle.current == AppStyle.ATELIER) FontWeight.Medium else FontWeight.Bold
+        @Composable @ReadOnlyComposable get() = when (LocalAppStyle.current) {
+            AppStyle.ATELIER -> FontWeight.Medium
+            AppStyle.SOFT -> FontWeight.SemiBold
+            AppStyle.GLASS -> FontWeight.Bold
+        }
     val reducedMotion: Boolean
         @Composable @ReadOnlyComposable get() = LocalReducedMotion.current
 }
 
 @Composable
 fun AkSpendTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = Appearance.themeMode.isDark(isSystemInDarkTheme()),
     style: AppStyle = Appearance.style,
+    softPalette: SoftPalette = Appearance.softPalette,
+    softBaseHue: Float = Appearance.softBaseHue,
+    softAccentHue: Float = Appearance.softAccentHue,
     content: @Composable () -> Unit,
 ) {
     val reducedMotion = rememberReducedMotion()
     val atelier = style == AppStyle.ATELIER
+    val soft = if (style == AppStyle.SOFT) {
+        remember(softPalette, darkTheme, softBaseHue, softAccentHue) {
+            SoftPalettes.resolve(softPalette, darkTheme, softBaseHue, softAccentHue)
+        }
+    } else null
     val finance = when {
+        soft != null -> remember(soft) { soft.finance() }
         atelier -> if (darkTheme) AtelierDarkFinance else AtelierLightFinance
         else -> if (darkTheme) DarkFinanceColors else LightFinanceColors
     }
     val surfaces = when {
+        soft != null -> remember(soft) { soft.surfaces() }
         atelier -> if (darkTheme) AtelierDarkSurfaces else AtelierLightSurfaces
         else -> if (darkTheme) DarkGlassColors else LightGlassColors
     }
@@ -141,8 +158,10 @@ fun AkSpendTheme(
         LocalIsDarkTheme provides darkTheme,
         LocalReducedMotion provides reducedMotion,
         LocalAppStyle provides style,
+        LocalSoftColors provides soft,
     ) {
         val colorScheme = when {
+            soft != null -> remember(soft) { soft.colorScheme() }
             atelier -> if (darkTheme) AtelierDarkColorScheme else AtelierLightColorScheme
             else -> if (darkTheme) DarkColorScheme else LightColorScheme
         }

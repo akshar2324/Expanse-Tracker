@@ -78,6 +78,10 @@ import com.akshar.ui.components.IconBadge
 import com.akshar.ui.components.LocalFloatingBarInset
 import com.akshar.ui.components.motionSpec
 import com.akshar.ui.theme.Durations
+import com.akshar.ui.theme.SoftDepth
+import androidx.compose.foundation.LocalIndication
+import com.akshar.ui.theme.softSurface
+import androidx.compose.animation.core.animateFloatAsState
 import com.akshar.ui.theme.GlassBackdrop
 import com.akshar.ui.theme.GlassBlurState
 import com.akshar.ui.theme.PillShape
@@ -162,7 +166,17 @@ class MainActivity : FragmentActivity() {
         }
 
         setContent {
-            AkSpendTheme {
+            // The in-app Light/Dark choice can differ from the phone's, so the status and
+            // navigation bar icons follow the app's theme rather than the system's.
+            val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
+            val appDark = Appearance.themeMode.isDark(systemDark)
+            androidx.compose.runtime.LaunchedEffect(appDark) {
+                val transparent = android.graphics.Color.TRANSPARENT
+                val bars = if (appDark) androidx.activity.SystemBarStyle.dark(transparent)
+                else androidx.activity.SystemBarStyle.light(transparent, transparent)
+                enableEdgeToEdge(statusBarStyle = bars, navigationBarStyle = bars)
+            }
+            AkSpendTheme(darkTheme = appDark) {
                 val viewModel: FinanceViewModel = viewModel()
                 val isUnlocked by remember { isUnlockedState }
 
@@ -462,15 +476,26 @@ fun AppScaffold(viewModel: FinanceViewModel) {
 
     // A widget tap asks for a tab; open it once the scaffold (and so the unlocked app) shows.
     val pendingTab by AppNavigationRequests.pendingTab.collectAsState()
-    LaunchedEffect(pendingTab) {
+    // The NavHost sits inside BoxWithConstraints, so its graph is only set at the first layout,
+    // after this effect would first run. Wait for a back stack entry before navigating, or a
+    // request made at cold start (widget, tile) would crash with "graph has not been set".
+    val navReady = navBackStackEntry != null
+    LaunchedEffect(pendingTab, navReady) {
+        if (!navReady) return@LaunchedEffect
         pendingTab?.let { route ->
-            if (tabs.any { it.route == route }) navigateToTab(route)
+            when {
+                tabs.any { it.route == route } -> navigateToTab(route)
+                route == AppNavigationRequests.ADD_TRANSACTION && currentRoute != TransactionRoutes.ADD ->
+                    navController.navigate(TransactionRoutes.ADD) { launchSingleTop = true }
+            }
             AppNavigationRequests.consumed()
         }
     }
 
     // Flat styles (Atelier) use a solid bar, so there is nothing to blur.
     val flatStyle = AkSpendTheme.style.isFlat
+    // Soft has no blur either, but keeps the floating capsule bar as a raised shape.
+    val softStyle = AkSpendTheme.soft != null
     val blurState = if (flatStyle) null else rememberGlassBlurState()
     val contentInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
 
@@ -480,7 +505,7 @@ fun AppScaffold(viewModel: FinanceViewModel) {
         val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         val barInset = when {
             isWide || !showNavigation -> 0.dp
-            flatStyle -> (if (largeText) 80.dp else FlatBarHeight) + navBarBottom + Spacing.lg
+            flatStyle && !softStyle -> (if (largeText) 80.dp else FlatBarHeight) + navBarBottom + Spacing.lg
             else -> (if (largeText) 88.dp else FloatingBarHeight) + FloatingBarMargin + navBarBottom + Spacing.lg
         }
 
@@ -494,7 +519,8 @@ fun AppScaffold(viewModel: FinanceViewModel) {
                         GlassNavigationRail(tabs = tabs, currentRoute = currentRoute, onSelect = navigateToTab)
                     }
                     Box(
-                        modifier = Modifier.weight(1f).fillMaxHeight().windowInsetsPadding(contentInsets),
+                        // The window is never panned (adjustResize), so every screen makes room for the keyboard here.
+                        modifier = Modifier.weight(1f).fillMaxHeight().windowInsetsPadding(contentInsets).imePadding(),
                         contentAlignment = Alignment.TopCenter
                     ) {
                         CompositionLocalProvider(LocalFloatingBarInset provides barInset) {
@@ -515,7 +541,7 @@ fun AppScaffold(viewModel: FinanceViewModel) {
                 enter = fadeIn(motionSpec<Float>()) + slideInVertically(motionSpec<IntOffset>()) { it / 2 },
                 exit = fadeOut(motionSpec<Float>(Durations.quick)) + slideOutVertically(motionSpec<IntOffset>(Durations.quick)) { it / 2 }
             ) {
-                if (flatStyle) {
+                if (flatStyle && !softStyle) {
                     FlatTabBar(tabs = tabs, currentRoute = currentRoute, onSelect = navigateToTab)
                 } else {
                     FloatingTabBar(
@@ -644,7 +670,10 @@ private fun FloatingTabBar(
                 .widthIn(max = 520.dp)
                 .fillMaxWidth()
                 .height(if (largeText) 88.dp else FloatingBarHeight)
-                .shadow(18.dp, PillShape, ambientColor = glass.shadow, spotColor = glass.shadow)
+                .then(
+                    if (glass.soft != null) Modifier
+                    else Modifier.shadow(18.dp, PillShape, ambientColor = glass.shadow, spotColor = glass.shadow)
+                )
                 .glassBarBackground(blurState, PillShape, glass)
                 .padding(6.dp)
                 .selectableGroup(),
@@ -669,11 +698,14 @@ private fun TabBarItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val soft = AkSpendTheme.soft
     val indicator by animateColorAsState(
-        if (selected) MaterialTheme.colorScheme.primary.copy(alpha = if (AkSpendTheme.isDark) 0.22f else 0.13f) else Color.Transparent,
+        if (selected && soft == null) MaterialTheme.colorScheme.primary.copy(alpha = if (AkSpendTheme.isDark) 0.22f else 0.13f) else Color.Transparent,
         motionSpec(),
         label = "tabIndicator"
     )
+    // In Soft the selected tab is pressed into the bar instead of tinted.
+    val pressedIn by animateFloatAsState(if (selected) -1f else 0f, motionSpec(), label = "tabPressed")
     val largeText = LocalDensity.current.fontScale >= 1.5f
     val contentColor by animateColorAsState(
         if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -683,9 +715,17 @@ private fun TabBarItem(
     Column(
         modifier = modifier
             .fillMaxHeight()
+            .then(if (soft != null) Modifier.softSurface(PillShape, soft, distance = SoftDepth.well) { pressedIn } else Modifier)
             .clip(PillShape)
             .background(indicator)
-            .selectable(selected = selected, role = Role.Tab, onClick = onClick)
+            // Soft shows touch by pressing the tab in, so it skips the ripple overlay.
+            .selectable(
+                selected = selected,
+                interactionSource = null,
+                indication = if (soft != null) null else LocalIndication.current,
+                role = Role.Tab,
+                onClick = onClick,
+            )
             .semantics { if (largeText && !selected) text = AnnotatedString(tab.label) },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -747,7 +787,7 @@ const val LearnedCategoriesRoute = "learned_categories"
 
 // Routes for the add/edit transaction screen. ADD also backs the widget deep link.
 object TransactionRoutes {
-    const val ADD = "add_transaction"
+    const val ADD = AppNavigationRequests.ADD_TRANSACTION
     const val EDIT = "add_transaction/{transactionId}"
 
     fun edit(transactionId: Long) = "add_transaction/$transactionId"

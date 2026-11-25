@@ -1,5 +1,6 @@
 package com.akshar.ui.screens.analytics
 
+import com.akshar.ui.components.tintedWell
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -108,8 +109,7 @@ fun AdaptiveAnalyticsCard(transactions: List<Transaction>, currencySymbol: Strin
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                .tintedWell(MaterialTheme.shapes.medium, MaterialTheme.colorScheme.primary, alpha = 0.08f)
                 .padding(Spacing.md)
         )
 

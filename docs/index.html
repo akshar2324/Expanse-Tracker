@@ -6,11 +6,10 @@
   <title>AkSpend · Private, offline expense tracker for Android</title>
   <meta name="description" content="AkSpend is a free, open-source expense tracker for Android. No account and no internet permission: everything you log stays on your phone.">
   <meta name="color-scheme" content="light dark">
-  <meta name="theme-color" content="#f7f2ea" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#11100e" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#e6e3ef">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://akshar2324.github.io/Expanse-Tracker/">
-  <meta property="og:title" content="AkSpend · Your money. Only yours.">
+  <meta property="og:title" content="AkSpend · Where did this month's money go?">
   <meta property="og:description" content="A free, open-source expense tracker for Android. No account, no internet permission.">
   <meta property="og:image" content="https://akshar2324.github.io/Expanse-Tracker/assets/og-image.png">
   <meta property="og:image:width" content="1200">
@@ -18,17 +17,25 @@
   <meta property="og:image:alt" content="AkSpend: Your money. Only yours. The app's home screen beside the headline.">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="canonical" href="https://akshar2324.github.io/Expanse-Tracker/">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230F5F54'/%3E%3Cpath d='M16 24h28a4 4 0 0 1 4 4v16a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V24zm0 0 22-8v8' fill='none' stroke='%23F7F2EA' stroke-width='4' stroke-linejoin='round'/%3E%3Ccircle cx='40' cy='36' r='3' fill='%23F7F2EA'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%235e49b0'/%3E%3Cpath d='M16 24h28a4 4 0 0 1 4 4v16a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V24zm0 0 22-8v8' fill='none' stroke='%23ffffff' stroke-width='4' stroke-linejoin='round'/%3E%3Ccircle cx='40' cy='36' r='3' fill='%23ffffff'/%3E%3C/svg%3E">
   <link rel="preload" href="assets/fonts/inter-bold.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/instrument-serif.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="assets/site.css">
   <script>
-    // Pick the app style before first paint so nothing flashes. Light/dark always follows the device.
+    // Pick the app style and light/dark before first paint so nothing flashes.
+    // Soft is the default style; light/dark follows the device unless the visitor chose one.
     (function () {
-      var root = document.documentElement, style = "atelier";
+      var root = document.documentElement, style = "soft", mode = "auto";
       root.classList.add("js");
-      try { var saved = localStorage.getItem("akspend-style"); if (saved === "atelier" || saved === "glass") style = saved; } catch (e) {}
+      try {
+        var saved = localStorage.getItem("akspend-style");
+        if (saved === "soft" || saved === "atelier" || saved === "glass") style = saved;
+        var savedMode = localStorage.getItem("akspend-mode");
+        if (savedMode === "light" || savedMode === "dark") mode = savedMode;
+      } catch (e) {}
+      var dark = mode === "dark" || (mode === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
       root.setAttribute("data-style", style);
+      root.setAttribute("data-mode", dark ? "dark" : "light");
     })();
   </script>
 </head>
@@ -41,7 +48,7 @@
       <span>AkSpend</span>
     </a>
     <nav class="nav" aria-label="Primary">
-      <a href="#how">How it works</a>
+      <a href="#try">Try it</a>
       <a href="#features">Features</a>
       <a href="#privacy">Privacy</a>
       <a href="#testers">Become a tester</a>
@@ -55,78 +62,149 @@
     <section id="top" class="hero" aria-labelledby="hero-title">
       <div class="hero-copy">
         <p class="eyebrow">Free · Open source · Android 7.0+</p>
-        <h1 id="hero-title">Your money.<br><span class="accent">Only yours.</span></h1>
-        <p class="lede">AkSpend is an expense tracker that keeps everything on your Android phone. There's no account to make and no internet permission, so every rupee you log stays with you.</p>
+        <h1 id="hero-title">Where did this month's <span class="accent">money go?</span></h1>
+        <p class="lede">AkSpend turns your bank messages into a clear record of what you spent, and tells you how the month will end. It needs no account and no internet, so every rupee you log stays on your phone.</p>
         <div class="cta-row">
           <a class="btn btn-primary" href="https://github.com/akshar2324/Expanse-Tracker/releases/latest" rel="noopener">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19.5h14"/></svg>
             <span>Download APK <small>v1.5.0 · 4 MB</small></span>
           </a>
-          <a class="btn btn-ghost" href="#testers">Become a tester</a>
+          <a class="btn btn-ghost" href="#try">Try it on this page</a>
         </div>
         <ul class="checks">
           <li>No account</li>
           <li>No internet permission</li>
           <li>MIT licensed</li>
         </ul>
-        <div class="style-pick" role="radiogroup" aria-labelledby="style-label">
-          <span id="style-label">App style</span>
-          <button type="button" role="radio" data-style="atelier" aria-checked="true">Atelier</button>
-          <button type="button" role="radio" data-style="glass" aria-checked="false">Liquid glass</button>
-        </div>
-        <p class="style-note">Switch to see each look the app offers. Light or dark follows your device.</p>
       </div>
 
       <div class="hero-art">
-        <canvas class="orb" aria-hidden="true"></canvas>
-        <div class="phone-wrap">
-        <figure class="phone phone-hero">
-          <img data-shot="home" src="screenshots/atelier/atelier-light-1-home.jpg" alt="AkSpend home screen in the Atelier style: net balance of ₹36,021.00 with Add and Transfer buttons" width="450" height="928" fetchpriority="high">
-        </figure>
-        <div class="chip chip-a" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2.5"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg>
-          Fingerprint lock
+        <div class="dial" aria-hidden="true"></div>
+        <div class="device" id="hero-phone" role="img" aria-label="A demo of AkSpend: a bank payment message arrives, AkSpend reads the amount and shop, and after you confirm it the expense appears in today's list and the balance updates.">
+          <div class="screen" aria-hidden="true">
+            <div class="statusbar"><span>9:41</span><span class="status-icons"><i class="ico-plane"></i><i class="ico-signal"></i><i class="ico-batt"></i></span></div>
+            <div class="note" id="hp-note">
+              <span class="note-app">Messages · now</span>
+              <strong id="hp-note-from">HDFC Bank</strong>
+              <span id="hp-note-text">Sent Rs.232.00 From HDFC Bank A/C *4821 To KUMAR GENERAL STORE</span>
+            </div>
+            <p class="app-hello">Good evening</p>
+            <div class="app-card balance">
+              <span class="app-label">Net balance</span>
+              <strong class="app-amount" id="hp-balance">₹23,669.00</strong>
+              <span class="app-sub">Spent today <b id="hp-spent">₹331.00</b></span>
+            </div>
+            <div class="app-card review" id="hp-review" hidden>
+              <span class="app-label" id="hp-review-label">Expense found</span>
+              <div class="review-row"><strong id="hp-review-amt">−₹232.00</strong><span id="hp-review-name">KUMAR GENERAL STORE</span></div>
+              <span class="mini-btn" id="hp-review-btn">Confirm</span>
+            </div>
+            <p class="app-section">Today</p>
+            <ul class="tx" id="hp-list">
+              <li><span class="tx-ic">🍴</span><span class="tx-name">SWIGGY<small>Food · A/c 1234</small></span><b>−₹99.00</b></li>
+              <li><span class="tx-ic">🛒</span><span class="tx-name">KUMAR GENERAL STORE<small>Other · A/c 4821</small></span><b>−₹232.00</b></li>
+            </ul>
+            <div class="tabbar"><span class="on">Home</span><span>Activity</span><span>Budgets</span><span>Insights</span><span>More</span></div>
+          </div>
         </div>
-        <div class="chip chip-b" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M4 12.5 9 17.5 20 6.5"/></svg>
-          Works with no signal
-        </div>
-        </div>
+        <p class="art-note">A demo of auto-import. In the app, nothing is saved until you confirm it.</p>
       </div>
     </section>
 
-    <!-- HOW IT WORKS -->
-    <section id="how" class="section" aria-labelledby="how-title">
+    <!-- TRY IT -->
+    <section id="try" class="section" aria-labelledby="try-title">
       <div class="section-head">
-        <p class="eyebrow">How it works</p>
-        <h2 id="how-title">Log it, see it, stay on budget.</h2>
+        <p class="eyebrow">Try it here</p>
+        <h2 id="try-title">Three things it does that a spreadsheet can't.</h2>
+        <p class="section-lede">These are working demos of what the app does. Nothing you type here is sent anywhere.</p>
       </div>
-      <ol class="how">
-        <li class="reveal">
-          <figure class="phone">
-            <img data-shot="log" src="screenshots/atelier/atelier-light-2-activity.jpg" alt="Activity in the Atelier style: today's expenses and income with category and payment method" width="450" height="928" loading="lazy">
-          </figure>
-          <span class="step-n">1</span>
-          <h3>Log a spend in two taps</h3>
-          <p>Add it in the app or from the home-screen widget. Pick the account it came from; moving money between your own accounts never counts as income.</p>
-        </li>
-        <li class="reveal">
-          <figure class="phone">
-            <img data-shot="insights" src="screenshots/atelier/atelier-light-4-insights.jpg" alt="Insights in the Atelier style: spending forecast and spending by category" width="450" height="928" loading="lazy">
-          </figure>
-          <span class="step-n">2</span>
-          <h3>See where it went</h3>
-          <p>Insights shows spending by category, the last seven days and a month-end forecast, all worked out on the phone.</p>
-        </li>
-        <li class="reveal">
-          <figure class="phone">
-            <img data-shot="budgets" src="screenshots/atelier/atelier-light-3-budgets.jpg" alt="Budgets in the Atelier style, before any budget is set, with a New budget button" width="450" height="928" loading="lazy">
-          </figure>
-          <span class="step-n">3</span>
-          <h3>Stay under budget</h3>
-          <p>Set weekly or monthly limits per category, watch them fill, and get a heads-up before you go over.</p>
-        </li>
-      </ol>
+
+      <div class="labs">
+        <!-- 1. bank SMS -->
+        <article class="lab reveal" id="lab-sms">
+          <div class="lab-copy">
+            <span class="step-n">1</span>
+            <h3>It reads your bank messages for you</h3>
+            <p>Paste or share a bank SMS and AkSpend fills in the amount, shop, date and account. It knows a payment from an OTP or a failed transfer, so only real spending gets in.</p>
+            <p class="lab-fine">Read on your phone. The message text is never saved.</p>
+          </div>
+          <div class="panel">
+            <div class="chips" role="group" aria-label="Pick a sample message">
+              <button type="button" class="chip-btn" data-sms="0" aria-pressed="true">UPI payment</button>
+              <button type="button" class="chip-btn" data-sms="1" aria-pressed="false">Food order</button>
+              <button type="button" class="chip-btn" data-sms="2" aria-pressed="false">Money received</button>
+              <button type="button" class="chip-btn" data-sms="3" aria-pressed="false">OTP</button>
+              <button type="button" class="chip-btn" data-sms="4" aria-pressed="false">Failed payment</button>
+            </div>
+            <div class="well sms-text"><span class="app-label">Bank message</span><p id="sms-text">Sent Rs.232.00 From HDFC Bank A/C *4821 To KUMAR GENERAL STORE On 14/10/26 Ref 629100004321</p></div>
+            <div class="app-card sms-result" id="sms-result" aria-live="polite">
+              <span class="app-label" id="sms-kind">Expense found</span>
+              <strong class="app-amount neg" id="sms-amount">−₹232.00</strong>
+              <span class="sms-name" id="sms-name">KUMAR GENERAL STORE</span>
+              <span class="app-sub" id="sms-meta">14 Oct 2026 · Other · A/c ending 4821</span>
+              <button type="button" class="btn btn-primary btn-sm" id="sms-save">Review and save</button>
+            </div>
+            <p class="panel-note">Sample messages, with the result the app gives for each.</p>
+          </div>
+        </article>
+
+        <!-- 2. quick add -->
+        <article class="lab reveal" id="lab-add">
+          <div class="lab-copy">
+            <span class="step-n">2</span>
+            <h3>It does the sum while you type</h3>
+            <p>Split a bill three ways and added a tip? Type <code>120/3+5</code> straight into the amount. Pick a category and it's logged, from the app or from the home-screen widget.</p>
+            <p class="lab-fine">Try your own sum on the right.</p>
+          </div>
+          <div class="panel">
+            <label class="app-label" for="add-input">Amount</label>
+            <div class="well amount-row">
+              <span aria-hidden="true">₹</span>
+              <input id="add-input" type="text" inputmode="text" autocomplete="off" spellcheck="false" value="120/3+5" aria-describedby="add-out">
+            </div>
+            <p class="add-out" id="add-out" aria-live="polite">= <strong>₹45.00</strong></p>
+            <div class="chips" role="group" aria-label="Category">
+              <button type="button" class="chip-btn" data-cat="Food" aria-pressed="true">Food</button>
+              <button type="button" class="chip-btn" data-cat="Grocery" aria-pressed="false">Grocery</button>
+              <button type="button" class="chip-btn" data-cat="Transportation" aria-pressed="false">Transport</button>
+              <button type="button" class="chip-btn" data-cat="Shopping" aria-pressed="false">Shopping</button>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" id="add-save">Save</button>
+            <ul class="tx tx-panel" id="add-list" aria-live="polite"></ul>
+          </div>
+        </article>
+
+        <!-- 3. forecast -->
+        <article class="lab reveal" id="lab-forecast">
+          <div class="lab-copy">
+            <span class="step-n">3</span>
+            <h3>It tells you how the month will end</h3>
+            <p>AkSpend takes your balance, subtracts the bills still due, and projects your everyday spending to the last day. You see the number while there's still time to change it.</p>
+            <p class="lab-fine">The app works out the daily figure from your last eight weeks and leaves out one-off big spends like rent.</p>
+          </div>
+          <div class="panel">
+            <div class="app-card forecast">
+              <span class="app-label">Month-end forecast</span>
+              <strong class="app-amount" id="fc-head" aria-live="polite">About ₹30,000 left at month end</strong>
+              <dl class="rows">
+                <div><dt>Balance now</dt><dd>₹42,000.00</dd></div>
+                <div><dt>Bills and reminders due</dt><dd id="fc-bills">−₹2,400.00</dd></div>
+                <div><dt id="fc-days">Everyday spending remaining</dt><dd id="fc-var" class="neg">−₹9,600.00</dd></div>
+                <div class="total"><dt id="fc-on">Projected</dt><dd id="fc-total">₹30,000.00</dd></div>
+              </dl>
+            </div>
+            <label class="slider"><span>Everyday spending <b id="fc-daily-out">₹480 a day</b></span>
+              <input type="range" id="fc-daily" min="100" max="1200" step="10" value="480"></label>
+            <label class="slider"><span>Bills still due <b id="fc-bills-out">₹2,400</b></span>
+              <input type="range" id="fc-bills-in" min="0" max="6000" step="100" value="2400"></label>
+            <p class="panel-note">Made-up numbers. Drag to see the forecast change.</p>
+          </div>
+        </article>
+      </div>
+
+      <div class="cta-row try-cta">
+        <a class="btn btn-primary" href="#download">Get it on your phone</a>
+      </div>
     </section>
 
     <!-- FEATURES -->
@@ -136,36 +214,80 @@
         <h2 id="features-title">What else is inside</h2>
       </div>
       <ul class="grid">
-        <li class="card reveal">
+        <li class="card tilt reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7M20 4v4.5h-4.5"/></svg>
+          <h3>Finds forgotten subscriptions</h3>
+          <p>The subscription finder spots payments that repeat on a schedule, so you can turn them into reminders and see them in your forecast.</p>
+        </li>
+        <li class="card tilt reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
+          <h3>Budgets with a heads-up</h3>
+          <p>Set weekly or monthly limits per category, watch them fill, and get a heads-up before you go over. Savings goals sit alongside your budgets.</p>
+        </li>
+        <li class="card tilt reveal">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 14.5h2"/></svg>
           <h3>Many accounts, one total</h3>
           <p>Cash, bank, wallet, savings and credit cards. Transfers move money between them without counting as income or spending, and reconciliation keeps balances true.</p>
         </li>
-        <li class="card reveal">
+        <li class="card tilt reveal">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 15v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3"/></svg>
           <h3>Bring your statements</h3>
           <p>Import bank or wallet CSVs in a staged review. Duplicates are caught by row fingerprint.</p>
         </li>
-        <li class="card reveal">
+        <li class="card tilt reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+          <h3>Find any transaction</h3>
+          <p>Search by description, category or payment method. Filter by type, account, amount and date range, and save the filters you use often.</p>
+        </li>
+        <li class="card tilt reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v14H5z"/><path d="M8.5 14.5 11 11l2.5 2 2.5-4"/></svg>
+          <h3>A weekly digest</h3>
+          <p>Top categories, unusual spends and a month-end forecast. Insights shows spending by category and the last seven days, all worked out on the phone.</p>
+        </li>
+        <li class="card tilt reveal">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2.5"/><path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10"/></svg>
           <h3>Biometric lock</h3>
           <p>Fingerprint or face unlock, backed by the Android keystore.</p>
         </li>
-        <li class="card reveal">
+        <li class="card tilt reveal">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6z"/><path d="M9 13h6M9 16.5h6M14.5 4v3.5H18"/></svg>
           <h3>Backups you hold</h3>
           <p>Export a JSON backup or the raw database and restore it whenever you like. Android cloud backup is switched off.</p>
         </li>
-        <li class="card reveal">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
-          <h3>A weekly digest</h3>
-          <p>Top categories, unusual spends and a month-end forecast, plus savings goals alongside your budgets.</p>
-        </li>
-        <li class="card reveal">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.4-5.7M20 4v4.5h-4.5"/></svg>
+        <li class="card tilt reveal">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><path d="M16.5 14v5M14 16.5h5"/></svg>
           <h3>Recurring, loans and a widget</h3>
           <p>Recurring transactions, money you've lent or borrowed, a quick-add home-screen widget, and light and dark themes that follow your phone.</p>
         </li>
+      </ul>
+    </section>
+
+    <!-- THE REAL APP -->
+    <section id="looks" class="section" aria-labelledby="looks-title">
+      <div class="section-head">
+        <p class="eyebrow">The real thing</p>
+        <h2 id="looks-title">Screens from the app, in the look you like.</h2>
+        <div class="style-picks">
+          <div class="style-pick" role="radiogroup" aria-labelledby="style-label">
+            <span id="style-label">App style</span>
+            <button type="button" role="radio" data-style="soft" aria-checked="true">Soft</button>
+            <button type="button" role="radio" data-style="atelier" aria-checked="false">Atelier</button>
+            <button type="button" role="radio" data-style="glass" aria-checked="false">Liquid glass</button>
+          </div>
+          <div class="style-pick" role="radiogroup" aria-labelledby="mode-label">
+            <span id="mode-label">Theme</span>
+            <button type="button" role="radio" data-mode="auto" aria-checked="true">Auto</button>
+            <button type="button" role="radio" data-mode="light" aria-checked="false">Light</button>
+            <button type="button" role="radio" data-mode="dark" aria-checked="false">Dark</button>
+          </div>
+        </div>
+        <p class="style-note">Switch to see each look the app offers. Auto follows your device, as the app does.</p>
+      </div>
+      <ul class="rail">
+        <li class="reveal"><figure class="phone"><img data-shot="home" src="screenshots/soft/light-1-home.jpg" alt="AkSpend home screen in the Soft style: net balance with money in and out, a monthly budget dial, and Add and Transfer buttons" width="554" height="1232" loading="lazy"></figure><span>Home</span></li>
+        <li class="reveal"><figure class="phone"><img data-shot="log" src="screenshots/soft/light-2-activity.jpg" alt="Activity in the Soft style: expenses and income grouped by day with category and payment method" width="554" height="1232" loading="lazy"></figure><span>Activity</span></li>
+        <li class="reveal"><figure class="phone"><img data-shot="budgets" src="screenshots/soft/light-3-budgets.jpg" alt="Budgets in the Soft style: money left to spend and progress for each category budget" width="554" height="1232" loading="lazy"></figure><span>Budgets</span></li>
+        <li class="reveal"><figure class="phone"><img data-shot="insights" src="screenshots/soft/light-4-insights.jpg" alt="Insights in the Soft style: spending forecast and spending by category" width="554" height="1232" loading="lazy"></figure><span>Insights</span></li>
       </ul>
     </section>
 
@@ -176,16 +298,64 @@
         <h2 id="privacy-title">Many money apps earn from your data. <span class="accent">AkSpend never sees&nbsp;it.</span></h2>
         <p>There is no AkSpend server. Your ledger is a database on your phone, and it only leaves when you export it yourself.</p>
         <p class="fineprint">The <a href="https://github.com/akshar2324/Expanse-Tracker" rel="noopener">source code</a> is public, and the app's manifest asks for no internet permission. Read the <a href="privacy.html">privacy policy</a>.</p>
-      </div>
-      <div class="compare reveal" role="table" aria-label="AkSpend compared with a typical finance app">
-        <div class="compare-row compare-head" role="row">
-          <span role="columnheader"></span><span role="columnheader">Typical app</span><span role="columnheader">AkSpend</span>
+        <div class="card perms">
+          <h3>What it can and can't reach</h3>
+          <ul>
+            <li class="off"><span>Internet</span><b>Never asked</b></li>
+            <li class="off"><span>Your SMS inbox</span><b>Never asked</b></li>
+            <li class="off"><span>Contacts, location, camera, microphone</span><b>Never asked</b></li>
+            <li class="opt"><span>Notification access, for auto-import</span><b>Only if you turn it on</b></li>
+            <li class="opt"><span>Fingerprint or face, for the app lock</span><b>Only if you turn it on</b></li>
+          </ul>
         </div>
-        <div class="compare-row" role="row"><span role="rowheader">Account required</span><span role="cell" class="no">Yes</span><span role="cell" class="yes">No</span></div>
-        <div class="compare-row" role="row"><span role="rowheader">Your data on their servers</span><span role="cell" class="no">Yes</span><span role="cell" class="yes">Never</span></div>
-        <div class="compare-row" role="row"><span role="rowheader">Ads and analytics SDKs</span><span role="cell" class="no">Usually</span><span role="cell" class="yes">None</span></div>
-        <div class="compare-row" role="row"><span role="rowheader">Works with no signal</span><span role="cell" class="no">Partly</span><span role="cell" class="yes">Fully</span></div>
-        <div class="compare-row" role="row"><span role="rowheader">Code you can read</span><span role="cell" class="no">No</span><span role="cell" class="yes">All of it</span></div>
+      </div>
+      <div class="privacy-side">
+        <div class="compare tilt reveal" role="table" aria-label="AkSpend compared with a typical finance app">
+          <div class="compare-row compare-head" role="row">
+            <span role="columnheader"></span><span role="columnheader">Typical app</span><span role="columnheader">AkSpend</span>
+          </div>
+          <div class="compare-row" role="row"><span role="rowheader">Account required</span><span role="cell" class="no">Yes</span><span role="cell" class="yes">No</span></div>
+          <div class="compare-row" role="row"><span role="rowheader">Your data on their servers</span><span role="cell" class="no">Yes</span><span role="cell" class="yes">Never</span></div>
+          <div class="compare-row" role="row"><span role="rowheader">Ads and analytics SDKs</span><span role="cell" class="no">Usually</span><span role="cell" class="yes">None</span></div>
+          <div class="compare-row" role="row"><span role="rowheader">Works with no signal</span><span role="cell" class="no">Partly</span><span role="cell" class="yes">Fully</span></div>
+          <div class="compare-row" role="row"><span role="rowheader">Code you can read</span><span role="cell" class="no">No</span><span role="cell" class="yes">All of it</span></div>
+        </div>
+        <div class="card airplane reveal">
+          <label class="switch">
+            <input type="checkbox" id="airplane" role="switch">
+            <span class="switch-track" aria-hidden="true"></span>
+            <span>Airplane mode</span>
+          </label>
+          <p id="airplane-text" aria-live="polite">Switch it on. The app doesn't notice, because it never needed a signal.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- HONEST FIT -->
+    <section id="fit" class="section" aria-labelledby="fit-title">
+      <div class="section-head">
+        <p class="eyebrow">Is it for you?</p>
+        <h2 id="fit-title">An honest answer before you install.</h2>
+      </div>
+      <div class="fit">
+        <div class="card reveal">
+          <h3>You'll like it if</h3>
+          <ul class="yes-list">
+            <li>You pay by UPI or card and want to see where it all went.</li>
+            <li>You won't hand a money app your bank login or your data.</li>
+            <li>You want budgets, savings goals and a record of money lent or borrowed in one place.</li>
+            <li>You'd like your records in a backup file that you keep.</li>
+          </ul>
+        </div>
+        <div class="card reveal">
+          <h3>Look elsewhere if</h3>
+          <ul class="no-list">
+            <li>You want it to log in to your bank and sync by itself. AkSpend doesn't connect to your bank or move money.</li>
+            <li>You want live sync between several phones. There's no cloud; you move data with a backup.</li>
+            <li>You need stocks or mutual funds tracked.</li>
+            <li>You're on iPhone. It's Android only.</li>
+          </ul>
+        </div>
       </div>
     </section>
 
@@ -197,22 +367,22 @@
         <p class="section-lede">AkSpend is getting ready for Google Play. Help test it for 14 days before launch. Joining takes about two minutes, and it's free.</p>
       </div>
       <ol class="steps steps-4">
-        <li class="card reveal">
+        <li class="card tilt reveal">
           <span class="step-n">1</span>
           <h3>Join the Google Group</h3>
           <p>Open <a href="https://groups.google.com/g/testers-community" rel="noopener">testers-community</a> and tap <strong>Join group</strong>.</p>
         </li>
-        <li class="card reveal">
+        <li class="card tilt reveal">
           <span class="step-n">2</span>
           <h3>Use your Play account</h3>
           <p>Join with the same Google account that's signed in to the Play Store on your phone.</p>
         </li>
-        <li class="card reveal">
+        <li class="card tilt reveal">
           <span class="step-n">3</span>
           <h3>Open AkSpend on Play</h3>
           <p>On your phone, open the <a href="https://play.google.com/store/apps/details?id=com.akshar.akspend" rel="noopener">Google Play listing</a>. Not there yet? Wait a few minutes after joining and try again.</p>
         </li>
-        <li class="card reveal">
+        <li class="card tilt reveal">
           <span class="step-n">4</span>
           <h3>Install and keep it</h3>
           <p>Install it like any app and keep it on your phone for 14 days. Updates arrive through Play.</p>
@@ -235,6 +405,8 @@
     <!-- DOWNLOAD + INSTALL -->
     <section id="download" class="section" aria-labelledby="download-title">
       <div class="download-panel reveal">
+        <span class="ring ring-a" aria-hidden="true"></span>
+        <span class="ring ring-b" aria-hidden="true"></span>
         <h2 id="download-title">Take your money offline.</h2>
         <p>Free and open source, and a 4 MB download. Install it and start logging.</p>
         <div class="cta-row">
@@ -249,17 +421,17 @@
       <div id="install" class="install">
         <h3 class="install-title">Installing takes about a minute</h3>
         <ol class="steps">
-          <li class="card reveal">
+          <li class="card tilt reveal">
             <span class="step-n">1</span>
             <h4>Download the APK</h4>
             <p>On your Android phone, tap <strong>Download APK</strong>. It opens the latest release on GitHub. Tap the file ending in <code>.apk</code>.</p>
           </li>
-          <li class="card reveal">
+          <li class="card tilt reveal">
             <span class="step-n">2</span>
             <h4>Allow this one install</h4>
             <p>Android asks before installing apps from outside the Play Store. Tap <strong>Settings</strong>, turn on <strong>Allow from this source</strong> for your browser, then go back.</p>
           </li>
-          <li class="card reveal">
+          <li class="card tilt reveal">
             <span class="step-n">3</span>
             <h4>Install and open</h4>
             <p>Tap <strong>Install</strong>, then <strong>Open</strong>. There's no sign-up: you're logging your first expense straight away. You can turn the browser permission off again afterwards.</p>
