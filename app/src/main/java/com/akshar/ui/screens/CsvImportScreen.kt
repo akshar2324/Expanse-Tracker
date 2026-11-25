@@ -4,7 +4,6 @@ import com.akshar.utils.launchFilePicker
 import com.akshar.ui.theme.*
 import com.akshar.ui.components.*
 import android.net.Uri
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -32,7 +31,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,7 +45,6 @@ fun CsvImportScreen(
     onBack: () -> Unit
 ) {
     val currentStep by viewModel.currentStep.collectAsStateWithLifecycle()
-    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -82,69 +79,71 @@ fun CsvImportScreen(
 
 @Composable
 fun SelectFileStep(viewModel: CsvImportViewModel) {
-    val context = LocalContext.current
+    val feedback = LocalAppFeedback.current
+    val profiles by viewModel.savedProfiles.collectAsStateWithLifecycle()
+    val pickFileError: (String) -> Unit = { feedback?.show(it, SnackbarDuration.Long) }
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
             viewModel.handleFileSelected(uri)
         } else {
-            Toast.makeText(context, "No file selected", Toast.LENGTH_SHORT).show()
+            feedback?.show("No file selected")
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = Spacing.gutter,
+            end = Spacing.gutter,
+            top = Spacing.xs,
+            bottom = Spacing.xxl,
+        ),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        IconBadge(icon = Icons.Default.FileUpload, tint = MaterialTheme.colorScheme.primary, size = 96.dp)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            "Bring in a bank statement",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            "Choose a CSV export from your bank. It's read on this device and never uploaded.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 24.dp)
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(
-            onClick = { launcher.launchFilePicker(context, "text/*") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-        ) {
-            Text("Choose CSV file", style = MaterialTheme.typography.titleMedium)
+        item {
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md)
+                ) {
+                    IconBadge(icon = Icons.Default.FileUpload, tint = MaterialTheme.colorScheme.primary, size = 64.dp)
+                    Text(
+                        "Bring in a bank statement",
+                        style = MaterialTheme.typography.titleLarge,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                    Text(
+                        "Choose a CSV export from your bank. It's read on this device and never uploaded.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                    Button(
+                        onClick = { launcher.launchFilePicker("text/*", pickFileError) },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.touchTarget),
+                    ) {
+                        Text("Choose CSV file")
+                    }
+                }
+            }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
-        val profiles by viewModel.savedProfiles.collectAsStateWithLifecycle()
         if (profiles.isNotEmpty()) {
-            Text("Or reuse a saved column setup", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-            Spacer(modifier = Modifier.height(8.dp))
-            LazyColumn {
-                items(profiles) { profile ->
-                    GlassCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        onClick = {
-                            viewModel.loadProfile(profile)
-                            launcher.launchFilePicker(context, "text/*")
-                        },
-                        onClickLabel = "Use ${profile.name} and choose a file",
-                        contentPadding = PaddingValues(Spacing.lg)
-                    ) {
-                        Text(profile.name, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-                    }
+            item { SectionHeader("Or reuse a saved column setup") }
+            items(profiles) { profile ->
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        viewModel.loadProfile(profile)
+                        launcher.launchFilePicker("text/*", pickFileError)
+                    },
+                    onClickLabel = "Use ${profile.name} and choose a file",
+                    contentPadding = PaddingValues(Spacing.lg)
+                ) {
+                    Text(profile.name, style = MaterialTheme.typography.titleSmall)
                 }
             }
         }
@@ -177,8 +176,8 @@ fun ConfigureMappingStep(viewModel: CsvImportViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(scrollState),
+            .verticalScroll(scrollState)
+            .padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.xs, bottom = Spacing.xxl),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("File: $fileName", fontWeight = AkSpendTheme.emphasis, color = MaterialTheme.colorScheme.primary)
@@ -329,49 +328,50 @@ fun PreviewStep(viewModel: CsvImportViewModel) {
     val previewRows by viewModel.previewRows.collectAsStateWithLifecycle()
     val parseErrors by viewModel.parseErrors.collectAsStateWithLifecycle()
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        if (parseErrors.isNotEmpty()) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                shape = MaterialTheme.shapes.large
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("${parseErrors.size} rows couldn't be read", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
-                    parseErrors.take(3).forEach { err ->
-                        Text("Row ${err.rowIndex}: ${err.errorMessage}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
-                    }
-                    if (parseErrors.size > 3) {
-                        Text("…and ${parseErrors.size - 3} more", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
+    Column(Modifier.fillMaxSize()) {
+        LabelValueRow(
+            modifier = Modifier.padding(horizontal = Spacing.gutter, vertical = Spacing.xs),
+            label = {
+                Text("${previewRows.size} rows ready", style = MaterialTheme.typography.titleSmall)
+            },
+            value = {
+                Button(
+                    onClick = { viewModel.executeImport() },
+                    enabled = previewRows.any { !it.skip },
+                    modifier = Modifier.heightIn(min = Spacing.touchTarget)
+                ) {
+                    Text("Import selected", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        )
+
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            contentPadding = PaddingValues(
+                start = Spacing.gutter, end = Spacing.gutter, top = Spacing.xs, bottom = Spacing.xxl
+            ),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            if (parseErrors.isNotEmpty()) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("${parseErrors.size} rows couldn't be read", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                            parseErrors.take(3).forEach { err ->
+                                Text("Row ${err.rowIndex}: ${err.errorMessage}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                            }
+                            if (parseErrors.size > 3) {
+                                Text("…and ${parseErrors.size - 3} more", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                            }
+                        }
                     }
                 }
             }
-        }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("${previewRows.size} rows ready", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-            Button(
-                onClick = { viewModel.executeImport() },
-                enabled = previewRows.any { !it.skip },
-                modifier = Modifier.heightIn(min = Spacing.touchTarget)
-            ) {
-                Text("Import selected", style = MaterialTheme.typography.labelLarge)
-            }
-        }
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
             itemsIndexed(previewRows) { index, row ->
                 GlassCard(
                     modifier = Modifier.fillMaxWidth(),
@@ -418,38 +418,40 @@ fun SummaryStep(viewModel: CsvImportViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .verticalScroll(rememberScrollState())
+            .padding(start = Spacing.gutter, end = Spacing.gutter, top = Spacing.xs, bottom = Spacing.xxl),
     ) {
-        Icon(
-            imageVector = Icons.Default.CheckCircle,
-            contentDescription = null,
-            modifier = Modifier.size(72.dp),
-            tint = AkSpendTheme.finance.income
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("Import complete", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(summary, style = MaterialTheme.typography.bodyMedium)
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        if (lastBatchId != null) {
-            OutlinedButton(
-                onClick = { viewModel.undoLastBatch() },
-                modifier = Modifier.fillMaxWidth()
+        GlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
-                Text("Undo Import Batch")
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = AkSpendTheme.finance.income
+                )
+                Text("Import complete", style = MaterialTheme.typography.titleLarge)
+                Text(summary, style = MaterialTheme.typography.bodyMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
 
-        Button(
-            onClick = { viewModel.reset() },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Import Another File")
+                if (lastBatchId != null) {
+                    OutlinedButton(
+                        onClick = { viewModel.undoLastBatch() },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.touchTarget)
+                    ) {
+                        Text("Undo import batch")
+                    }
+                }
+
+                Button(
+                    onClick = { viewModel.reset() },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.touchTarget)
+                ) {
+                    Text("Import another file")
+                }
+            }
         }
     }
 }

@@ -523,25 +523,54 @@ fun CashflowBanner(
             }
         }
         Spacer(Modifier.height(Spacing.lg))
-        Row(Modifier.fillMaxWidth()) {
-            SummaryFigure("Earned", signedMoney(todayIncome, positive = true, currencySymbol = currencySymbol), finance.income, Modifier.weight(1f))
-            SummaryFigure("Spent", signedMoney(todayExpense, positive = false, currencySymbol = currencySymbol), finance.expense, Modifier.weight(1f))
+        val largeText = androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f
+        val figures: @Composable (Modifier) -> Unit = { figureModifier ->
+            SummaryFigure("Earned", signedMoney(todayIncome, positive = true, currencySymbol = currencySymbol), finance.income, largeText, figureModifier)
+            SummaryFigure("Spent", signedMoney(todayExpense, positive = false, currencySymbol = currencySymbol), finance.expense, largeText, figureModifier)
             SummaryFigure(
                 "Month net",
                 netMoney(monthIncome - monthExpense, currencySymbol),
                 MaterialTheme.colorScheme.onSurface,
-                Modifier.weight(1f)
+                largeText,
+                figureModifier
             )
+        }
+        if (largeText) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                figures(Modifier.fillMaxWidth())
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                figures(Modifier.weight(1f))
+            }
         }
     }
 }
 
 @Composable
-private fun SummaryFigure(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
-    Column(modifier.semantics(mergeDescendants = true) {}) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(Spacing.xxs))
-        Text(value, style = MaterialTheme.typography.titleMedium.money(), color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
+private fun SummaryFigure(label: String, value: String, color: Color, inlineValue: Boolean, modifier: Modifier) {
+    val figureModifier = modifier.semantics(mergeDescendants = true) {}
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    if (inlineValue) {
+        Row(
+            figureModifier,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(label, style = MaterialTheme.typography.labelMedium, color = labelColor, modifier = Modifier.weight(1f))
+            Text(
+                value,
+                style = MaterialTheme.typography.titleMedium.money(),
+                color = color,
+                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    } else {
+        Column(figureModifier, verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+            Text(label, style = MaterialTheme.typography.labelMedium, color = labelColor)
+            Text(value, style = MaterialTheme.typography.titleMedium.money(), color = color)
+        }
     }
 }
 
