@@ -27,5 +27,6 @@ class ExpenseTrackerApp : Application() {
         val database = AppDatabase.getInstance(this)
         repository = FinanceRepository(database.financeDao(), database)
         BudgetWidgetUpdater.start(this, database, appScope)
+        com.akshar.alerts.BudgetAlertScheduler.start(this, database, appScope)
     }
 }

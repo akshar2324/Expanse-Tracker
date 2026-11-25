@@ -48,6 +48,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -119,7 +122,7 @@ fun ScreenHeader(
             .fillMaxWidth()
             .padding(
                 start = if (insetHorizontally) Spacing.gutter else 0.dp,
-                end = if (insetHorizontally) Spacing.md else 0.dp,
+                end = if (insetHorizontally) Spacing.gutter else 0.dp,
                 top = Spacing.sm,
                 bottom = Spacing.md
             )
@@ -207,7 +210,7 @@ fun SectionHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = Spacing.touchTarget),
+            .heightIn(min = if (actionLabel != null && onAction != null) Spacing.touchTarget else 0.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -226,6 +229,30 @@ fun SectionHeader(
                     modifier = Modifier.size(18.dp)
                 )
             }
+        }
+    }
+}
+
+/** Keeps a label and its value readable when larger text needs the full card width. */
+@Composable
+internal fun LabelValueRow(
+    modifier: Modifier = Modifier,
+    label: @Composable () -> Unit,
+    value: @Composable () -> Unit,
+) {
+    if (LocalDensity.current.fontScale >= 1.5f) {
+        Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            label()
+            value()
+        }
+    } else {
+        Row(
+            modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.weight(1f)) { label() }
+            value()
         }
     }
 }
@@ -297,53 +324,55 @@ fun GlassSegmentedControl(
 ) {
     val glass = AkSpendTheme.glass
     val soft = glass.soft
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(Spacing.touchTarget + Spacing.xs)
-            .then(
-                // Soft: the track is pressed into the page and the thumb sits raised in it.
-                if (soft != null) Modifier.softInset(PillShape, soft, fill = soft.track).clip(PillShape).padding(Spacing.xs)
-                else Modifier.glassPanel(PillShape, glass, glass.fill).padding(Spacing.xxs)
-            )
-    ) {
-        val segmentWidth = maxWidth / options.size
-        val thumbOffset by animateDpAsState(segmentWidth * selectedIndex, motionSpec(), label = "segment")
-        Box(
-            Modifier
-                .offset { IntOffset(thumbOffset.roundToPx(), 0) }
-                .width(segmentWidth)
-                .fillMaxHeight()
-                .then(
-                    if (soft != null) Modifier.softRaised(PillShape, soft, fill = soft.accent, distance = SoftDepth.small)
-                    else Modifier.glassPanel(PillShape, glass, MaterialTheme.colorScheme.primary)
+    val trackPadding = if (soft != null) Spacing.xs else Spacing.xxs
+    val labelStyle = MaterialTheme.typography.labelLarge
+    val density = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
+    val thumb = if (soft != null) Modifier.softRaised(PillShape, soft, fill = soft.accent, distance = SoftDepth.small)
+    else Modifier.glassPanel(PillShape, glass, MaterialTheme.colorScheme.primary)
+    val indication = if (soft != null) null else androidx.compose.foundation.LocalIndication.current
+
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val segmentWidth = (maxWidth - trackPadding * 2) / options.size
+        val labelWidth = with(density) { (segmentWidth - Spacing.sm * 2).roundToPx() }
+        val stacked = options.any { textMeasurer.measure(it, style = labelStyle, maxLines = 1).size.width > labelWidth }
+        val trackShape = if (stacked) MaterialTheme.shapes.large else PillShape
+        val track = if (soft != null) Modifier.softInset(trackShape, soft, fill = soft.track).clip(trackShape)
+        else Modifier.glassPanel(trackShape, glass, glass.fill)
+        val segment: @Composable (Int, Modifier) -> Unit = { index, segmentModifier ->
+            val selected = index == selectedIndex
+            Box(
+                modifier = segmentModifier
+                    .clip(PillShape)
+                    .selectable(selected, interactionSource = null, indication = indication, role = Role.Tab, onClick = { onSelect(index) })
+                    .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = options[index],
+                    style = labelStyle,
+                    color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
                 )
-        )
-        Row(Modifier.fillMaxWidth().fillMaxHeight().selectableGroup()) {
-            options.forEachIndexed { index, label ->
-                val selected = index == selectedIndex
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(PillShape)
-                        // Soft's sliding raised thumb is the feedback, so it skips the ripple overlay.
-                        .selectable(
-                            selected = selected,
-                            interactionSource = null,
-                            indication = if (soft != null) null else androidx.compose.foundation.LocalIndication.current,
-                            role = Role.Tab,
-                            onClick = { onSelect(index) },
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+            }
+        }
+
+        if (stacked) {
+            Column(
+                modifier = track.fillMaxWidth().padding(trackPadding).selectableGroup(),
+                verticalArrangement = Arrangement.spacedBy(Spacing.xxs)
+            ) {
+                options.indices.forEach { index ->
+                    segment(index, Modifier.fillMaxWidth().heightIn(min = Spacing.touchTarget)
+                        .then(if (index == selectedIndex) thumb else Modifier))
+                }
+            }
+        } else {
+            val thumbOffset by animateDpAsState(segmentWidth * selectedIndex, motionSpec(), label = "segment")
+            Box(track.height(Spacing.touchTarget + trackPadding * 2).padding(trackPadding)) {
+                Box(Modifier.offset { IntOffset(thumbOffset.roundToPx(), 0) }.width(segmentWidth).fillMaxHeight().then(thumb))
+                Row(Modifier.fillMaxWidth().fillMaxHeight().selectableGroup()) {
+                    options.indices.forEach { index -> segment(index, Modifier.weight(1f).fillMaxHeight()) }
                 }
             }
         }
@@ -413,6 +442,7 @@ fun GlassListRow(
     subtitle: String? = null,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
+    stackTrailing: Boolean = false,
     onClick: (() -> Unit)? = null,
 ) {
     Row(
@@ -428,14 +458,22 @@ fun GlassListRow(
             Spacer(Modifier.width(Spacing.md))
         }
         // Large text gets a second line instead of cutting off the category and payment method.
-        val lines = if (androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f) 2 else 1
+        val lines = when {
+            stackTrailing -> Int.MAX_VALUE
+            LocalDensity.current.fontScale >= 1.5f -> 2
+            else -> 1
+        }
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = lines, overflow = TextOverflow.Ellipsis)
             if (subtitle != null) {
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = lines, overflow = TextOverflow.Ellipsis)
             }
+            if (stackTrailing && trailing != null) {
+                Spacer(Modifier.height(Spacing.xs))
+                trailing()
+            }
         }
-        if (trailing != null) {
+        if (!stackTrailing && trailing != null) {
             Spacer(Modifier.width(Spacing.sm))
             trailing()
         }

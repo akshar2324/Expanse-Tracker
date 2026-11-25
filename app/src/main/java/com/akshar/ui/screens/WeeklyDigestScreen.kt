@@ -184,17 +184,18 @@ private fun WeeklyDigestContent(
                 val color = if (budget.isOverBudget) finance.expense else finance.income
 
                 GlassCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(Spacing.lg)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(budget.categoryName, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-                        Text(
-                            "${formatCurrency(budget.spentSoFar)} / ${formatCurrency(budget.budgetLimit)}",
-                            style = MaterialTheme.typography.bodySmall.money(),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    LabelValueRow(
+                        label = {
+                            Text(budget.categoryName, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                        },
+                        value = {
+                            Text(
+                                "${formatCurrency(budget.spentSoFar)} / ${formatCurrency(budget.budgetLimit)}",
+                                style = MaterialTheme.typography.bodySmall.money(),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    )
                     Spacer(modifier = Modifier.height(Spacing.sm))
                     LinearProgressIndicator(
                         progress = { clampedProgress },

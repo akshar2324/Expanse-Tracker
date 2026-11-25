@@ -1,5 +1,10 @@
 package com.akshar
 
+import android.net.Uri
+import androidx.activity.OnBackPressedDispatcher
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -15,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -27,6 +33,8 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import com.akshar.ui.screens.AddTransactionScreen
 import com.akshar.ui.screens.OnboardingScreen
+import com.akshar.ui.screens.CsvImportScreen
+import com.akshar.ui.screens.MoreToolTagPrefix
 import com.akshar.ui.theme.GlassBackdrop
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
@@ -42,6 +50,8 @@ import com.akshar.data.model.Transaction
 import com.akshar.ui.theme.AkSpendTheme
 import com.akshar.ui.theme.AppStyle
 import com.akshar.ui.viewmodel.FinanceViewModel
+import com.akshar.ui.viewmodel.CsvImportViewModel
+import com.akshar.ui.viewmodel.ImportStep
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.akshar.data.activity.DataStoreSavedFilterStore
@@ -55,6 +65,7 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.text.SimpleDateFormat
+import java.io.File
 import java.util.Date
 import java.util.Locale
 
@@ -172,13 +183,29 @@ abstract class ScreensScreenshotBase {
     settle()
     composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-15-activity-custom-range.png")
     composeTestRule.onNodeWithText("Cancel").performClick()
-    composeTestRule.onNodeWithText("Search description, category or payment").performScrollTo().performTextInput("zzz")
+    composeTestRule.onNodeWithText("Search transactions").performScrollTo().performTextInput("zzz")
     settle()
     composeTestRule.onNodeWithContentDescription("Hide filters", substring = true).performClick()
     settle()
     composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-12-activity-no-matches.png")
     composeTestRule.onAllNodesWithText("Clear filters")[0].performSemanticsAction(SemanticsActions.OnClick)
     settle()
+
+    if (fontScale > 1f) {
+      composeTestRule.onAllNodes(hasText("Home") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab))[0].performClick()
+      settle()
+      composeTestRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Month net"))
+      composeTestRule.onRoot().performTouchInput { swipeUp(startY = bottom * 0.70f, endY = bottom * 0.45f) }
+      settle()
+      composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-home-cashflow.png")
+
+      composeTestRule.onAllNodes(hasText("Insights") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab))[0].performClick()
+      settle()
+      composeTestRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Spending by category"))
+      composeTestRule.onRoot().performTouchInput { swipeUp(startY = bottom * 0.75f, endY = bottom * 0.30f) }
+      settle()
+      composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-insights-legend.png")
+    }
   }
 
   protected fun captureStandalone(dark: Boolean, fontScale: Float = 1f, style: AppStyle = AppStyle.Default) {
@@ -248,6 +275,13 @@ abstract class ScreensScreenshotBase {
       screen = key
       settle()
       composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-$name.png")
+      if (key == "onboarding" && style == AppStyle.Default && fontScale == 1f) {
+        for (page in 2..3) {
+          composeTestRule.onNodeWithText("Continue").performClick()
+          settle()
+          composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/$mode-$name-$page.png")
+        }
+      }
     }
   }
 
@@ -258,7 +292,11 @@ abstract class ScreensScreenshotBase {
     seed(app)
     val viewModel = FinanceViewModel(app)
     val mode = if (dark) "dark" else "light"
-    composeTestRule.setContent { AkSpendTheme(darkTheme = dark) { AppScaffold(viewModel = viewModel) } }
+    lateinit var backDispatcher: OnBackPressedDispatcher
+    composeTestRule.setContent {
+      backDispatcher = requireNotNull(LocalOnBackPressedDispatcherOwner.current).onBackPressedDispatcher
+      AkSpendTheme(darkTheme = dark) { AppScaffold(viewModel = viewModel) }
+    }
     settle()
     val dir = "build/outputs/roborazzi/tour"
 
@@ -286,20 +324,90 @@ abstract class ScreensScreenshotBase {
         pages("4-insights-${sub.lowercase().replace(' ', '-')}", 3)
       }
     }
+    tab("More")
     listOf(
-      "Weekly digest", "Auto-import", "Import bank SMS", "Import CSV", "Accounts", "Reminders",
-      "Borrow & lend", "Reports", "Calculators", "Backup & restore", "Vault & passcode",
-      "Appearance", "Region & currency", "Learned categories",
-    ).forEachIndexed { i, tool ->
-      tab("More")
-      runCatching {
-        // Click by action: once scrolled into view the row can sit under the floating tab bar.
-        composeTestRule.onNodeWithText(tool).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
-        settle()
-        pages("5-more-${(i + 1).toString().padStart(2, '0')}-${tool.lowercase().replace(Regex("[^a-z]+"), "-")}", 3)
-        composeTestRule.onAllNodesWithContentDescription("Back")[0].performClick()
-        settle()
+      "WEEKLY_DIGEST" to "weekly-digest", "AUTO_IMPORT" to "auto-import",
+      "SMS_IMPORT" to "import-bank-sms", "CSV_IMPORT" to "import-csv", "ACCOUNTS" to "accounts",
+      "RECURRING" to "reminders", "DEBTS" to "borrow-lend", "REPORTS" to "reports",
+      "CALCULATORS" to "calculators", "BACKUP" to "backup-restore", "VAULT" to "vault-passcode",
+      "APPEARANCE" to "appearance", "SETTINGS" to "region-currency", "LEARNED_CATEGORIES" to "learned-categories",
+    ).forEachIndexed { i, (toolId, name) ->
+      val tag = MoreToolTagPrefix + toolId
+      composeTestRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasTestTag(tag))
+      // The floating bar can overlap a row at the bottom of the grid.
+      composeTestRule.onNodeWithTag(tag).performSemanticsAction(SemanticsActions.OnClick)
+      settle()
+      pages("5-more-${(i + 1).toString().padStart(2, '0')}-$name", 3)
+      composeTestRule.runOnIdle(backDispatcher::onBackPressed)
+      settle()
+    }
+  }
+
+  protected fun captureAccountRoutes() {
+    Locale.setDefault(Locale.US)
+    val app = ApplicationProvider.getApplicationContext<ExpenseTrackerApp>()
+    seed(app)
+    val viewModel = FinanceViewModel(app)
+    lateinit var navController: NavHostController
+    composeTestRule.setContent {
+      navController = rememberNavController()
+      AkSpendTheme(darkTheme = false) {
+        Box(Modifier.fillMaxSize()) {
+          GlassBackdrop()
+          AppNavGraph(navController, viewModel, Modifier.fillMaxSize().safeDrawingPadding())
+        }
       }
+    }
+    settle()
+    listOf(
+      "addTransfer" to "transfer",
+      "addEditAccount" to "add-account",
+      "accountDetail/2" to "account-detail",
+      "addEditAccount/2" to "edit-account",
+      "reconcileAccount/2" to "reconcile-account",
+    ).forEach { (route, name) ->
+      composeTestRule.runOnIdle { navController.navigate(route) }
+      settle()
+      composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/light-$name.png")
+    }
+  }
+
+  protected fun captureCsvSteps() {
+    Locale.setDefault(Locale.US)
+    val app = ApplicationProvider.getApplicationContext<ExpenseTrackerApp>()
+    val viewModel = CsvImportViewModel(app)
+    val csvFile = File.createTempFile("statement", ".csv", app.cacheDir)
+    csvFile.writeText("Date,Amount,Description\n2026-10-01,-349.50,Bookshop\n2026-10-02,1000,Refund\n")
+    try {
+      composeTestRule.setContent {
+        AkSpendTheme(darkTheme = false) {
+          Box(Modifier.fillMaxSize()) {
+            GlassBackdrop()
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) { CsvImportScreen(viewModel, onBack = {}) }
+          }
+        }
+      }
+      fun capture(name: String) {
+        settle()
+        composeTestRule.onRoot().captureRoboImage(filePath = "build/outputs/roborazzi/screens/light-csv-$name.png")
+      }
+      capture("choose-file")
+      composeTestRule.runOnIdle { viewModel.handleFileSelected(Uri.fromFile(csvFile)) }
+      composeTestRule.waitUntil(5_000) { viewModel.rawHeaders.value.isNotEmpty() }
+      composeTestRule.runOnIdle {
+        viewModel.dateColumn.value = "Date"
+        viewModel.amountColumn.value = "Amount"
+        viewModel.descriptionColumn.value = "Description"
+      }
+      capture("mapping")
+      composeTestRule.runOnIdle { viewModel.generatePreview() }
+      composeTestRule.waitUntil(5_000) { viewModel.currentStep.value == ImportStep.PREVIEW }
+      capture("preview")
+      composeTestRule.runOnIdle { viewModel.executeImport() }
+      composeTestRule.waitUntil(5_000) { viewModel.currentStep.value == ImportStep.SUMMARY }
+      capture("summary")
+    } finally {
+      csvFile.delete()
     }
   }
 
@@ -408,4 +516,12 @@ class ScreensAtelierScreenshotTest : ScreensScreenshotBase() {
 class ScreensTourScreenshotTest : ScreensScreenshotBase() {
   @Test fun tour_light() = captureTour(dark = false)
   @Test fun tour_dark() = captureTour(dark = true)
+}
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(qualifiers = RobolectricDeviceQualifiers.Pixel8, sdk = [36])
+class ScreensNestedScreenshotTest : ScreensScreenshotBase() {
+  @Test fun accountRoutes() = captureAccountRoutes()
+  @Test fun csvSteps() = captureCsvSteps()
 }

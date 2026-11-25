@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.text.format.DateUtils
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -32,6 +31,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import com.akshar.ui.components.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
 import com.akshar.ui.components.OutlinedButton
 import com.akshar.ui.components.OutlinedTextField
 import com.akshar.ui.components.Switch
@@ -46,7 +46,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -61,6 +60,7 @@ import com.akshar.data.backup.AutoBackupFrequency
 import com.akshar.data.backup.AutoBackupRotation
 import com.akshar.data.backup.AutoBackupSettings
 import com.akshar.ui.components.GlassSegmentedControl
+import com.akshar.ui.components.LocalAppFeedback
 import com.akshar.ui.components.glassCardColors
 import com.akshar.ui.components.glassTextFieldColors
 import com.akshar.ui.theme.AkSpendTheme
@@ -68,6 +68,7 @@ import com.akshar.ui.viewmodel.AutoBackupViewModel
 import com.akshar.ui.viewmodel.FinanceViewModel
 import com.akshar.ui.viewmodel.JsonRestoreState
 import com.akshar.utils.countLabel
+import com.akshar.utils.launchFilePicker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -100,7 +101,7 @@ private fun AutoBackupCard(
     folderAccessible: Boolean?,
     autoBackup: AutoBackupViewModel
 ) {
-    val context = LocalContext.current
+    val feedback = LocalAppFeedback.current
     var enableAfterPick by rememberSaveable { mutableStateOf(false) }
     var showPasswordDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -112,8 +113,9 @@ private fun AutoBackupCard(
         enableAfterPick = enable
         try {
             folderPicker.launch(null)
-        } catch (e: ActivityNotFoundException) {
-            Toast.makeText(context, "No folder picker is available on this device.", Toast.LENGTH_LONG).show()
+        } catch (_: ActivityNotFoundException) {
+            enableAfterPick = false
+            feedback?.show("No folder picker is available on this device.", SnackbarDuration.Long)
         }
     }
 
@@ -213,7 +215,7 @@ private fun AutoBackupCard(
                     Button(
                         onClick = {
                             autoBackup.backUpNow()
-                            Toast.makeText(context, "Backing up…", Toast.LENGTH_SHORT).show()
+                            feedback?.show("Backing up…")
                         },
                         enabled = settings.folderUri != null && folderAccessible != false,
                         modifier = Modifier.weight(1f)
@@ -326,7 +328,7 @@ private fun SetBackupPasswordDialog(onDismiss: () -> Unit, onConfirm: (CharArray
 
 @Composable
 private fun JsonRestoreCard(financeViewModel: FinanceViewModel, autoBackup: AutoBackupViewModel) {
-    val context = LocalContext.current
+    val feedback = LocalAppFeedback.current
     val scope = rememberCoroutineScope()
     val restoreState by autoBackup.restoreState.collectAsStateWithLifecycle()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -343,10 +345,8 @@ private fun JsonRestoreCard(financeViewModel: FinanceViewModel, autoBackup: Auto
             )
             Button(
                 onClick = {
-                    try {
-                        picker.launch("*/*")
-                    } catch (e: ActivityNotFoundException) {
-                        Toast.makeText(context, "No file picker is available on this device.", Toast.LENGTH_LONG).show()
+                    picker.launchFilePicker("*/*") {
+                        feedback?.show(it, SnackbarDuration.Long)
                     }
                 },
                 enabled = restoreState !is JsonRestoreState.Working,

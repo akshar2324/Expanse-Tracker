@@ -12,12 +12,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.akshar.data.model.Transaction
 import com.akshar.ui.theme.AkSpendTheme
@@ -59,14 +61,12 @@ fun PieSliceChart(transactions: List<Transaction>) {
                 "${it.first} ${(it.second / totalSum * 100).toInt()} percent"
             }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        val largeText = LocalDensity.current.fontScale >= 1.5f
+        val chart: @Composable () -> Unit = {
             Box(contentAlignment = Alignment.Center) {
                 Canvas(
                     modifier = Modifier
-                        .size(148.dp)
+                        .size(if (largeText) 184.dp else 148.dp)
                         .padding(Spacing.sm)
                         .semantics { contentDescription = summary }
                 ) {
@@ -99,17 +99,15 @@ fun PieSliceChart(transactions: List<Transaction>) {
                     Text(
                         if (categoryTotals.size == 1) "category" else "categories",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.widthIn(max = if (largeText) 122.dp else 90.dp),
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.width(Spacing.lg))
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(Spacing.sm)
-            ) {
+        }
+        val legend: @Composable (Modifier) -> Unit = { modifier ->
+            Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 categoryTotals.take(5).forEachIndexed { idx, pair ->
                     val pct = (pair.second / totalSum * 100).toInt()
                     Row(
@@ -127,10 +125,11 @@ fun PieSliceChart(transactions: List<Transaction>) {
                             text = pair.first,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
+                            maxLines = if (largeText) Int.MAX_VALUE else 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
+                        Spacer(Modifier.width(Spacing.sm))
                         Text(
                             text = "$pct%",
                             style = MaterialTheme.typography.labelLarge.money(),
@@ -145,6 +144,25 @@ fun PieSliceChart(transactions: List<Transaction>) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+        }
+        if (largeText) {
+            Column(
+                Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(Spacing.lg)
+            ) {
+                chart()
+                legend(Modifier.fillMaxWidth())
+            }
+        } else {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                chart()
+                legend(Modifier.weight(1f))
             }
         }
     }

@@ -20,8 +20,8 @@ android {
     applicationId = "com.akshar.akspend"
     minSdk = 24
     targetSdk = 36
-    versionCode = 7
-    versionName = "1.5.0"
+    versionCode = 8
+    versionName = "1.6.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -82,6 +82,8 @@ android {
           CommandLineArgumentProvider { listOf("-javaagent:${agentJar.singleFile.absolutePath}") }
         )
         test.jvmArgs("-Djdk.attach.allowAttachSelf=true", "-XX:+EnableDynamicAgentLoading")
+        // Robolectric 4.17 intercepts JDK file-descriptor APIs through SharedSecrets.
+        test.jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED")
       }
     }
   }

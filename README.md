@@ -58,7 +58,7 @@ Or open the project in Android Studio and run the `app` configuration.
 
 | | |
 | --- | --- |
-| Version | 1.5.0 (versionCode 7) |
+| Version | 1.6.0 (versionCode 8) |
 | Min / target SDK | 24 (Android 7.0) / 36 |
 | Bank SMS import | Android 8.0+ |
 | Database | Room, schema version 7 |
