@@ -74,14 +74,17 @@ fun BudgetSavingsScreen(
     val activeBudgets = com.akshar.utils.BudgetMath.activeBudgets(budgets)
     val budgetSpent: (Budget) -> Double = { budget -> com.akshar.utils.BudgetMath.spentFor(budget, transactions) }
     val bottomInset = LocalFloatingBarInset.current
+    val largeText = androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f
 
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = if (largeText) bottomInset + 64.dp else 0.dp),
             contentPadding = PaddingValues(
                 start = Spacing.gutter,
                 end = Spacing.gutter,
-                bottom = bottomInset + 88.dp
+                bottom = if (largeText) Spacing.lg else bottomInset + 88.dp
             ),
             verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
@@ -285,7 +288,7 @@ fun BudgetRow(
             IconBadge(icon = categoryIcon(budget.category), tint = categoryTint(budget.category), size = 44.dp)
             Spacer(Modifier.width(Spacing.md))
             Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                WrapRow(horizontalSpacing = Spacing.sm, verticalSpacing = Spacing.xs) {
                     Text(
                         text = budget.category.replaceFirstChar { it.uppercase() },
                         style = MaterialTheme.typography.titleMedium,
@@ -315,23 +318,23 @@ fun BudgetRow(
         GlassProgressBar(fraction = progressFraction, color = barColor, modifier = Modifier.padding(end = Spacing.md))
         Spacer(modifier = Modifier.height(Spacing.sm))
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(end = Spacing.md),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "$currencySymbol${String.format(Locale.getDefault(), "%,.2f", spent)} spent",
-                style = MaterialTheme.typography.bodySmall.money(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "Limit $currencySymbol${String.format("%,.0f", budget.limitAmount)}",
-                style = MaterialTheme.typography.labelLarge.money(),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
+        LabelValueRow(
+            modifier = Modifier.padding(end = Spacing.md),
+            label = {
+                Text(
+                    text = "$currencySymbol${String.format(Locale.getDefault(), "%,.2f", spent)} spent",
+                    style = MaterialTheme.typography.bodySmall.money(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            value = {
+                Text(
+                    text = "Limit $currencySymbol${String.format("%,.0f", budget.limitAmount)}",
+                    style = MaterialTheme.typography.labelLarge.money(),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        )
 
         if (budget.remindersEnabled) {
             Spacer(modifier = Modifier.height(Spacing.sm))

@@ -8,7 +8,6 @@ import androidx.compose.ui.semantics.semantics
 import com.akshar.utils.launchFilePicker
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -46,6 +45,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -95,6 +96,7 @@ fun ToolsScreen(
     val confirmDelete = rememberConfirmDeleteState()
     ConfirmDeleteDialog(confirmDelete)
     val context = LocalContext.current
+    val feedback = LocalAppFeedback.current
     val clipboardManager = LocalClipboardManager.current
 
     val dbFilePickerLauncher = rememberLauncherForActivityResult(
@@ -103,7 +105,7 @@ fun ToolsScreen(
             if (uri != null) {
                 viewModel.restoreDatabaseFromDbFile(context, uri)
             } else {
-                Toast.makeText(context, "No backup file selected", Toast.LENGTH_SHORT).show()
+                feedback?.show("No backup file selected")
             }
         }
     )
@@ -124,10 +126,9 @@ fun ToolsScreen(
     var showReportDetailType by remember { mutableStateOf<String?>(null) } // "DAILY", "WEEKLY", "MONTHLY", "YEARLY"
     var restoreJsonInput by remember { mutableStateOf("") }
 
-    // Backup status toasts
     LaunchedEffect(backupStatus) {
         if (backupStatus.isNotEmpty()) {
-            Toast.makeText(context, backupStatus, Toast.LENGTH_LONG).show()
+            feedback?.show(backupStatus, SnackbarDuration.Long)
             viewModel.clearBackupStatus()
         }
     }
@@ -278,6 +279,10 @@ fun ToolsScreen(
 
                     var pinChangeInput by remember { mutableStateOf("") }
                     var confirmPinInput by remember { mutableStateOf("") }
+                    var validatePasscode by remember { mutableStateOf(false) }
+                    val invalidPasscodeLength = validatePasscode && pinChangeInput.length != 4
+                    val passcodesMismatch = validatePasscode && !invalidPasscodeLength &&
+                        pinChangeInput != confirmPinInput
 
                     Column(
                         modifier = Modifier
@@ -343,7 +348,7 @@ fun ToolsScreen(
                                         onCheckedChange = { checked ->
                                             vaultEnabled = checked
                                             appLock.setEnabled(checked)
-                                            Toast.makeText(context, if (checked) "App lock on" else "App lock off", Toast.LENGTH_SHORT).show()
+                                            feedback?.show(if (checked) "App lock on" else "App lock off")
                                         }
                                     )
                                 }
@@ -365,7 +370,7 @@ fun ToolsScreen(
                                         onCheckedChange = { checked ->
                                             vaultBiometrics = checked
                                             appLock.setBiometrics(checked)
-                                            Toast.makeText(context, if (checked) "Fingerprint unlock on" else "Fingerprint unlock off", Toast.LENGTH_SHORT).show()
+                                            feedback?.show(if (checked) "Fingerprint unlock on" else "Fingerprint unlock off")
                                         }
                                     )
                                 }
@@ -399,6 +404,10 @@ fun ToolsScreen(
                                         },
                                         label = { Text("New 4-digit passcode") },
                                         placeholder = { Text("Enter 4 numbers") },
+                                        isError = invalidPasscodeLength,
+                                        supportingText = if (invalidPasscodeLength) {
+                                            { Text("The passcode must be 4 digits") }
+                                        } else null,
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         modifier = Modifier.fillMaxWidth(),
                                         singleLine = true
@@ -414,6 +423,10 @@ fun ToolsScreen(
                                         },
                                         label = { Text("Confirm new passcode") },
                                         placeholder = { Text("Re-enter 4 numbers") },
+                                        isError = passcodesMismatch,
+                                        supportingText = if (passcodesMismatch) {
+                                            { Text("The passcodes don't match") }
+                                        } else null,
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         modifier = Modifier.fillMaxWidth(),
                                         singleLine = true
@@ -421,17 +434,16 @@ fun ToolsScreen(
 
                                     Button(
                                         onClick = {
-                                            if (pinChangeInput.length != 4) {
-                                                Toast.makeText(context, "The passcode must be 4 digits", Toast.LENGTH_SHORT).show()
-                                            } else if (pinChangeInput != confirmPinInput) {
-                                                Toast.makeText(context, "The passcodes don't match", Toast.LENGTH_SHORT).show()
-                                            } else {
+                                            if (pinChangeInput.length == 4 && pinChangeInput == confirmPinInput) {
                                                 appLock.setPin(pinChangeInput)
                                                 hasPin = true
                                                 vaultEnabled = true
                                                 pinChangeInput = ""
                                                 confirmPinInput = ""
-                                                Toast.makeText(context, "Passcode saved. App lock is on.", Toast.LENGTH_SHORT).show()
+                                                validatePasscode = false
+                                                feedback?.show("Passcode saved. App lock is on.")
+                                            } else {
+                                                validatePasscode = true
                                             }
                                         },
                                         modifier = Modifier
@@ -453,6 +465,7 @@ fun ToolsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
                             .padding(horizontal = Spacing.gutter, vertical = Spacing.lg),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
@@ -607,7 +620,9 @@ fun ToolsScreen(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Button(
                                     onClick = {
-                                        dbFilePickerLauncher.launchFilePicker(context, "application/octet-stream")
+                                        dbFilePickerLauncher.launchFilePicker("application/octet-stream") {
+                                            feedback?.show(it, SnackbarDuration.Long)
+                                        }
                                     },
                                     modifier = Modifier.fillMaxWidth().height(50.dp),
                                     colors = ButtonDefaults.buttonColors(
@@ -1028,7 +1043,7 @@ fun ToolsScreen(
                 Button(
                     onClick = {
                         clipboardManager.setText(AnnotatedString(compileReportString))
-                        Toast.makeText(context, "Report CSV copied as Text!", Toast.LENGTH_SHORT).show()
+                        feedback?.show("Report CSV copied")
                         showReportDetailType = null
                     }
                 ) {
@@ -1045,6 +1060,8 @@ fun ToolsScreen(
         )
     }
 }
+
+internal const val MoreToolTagPrefix = "more-tool-"
 
 private data class MoreTool(
     val id: String,
@@ -1073,6 +1090,7 @@ private val moreTools = listOf(
 
 @Composable
 private fun MoreHub(bottomInset: Dp, onOpen: (String) -> Unit) {
+    val largeText = LocalDensity.current.fontScale >= 1.5f
     val tints = listOf(
         MaterialTheme.colorScheme.tertiary,
         AkSpendTheme.finance.info,
@@ -1084,7 +1102,7 @@ private fun MoreHub(bottomInset: Dp, onOpen: (String) -> Unit) {
     val featured = moreTools.take(2)
     val rest = moreTools.drop(2)
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 160.dp),
+        columns = GridCells.Adaptive(minSize = if (largeText) 280.dp else 160.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = Spacing.gutter, end = Spacing.gutter, bottom = bottomInset + Spacing.lg),
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),
@@ -1099,27 +1117,7 @@ private fun MoreHub(bottomInset: Dp, onOpen: (String) -> Unit) {
         }
         featured.forEachIndexed { index, tool ->
             item(span = { GridItemSpan(maxLineSpan) }) {
-                GlassCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { onOpen(tool.id) },
-                    onClickLabel = "Open ${tool.title}",
-                    fill = AkSpendTheme.glass.fillStrong,
-                    contentPadding = PaddingValues(Spacing.lg)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconBadge(icon = tool.icon, tint = tints[index], size = 48.dp)
-                        Spacer(Modifier.width(Spacing.md))
-                        Column(Modifier.weight(1f)) {
-                            Text(tool.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Text(tool.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Icon(
-                            Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                MoreToolRow(tool = tool, tint = tints[index], onClick = { onOpen(tool.id) })
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
@@ -1127,19 +1125,51 @@ private fun MoreHub(bottomInset: Dp, onOpen: (String) -> Unit) {
         }
         rest.forEachIndexed { index, tool ->
             item {
-                GlassCard(
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 132.dp),
-                    onClick = { onOpen(tool.id) },
-                    onClickLabel = "Open ${tool.title}",
-                    contentPadding = PaddingValues(Spacing.lg)
-                ) {
-                    IconBadge(icon = tool.icon, tint = tints[(index + 2) % tints.size], size = 40.dp)
-                    Spacer(Modifier.height(Spacing.md))
-                    Text(tool.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-                    Spacer(Modifier.height(Spacing.xxs))
-                    Text(tool.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val tint = tints[(index + 2) % tints.size]
+                if (largeText) {
+                    MoreToolRow(tool = tool, tint = tint, onClick = { onOpen(tool.id) })
+                } else {
+                    GlassCard(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 132.dp).testTag(MoreToolTagPrefix + tool.id),
+                        onClick = { onOpen(tool.id) },
+                        onClickLabel = "Open ${tool.title}",
+                        contentPadding = PaddingValues(Spacing.lg)
+                    ) {
+                        IconBadge(icon = tool.icon, tint = tint, size = 40.dp)
+                        Spacer(Modifier.height(Spacing.md))
+                        Text(tool.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                        Spacer(Modifier.height(Spacing.xxs))
+                        Text(tool.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MoreToolRow(tool: MoreTool, tint: Color, onClick: () -> Unit) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth().testTag(MoreToolTagPrefix + tool.id),
+        onClick = onClick,
+        onClickLabel = "Open ${tool.title}",
+        fill = AkSpendTheme.glass.fillStrong,
+        contentPadding = PaddingValues(Spacing.lg)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            IconBadge(icon = tool.icon, tint = tint, size = 48.dp)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                Text(tool.title, style = MaterialTheme.typography.titleMedium)
+                Text(tool.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(
+                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -1353,8 +1383,10 @@ fun AddDebtDialog(
     var amountText by remember { mutableStateOf("") }
     var type by remember { mutableStateOf("LENT") } // "LENT" or "BORROWED"
     var description by remember { mutableStateOf("") }
-    
-    val context = LocalContext.current
+    var validateFields by remember { mutableStateOf(false) }
+    val amount = com.akshar.utils.MoneyUtils.parseAmount(amountText)
+    val nameMissing = validateFields && personName.isBlank()
+    val invalidAmount = validateFields && (amount == null || amount <= 0.0)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1362,7 +1394,7 @@ fun AddDebtDialog(
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
             ) {
                 // Type Choice
                 Row(
@@ -1404,6 +1436,8 @@ fun AddDebtDialog(
                     onValueChange = { personName = it },
                     label = { Text("Person's name") },
                     placeholder = { Text("e.g. Riya") },
+                    isError = nameMissing,
+                    supportingText = if (nameMissing) { { Text("Please enter a name") } } else null,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1415,6 +1449,10 @@ fun AddDebtDialog(
                     onValueChange = { amountText = it },
                     label = { Text("Amount ($currencySymbol)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = invalidAmount,
+                    supportingText = if (invalidAmount) {
+                        { Text("Please enter a valid positive amount") }
+                    } else null,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1433,20 +1471,17 @@ fun AddDebtDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val amtVal = com.akshar.utils.MoneyUtils.parseAmount(amountText)
-                    if (personName.isBlank()) {
-                        Toast.makeText(context, "Please enter a name", Toast.LENGTH_SHORT).show()
-                    } else if (amtVal == null || amtVal <= 0.0) {
-                        Toast.makeText(context, "Please enter a valid positive amount", Toast.LENGTH_SHORT).show()
-                    } else {
+                    if (personName.isNotBlank() && amount != null && amount > 0.0) {
                         onConfirm(
                             personName.trim(),
-                            amtVal,
+                            amount,
                             type,
                             description.trim(),
                             System.currentTimeMillis(),
                             null
                         )
+                    } else {
+                        validateFields = true
                     }
                 }
             ) {

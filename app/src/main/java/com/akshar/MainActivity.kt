@@ -74,7 +74,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import com.akshar.ui.components.AppFeedback
 import com.akshar.ui.components.IconBadge
+import com.akshar.ui.components.LocalAppFeedback
 import com.akshar.ui.components.LocalFloatingBarInset
 import com.akshar.ui.components.motionSpec
 import com.akshar.ui.theme.Durations
@@ -454,6 +456,8 @@ private val primaryTabs = listOf(
 @Composable
 fun AppScaffold(viewModel: FinanceViewModel) {
     val navController = rememberNavController()
+    val feedbackScope = rememberCoroutineScope()
+    val feedback = remember(feedbackScope) { AppFeedback(feedbackScope) }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val tabs = primaryTabs
@@ -523,7 +527,10 @@ fun AppScaffold(viewModel: FinanceViewModel) {
                         modifier = Modifier.weight(1f).fillMaxHeight().windowInsetsPadding(contentInsets).imePadding(),
                         contentAlignment = Alignment.TopCenter
                     ) {
-                        CompositionLocalProvider(LocalFloatingBarInset provides barInset) {
+                        CompositionLocalProvider(
+                            LocalFloatingBarInset provides barInset,
+                            LocalAppFeedback provides feedback,
+                        ) {
                             AppNavGraph(
                                 navController = navController,
                                 viewModel = viewModel,
@@ -551,6 +558,21 @@ fun AppScaffold(viewModel: FinanceViewModel) {
                         blurState = blurState
                     )
                 }
+            }
+            val feedbackInsets = WindowInsets.safeDrawing
+                .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
+                .union(WindowInsets.ime)
+                .union(WindowInsets(bottom = barInset))
+            SnackbarHost(
+                hostState = feedback.hostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(feedbackInsets)
+                    .widthIn(max = 480.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+            ) { data ->
+                Snackbar(snackbarData = data, shape = MaterialTheme.shapes.medium)
             }
         }
     }

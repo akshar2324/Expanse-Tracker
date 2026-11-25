@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -140,6 +141,7 @@ internal fun accountIcon(type: String): ImageVector = when (type.lowercase()) {
 @Composable
 fun AccountCard(account: Account, balance: Double, onClick: () -> Unit, currencySymbol: String = "₹") {
     val balanceText = "$currencySymbol${String.format("%,.2f", balance)}"
+    val stackBalance = LocalDensity.current.fontScale >= 1.5f
     GlassListRow(
         title = account.name,
         subtitle = account.type,
@@ -147,8 +149,13 @@ fun AccountCard(account: Account, balance: Double, onClick: () -> Unit, currency
             contentDescription = "${account.name}, ${account.type}, balance $balanceText"
         },
         leading = { IconBadge(icon = accountIcon(account.type), tint = MaterialTheme.colorScheme.primary, size = 44.dp) },
+        stackTrailing = stackBalance,
         trailing = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = if (stackBalance) Modifier.fillMaxWidth() else Modifier,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = balanceText,
                     style = MaterialTheme.typography.titleSmall.money(),

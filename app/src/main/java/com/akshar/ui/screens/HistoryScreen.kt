@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import com.akshar.ui.components.*
 import com.akshar.ui.theme.*
 import androidx.compose.material3.*
@@ -144,7 +145,7 @@ fun HistoryScreen(
                 OutlinedTextField(
                     value = filter.query,
                     onValueChange = activityViewModel::setQuery,
-                    placeholder = { Text("Search description, category or payment") },
+                    placeholder = { Text("Search transactions", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                     trailingIcon = {
                         if (filter.query.isNotEmpty()) {
@@ -356,7 +357,7 @@ private fun FiltersPanel(
             }
 
             FilterGroupLabel("Date range")
-            ChipFlow {
+            WrapRow(horizontalSpacing = Spacing.md, verticalSpacing = Spacing.md) {
                 listOf(DatePreset.ALL_TIME, DatePreset.THIS_MONTH, DatePreset.LAST_MONTH, DatePreset.LAST_30_DAYS, DatePreset.LAST_7_DAYS, DatePreset.THIS_YEAR).forEach { preset ->
                     GlassFilterChip(
                         label = when (preset) {
