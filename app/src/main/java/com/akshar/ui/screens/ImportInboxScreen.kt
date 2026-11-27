@@ -66,6 +66,9 @@ fun ImportInboxScreen(
     val pending by viewModel.pending.collectAsStateWithLifecycle()
     var hasAccess by remember { mutableStateOf(AutoImportSettings.hasAccess(context)) }
     var enabled by remember { mutableStateOf(AutoImportSettings.isEnabled(context)) }
+    var sourceStates by remember {
+        mutableStateOf(AutoImportSettings.sources.mapValues { (pkg, _) -> AutoImportSettings.isSourceEnabled(context, pkg) })
+    }
     val confirm = rememberConfirmDeleteState()
 
     // The grant happens in system settings; re-check whenever the user comes back.
@@ -73,6 +76,8 @@ fun ImportInboxScreen(
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             hasAccess = AutoImportSettings.hasAccess(context)
+            enabled = AutoImportSettings.isEnabled(context)
+            sourceStates = AutoImportSettings.sources.mapValues { (pkg, _) -> AutoImportSettings.isSourceEnabled(context, pkg) }
         }
     }
 
@@ -117,7 +122,12 @@ fun ImportInboxScreen(
                     onToggle = {
                         enabled = it
                         AutoImportSettings.setEnabled(context, it)
-                    }
+                    },
+                    sourceStates = sourceStates,
+                    onSourceToggle = { pkg, selected ->
+                        AutoImportSettings.setSourceEnabled(context, pkg, selected)
+                        sourceStates = sourceStates + (pkg to selected)
+                    },
                 )
             }
             if (pending.isEmpty()) {
@@ -150,7 +160,10 @@ private fun AutoImportSetupCard(
     enabled: Boolean,
     onGrant: () -> Unit,
     onToggle: (Boolean) -> Unit,
+    sourceStates: Map<String, Boolean>,
+    onSourceToggle: (String, Boolean) -> Unit,
 ) {
+    var showSources by remember { mutableStateOf(false) }
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(Spacing.lg),
@@ -166,25 +179,60 @@ private fun AutoImportSetupCard(
                 Text(
                     "AkSpend can read payment notifications from your messages, bank and UPI apps and " +
                         "list them here for you to confirm. It only looks at those apps, keeps no message " +
-                        "text, and nothing leaves your phone.",
+                        "text, and nothing leaves your phone. After granting access, use the switch here to enable or pause capture.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Button(onClick = onGrant, modifier = Modifier.fillMaxWidth()) { Text("Allow notification access") }
             }
-            else -> Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Auto-import", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        if (enabled) "On. Watching messages, bank and UPI apps." else "Paused. Nothing new is picked up.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            else -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Auto-import", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            if (enabled) "On. Selected sources send payments here for review." else "Paused. Nothing new is picked up. Existing drafts stay here.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = enabled,
+                        onCheckedChange = onToggle,
+                        modifier = Modifier.semantics { contentDescription = "Auto-import" }
                     )
                 }
-                Switch(
-                    checked = enabled,
-                    onCheckedChange = onToggle,
-                    modifier = Modifier.semantics { contentDescription = "Auto-import" }
+                TextButton(onClick = { showSources = !showSources }) {
+                    Text(if (showSources) "Hide sources" else "Choose notification sources")
+                }
+                if (showSources) {
+                    AutoImportSettings.sources.forEach { (pkg, name) ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(name, modifier = Modifier.weight(1f))
+                            Switch(
+                                checked = sourceStates[pkg] == true,
+                                onCheckedChange = { onSourceToggle(pkg, it) },
+                                modifier = Modifier.semantics { contentDescription = "Capture from $name" },
+                            )
+                        }
+                    }
+                }
+                TextButton(onClick = onGrant) { Text("Notification access settings") }
+            }
+        }
+        if (supported) {
+            Text(
+                "Capture leaves original notifications in place and does not mark messages as read or change " +
+                    "notification sounds or Do Not Disturb. Removing a draft only removes it from AkSpend.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (hasAccess) {
+                Text(
+                    "Watch alerts missing? Pause capture and turn off AkSpend in notification access settings " +
+                        "while checking your watch companion app. Pausing here does not revoke Android access. " +
+                        "You can still share a bank SMS or add payments manually.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

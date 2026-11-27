@@ -10,6 +10,7 @@ import io.mockk.unmockkAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Before
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,6 +25,7 @@ class NotificationPrivacyAuditTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val sentinel = "PRIVATE_SENTINEL_6e4c"
     private val text = "Sent Rs.232.00 From HDFC Bank A/C *4821 To SWIGGY On 14/10/26 Ref 629100004321 $sentinel"
+    @Before fun enableCapture() { AutoImportSettings.setEnabled(context, true) }
     private fun notification(): StatusBarNotification {
         val n = Notification.Builder(context, "audit").setContentTitle("JD-HDFCBK-S").setContentText(text).build()
         return StatusBarNotification("com.google.android.apps.messaging", "com.google.android.apps.messaging", 7, null, 1000, 0, 0, n, android.os.Process.myUserHandle(), System.currentTimeMillis())

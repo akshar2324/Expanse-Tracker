@@ -81,7 +81,12 @@ object AutoImportCapture {
             accountTail = draft.accountTail,
             source = sourceName(packageName),
             receivedAt = postedAt,
-            dedupeKey = dedupeKey(packageName, body),
+            // A bank alert and a payment-app alert can describe the same transfer. Prefer
+            // the parser's direction-scoped reference over their different wording.
+            // A reused/misparsed reference with a different amount must remain reviewable.
+            dedupeKey = draft.referenceKey?.let { dedupeKey("reference", "$it|${draft.amount}") }
+                ?: dedupeKey(packageName, body),
+            referenceKey = draft.referenceKey,
         )
     }
 
@@ -103,11 +108,34 @@ object AutoImportSettings {
     private const val KEY_ENABLED = "enabled"
 
     fun isEnabled(context: Context): Boolean =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_ENABLED, true)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_ENABLED, false)
 
     fun setEnabled(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_ENABLED, enabled).apply()
     }
+
+    fun isSourceEnabled(context: Context, packageName: String): Boolean =
+        AutoImportCapture.isWatched(packageName) &&
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("source:$packageName", true)
+
+    fun setSourceEnabled(context: Context, packageName: String, enabled: Boolean) {
+        require(AutoImportCapture.isWatched(packageName))
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean("source:$packageName", enabled).apply()
+    }
+
+    fun canCapture(context: Context, packageName: String): Boolean =
+        isEnabled(context) && isSourceEnabled(context, packageName)
+
+    val sources: Map<String, String>
+        get() = AutoImportCapture.messagingApps.mapValues { (pkg, name) ->
+            when (pkg) {
+                "com.google.android.apps.messaging" -> "Google Messages"
+                "com.android.mms" -> "Android Messages"
+                "com.oneplus.mms" -> "OnePlus Messages"
+                else -> name
+            }
+        } + AutoImportCapture.paymentApps
 
     /** True when the user granted this app notification access in system settings. */
     fun hasAccess(context: Context): Boolean =

@@ -6,7 +6,7 @@ AkSpend is designed from the ground up with privacy and data ownership as its co
 
 - All core financial data, including accounts, transactions, and categories, is stored exclusively on your device using a local Room (SQLite) database.
 - App lock settings are kept in private SharedPreferences (`vault_settings.xml`). The passcode is stored only as a salted PBKDF2 hash, never as text, and there is no default passcode.
-- Auto-import from notifications is optional and off until the user grants notification access. It keeps the parsed payment fields and a one-way fingerprint, never the message text, and drops unreviewed items after 60 days.
+- Auto-import from notifications is optional. Capture defaults to paused until explicitly enabled, even after notification access is granted; a previously saved on/off choice is preserved. Users can exclude individual supported source apps. It keeps parsed payment fields and one-way fingerprints, never message text, and drops unreviewed items after 60 days. It leaves original notifications and message read state untouched and does not change sounds, Do Not Disturb, or watch-companion settings. Pausing capture does not revoke Android notification access; that is managed separately in system settings.
 - We explicitly disable Android Auto Backup for sensitive app data to ensure that your financial information does not get silently uploaded to cloud servers without your explicit consent.
 
 ## No Telemetry, Analytics, or Backend

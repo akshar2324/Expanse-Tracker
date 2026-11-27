@@ -29,6 +29,18 @@ class AutoImportCaptureTest {
         assertEquals("Messages", item.source)
         assertTrue(item.confident)
         assertEquals(now, item.receivedAt)
+        assertNotNull(item.referenceKey)
+        assertEquals(item.referenceKey, item.toDraft().referenceKey)
+        assertEquals(64, item.dedupeKey.length)
+    }
+
+    @Test
+    fun sameReferenceAcrossSources_isOneDraft_butDifferentPaymentsStayDistinct() {
+        val sms = capture(messages, "JD-HDFCBK-S", hdfcSms)!!
+        val app = capture(gpay, "Paid", hdfcSms)!!
+        assertEquals(sms.dedupeKey, app.dedupeKey)
+        assertNotEquals(sms.dedupeKey, capture(messages, "JD-HDFCBK-S", hdfcSms.replace("629100004321", "629100004322"))!!.dedupeKey)
+        assertNotEquals(sms.dedupeKey, capture(messages, "JD-HDFCBK-S", hdfcSms.replace("232.00", "233.00"))!!.dedupeKey)
     }
 
     @Test

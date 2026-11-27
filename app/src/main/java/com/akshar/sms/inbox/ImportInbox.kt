@@ -11,6 +11,8 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.akshar.sms.SmsDraft
 import kotlinx.coroutines.flow.Flow
 
@@ -35,6 +37,8 @@ data class PendingImport(
     val source: String,
     val receivedAt: Long,
     val dedupeKey: String,
+    /** Direction-scoped bank reference hash, never raw notification text. */
+    val referenceKey: String? = null,
 ) {
     fun toDraft() = SmsDraft(
         amount = amount,
@@ -45,6 +49,7 @@ data class PendingImport(
         paymentMethod = paymentMethod,
         confident = confident,
         accountTail = accountTail,
+        referenceKey = referenceKey,
     )
 }
 
@@ -74,7 +79,13 @@ interface PendingImportDao {
  * Kept apart from the main finance database: these rows are short-lived drafts, they are not
  * part of backups, and the main schema doesn't need a migration for them.
  */
-@Database(entities = [PendingImport::class], version = 1, exportSchema = false)
+val INBOX_MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE pending_imports ADD COLUMN referenceKey TEXT DEFAULT NULL")
+    }
+}
+
+@Database(entities = [PendingImport::class], version = 2, exportSchema = false)
 abstract class ImportInboxDatabase : RoomDatabase() {
     abstract fun pendingImportDao(): PendingImportDao
 
@@ -84,7 +95,7 @@ abstract class ImportInboxDatabase : RoomDatabase() {
         fun getInstance(context: Context): ImportInboxDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(context.applicationContext, ImportInboxDatabase::class.java, "import_inbox_db")
-                    .fallbackToDestructiveMigration(dropAllTables = true)
+                    .addMigrations(INBOX_MIGRATION_1_2)
                     .build()
                     .also { INSTANCE = it }
             }

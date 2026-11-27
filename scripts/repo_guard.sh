@@ -34,5 +34,11 @@ for f in $build_files; do
     fi
 done
 
+# Payment capture is a passive observer, never a notification manager or watch bridge.
+if grep -REn '(^|[^[:alnum:]_])(cancelNotification|cancelNotifications|cancelAllNotifications|snoozeNotification|requestListenerHints|requestInterruptionFilter|setInterruptionFilter|setNotificationsShown|updateNotificationChannel|migrateNotificationFilter)[[:space:]]*\(|\.(contentIntent|deleteIntent|fullScreenIntent|actionIntent)([^[:alnum:]_]|$)' app/src/main/java/com/akshar/sms/inbox; then
+    echo "ERROR: Notification capture must not dismiss, act on, or change delivery of notifications."
+    exit 1
+fi
+
 echo "Repository guard passed."
 exit 0

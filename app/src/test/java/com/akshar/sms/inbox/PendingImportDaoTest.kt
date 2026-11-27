@@ -1,6 +1,7 @@
 package com.akshar.sms.inbox
 
 import androidx.room.Room
+import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -52,5 +53,41 @@ class PendingImportDaoTest {
         assertEquals(listOf("new", "old"), dao.observeAll().first().map { it.dedupeKey })
         dao.deleteOlderThan(1_000L)
         assertEquals(listOf("new"), dao.observeAll().first().map { it.dedupeKey })
+    }
+
+    @Test
+    fun upgradePreservesExistingDraftsAndNewReferenceSurvivesReopen() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val name = "inbox-migration-test"
+        context.deleteDatabase(name)
+        context.openOrCreateDatabase(name, Context.MODE_PRIVATE, null).use { legacy ->
+            legacy.execSQL("""CREATE TABLE pending_imports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, amount TEXT NOT NULL,
+                isExpense INTEGER NOT NULL, description TEXT NOT NULL, dateMillis INTEGER NOT NULL,
+                category TEXT NOT NULL, paymentMethod TEXT, confident INTEGER NOT NULL,
+                accountTail TEXT, source TEXT NOT NULL, receivedAt INTEGER NOT NULL, dedupeKey TEXT NOT NULL)""")
+            legacy.execSQL("CREATE UNIQUE INDEX index_pending_imports_dedupeKey ON pending_imports(dedupeKey)")
+            legacy.execSQL("""INSERT INTO pending_imports VALUES
+                (1, '10.00', 1, 'Shop', 1000, 'Other', NULL, 1, NULL, 'Messages', 1000, 'old')""")
+            legacy.version = 1
+        }
+        fun open() = Room.databaseBuilder(context, ImportInboxDatabase::class.java, name)
+            .addMigrations(INBOX_MIGRATION_1_2).allowMainThreadQueries().build()
+        try {
+            val migrated = open()
+            try {
+                val old = migrated.pendingImportDao().observeAll().first().single()
+                assertEquals("old", old.dedupeKey)
+                assertEquals(null, old.referenceKey)
+                migrated.pendingImportDao().insert(item("new").copy(referenceKey = "ref:synthetic"))
+            } finally { migrated.close() }
+            val reopened = open()
+            try {
+                val rows = reopened.pendingImportDao().observeAll().first()
+                assertEquals(2, rows.size)
+                assertEquals("ref:synthetic", rows.first { it.dedupeKey == "new" }.toDraft().referenceKey)
+            } finally { reopened.close() }
+        } finally { context.deleteDatabase(name) }
+        Unit
     }
 }
