@@ -1,0 +1,122 @@
+id,fictional_day,event,app_or_surface,payment_method,account_changes_INR,net_expense_INR,income_INR,category,note
+E001,1,Salary credited,Bank app,Bank credit,Salary bank: +50000.00,0.00,50000.00,Salary,Net take-home; no invented gross-pay or tax calculation.
+E002,1,Monthly rent,PhonePe,Bank-funded UPI,Salary bank: -12000.00,12000.00,0.00,Housing,Own rent only; no refundable deposit included.
+E003,1,Load UPI Lite,Google Pay,Lite top-up,Salary bank: -500.00; UPI Lite: +500.00,0.00,0.00,Transfer,
+E004,1,Load transit wallet,Transit app / station,Wallet top-up,Salary bank: -500.00; Transit wallet: +500.00,0.00,0.00,Transfer,
+E005,1,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E006,2,Family support outside tracked household,Google Pay,Bank-funded UPI,Salary bank: -3000.00,3000.00,0.00,Family support,"If the recipient belongs to the same tracked household, use an internal transfer instead."
+E007,2,Groceries at kirana,PhonePe,Bank-funded UPI,Salary bank: -1450.00,1450.00,0.00,Groceries,
+E008,2,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E009,2,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E010,2,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E011,3,Pay previous card statement,Issuer / bank app,Card repayment,Salary bank: -6000.00; Credit card: +6000.00,0.00,0.00,Transfer,Pays opening debt; not this month's expense.
+E012,3,Electricity bill,Bill payment app,Bank-funded payment,Salary bank: -950.00,950.00,0.00,Utilities,
+E013,3,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E014,3,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E015,3,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E016,4,Broadband bill,Provider app,Bank-funded payment,Salary bank: -699.00,699.00,0.00,Utilities,
+E017,4,Move money to second bank,Bank app,Transfer,Salary bank: -2000.00; Second bank: +2000.00,0.00,0.00,Transfer,
+E018,4,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E019,4,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E020,4,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E021,5,Mobile recharge,Telecom app,Bank-funded payment,Salary bank: -299.00,299.00,0.00,Communication,
+E022,5,Online clothes order,Shopping app,Credit card,Credit card: -2400.00,2400.00,0.00,Shopping,Record posted purchase; merchant order alone is not proof of debit.
+E023,5,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E024,5,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E025,5,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E026,6,Vegetables,None,Cash,Cash: -280.00,280.00,0.00,Groceries,
+E027,6,Auto-rickshaw,None,Cash,Cash: -100.00,100.00,0.00,Transport,
+E028,6,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E029,6,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E030,6,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E031,7,Food delivery,Food delivery app,Credit card,Credit card: -320.00,320.00,0.00,Food,
+E032,7,Medicine from local pharmacy,PhonePe,RuPay credit-funded UPI,Credit card: -450.00,450.00,0.00,Health,Fictional eligible card/merchant; account remains Credit card.
+E033,7,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E034,8,Withdraw cash,ATM,Cash withdrawal,Salary bank: -1500.00; Cash: +1500.00,0.00,0.00,Transfer,
+E035,8,ATM fee as actually charged,Bank app,Bank debit,Salary bank: -23.60,23.60,0.00,Fees,"Illustrative booked charge, not an assertion of the applicable tariff."
+E036,8,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E037,9,Haircut,None,Cash,Cash: -200.00,200.00,0.00,Personal care,
+E038,9,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E039,9,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E040,9,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E041,10,Subscription renewal,Streaming app,Card recurring charge,Credit card: -149.00,149.00,0.00,Entertainment,Only confirmed charge posts; reminder alone does not.
+E042,10,Replenish UPI Lite,Google Pay,Lite top-up,Salary bank: -500.00; UPI Lite: +500.00,0.00,0.00,Transfer,
+E043,10,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E044,10,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E045,10,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E046,11,Partial return from clothes order,Shopping / issuer app,Card refund,Credit card: +800.00,-800.00,0.00,Shopping,"Link to day 5 order. Actual refund, not just refund-request status."
+E047,11,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E048,11,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E049,11,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E050,12,Groceries by debit card,None / merchant terminal,Debit card,Salary bank: -980.00,980.00,0.00,Groceries,Debit card uses the same bank balance.
+E051,12,Dinner paid for three people,Google Pay,Bank-funded UPI,Salary bank: -1800.00; Friend receivable: +1200.00,600.00,0.00,Food,Own share 600; friends owe 1200. Cash outflow is 1800.
+E052,12,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E053,12,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E054,12,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E055,13,Friend repays first part,PhonePe,UPI settlement,Friend receivable: -800.00; Salary bank: +800.00,0.00,0.00,Transfer,Remaining receivable 400; not income.
+E056,13,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E057,13,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E058,13,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E059,14,Bus fare,None,Cash,Cash: -30.00,30.00,0.00,Transport,
+E060,14,Load FASTag,Issuer / bank app,Wallet top-up,Salary bank: -500.00; FASTag: +500.00,0.00,0.00,Transfer,
+E061,14,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E062,15,Toll deduction,Issuer alert,FASTag,FASTag: -180.00,180.00,0.00,Transport,
+E063,15,Loan EMI posted,Lender / bank app,NACH debit,Salary bank: -2500.00; Loan: +2000.00,500.00,0.00,Interest and fees,"Illustrative confirmed lender split: principal 2000, interest/fees 500; full cash outflow 2500."
+E064,15,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E065,16,Pending debit without merchant success,PhonePe,Pending UPI,Salary bank: -500.00; Pending recovery: +500.00,0.00,0.00,Transfer,Assume an actual bank debit and no completed purchase. Not spendable cash or expense yet.
+E066,16,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E067,16,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E068,16,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E069,17,Failed debit reversed,Bank app,Reversal,Pending recovery: -500.00; Salary bank: +500.00,0.00,0.00,Transfer,Links to day 16; do not classify reversal as salary/refund income.
+E070,17,Load prepaid wallet,Wallet app,Wallet top-up,Salary bank: -400.00; Prepaid wallet: +400.00,0.00,0.00,Transfer,
+E071,17,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E072,17,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E073,17,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E074,18,Wallet-funded purchase,Wallet app,Prepaid wallet,Prepaid wallet: -250.00,250.00,0.00,Shopping,
+E075,18,"Shoes, split cash and UPI",PhonePe,Bank-funded UPI,Salary bank: -1000.00,1000.00,0.00,Shopping,Same logical 1200 purchase as next row; split tender.
+E076,18,"Shoes, cash portion",None,Cash,Cash: -200.00,200.00,0.00,Shopping,Grouped with previous row; allocations sum to 1200.
+E077,18,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E078,18,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E079,18,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E080,19,Fuel,None / merchant terminal,Credit card,Credit card: -1000.00,1000.00,0.00,Transport,
+E081,19,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E082,19,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E083,19,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E084,20,Replenish UPI Lite,Google Pay,Lite top-up,Salary bank: -500.00; UPI Lite: +500.00,0.00,0.00,Transfer,
+E085,20,Investment contribution at cost,Investment app,Bank-funded transfer,Salary bank: -3000.00; Investments: +3000.00,0.00,0.00,Transfer,"Asset contribution; no assumed gain, market value, or financial recommendation."
+E086,20,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E087,20,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E088,20,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E089,21,Household repair,Google Pay,Bank-funded UPI,Salary bank: -650.00,650.00,0.00,Household,
+E090,21,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E091,22,Cinema,Ticketing app,Credit card,Credit card: -400.00,400.00,0.00,Entertainment,
+E092,22,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E093,23,Clinic consultation,PhonePe,Bank-funded UPI,Salary bank: -600.00,600.00,0.00,Health,
+E094,23,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E095,23,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E096,23,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E097,24,Travel booking,Travel app,Credit card,Credit card: -1200.00,1200.00,0.00,Travel,
+E098,24,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E099,24,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E100,24,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E101,25,Travel cancellation refund,Travel / issuer app,Card refund,Credit card: +1100.00,-1100.00,0.00,Travel,"100 cancellation cost remains; classify as cancellation fee if detail is available, without adding another 100 expense."
+E102,25,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E103,25,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E104,25,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E105,26,Groceries,Google Pay,Bank-funded UPI,Salary bank: -725.00,725.00,0.00,Groceries,
+E106,26,Cashback actually credited,Bank app,Bank credit,Salary bank: +50.00,0.00,50.00,Cashback,Income policy for independent cashback; merchant purchase rebates use linked refunds. Reward points/coins are not cash.
+E107,26,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E108,26,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E109,26,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E110,27,Refundable equipment deposit,PhonePe,Bank-funded UPI,Salary bank: -500.00; Refundable deposit: +500.00,0.00,0.00,Transfer,"Recoverable asset, not expense; record forfeiture only if it happens."
+E111,27,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E112,27,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E113,27,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
+E114,28,Festival / gift purchase,None,Cash,Cash: -700.00,700.00,0.00,Gifts,
+E115,28,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E116,29,Small donation,None,Cash,Cash: -100.00,100.00,0.00,Donation,
+E117,29,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E118,30,Personal items,Bank app,Debit card,Second bank: -350.00,350.00,0.00,Personal care,
+E119,30,Morning tea,Google Pay,UPI Lite,UPI Lite: -20.00,20.00,0.00,Food,Quick manual entry if no reliable individual notification is available.
+E120,30,Office lunch,PhonePe,Bank-funded UPI,Salary bank: -90.00,90.00,0.00,Food,
+E121,30,"Commute, daily return total",Transit gate,Transit wallet,Transit wallet: -40.00,40.00,0.00,Transport,Grouped two rides; no claim that all transit systems expose live history.
